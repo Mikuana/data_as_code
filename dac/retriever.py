@@ -6,9 +6,10 @@ from typing import Union
 from uuid import uuid4
 
 from dac.source import RetrievedFile
+from dac.other import Maker
 
 
-class Retriever:
+class Retriever(Maker):
     name: str = None
 
     def retrieve(self, target_dir: Union[Path, str]) -> RetrievedFile:

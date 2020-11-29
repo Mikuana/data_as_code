@@ -3,10 +3,10 @@ from uuid import uuid4
 from pathlib import Path
 import pandas as pd
 import re
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 from tqdm import tqdm
-from dac.source import Source, RemappedFile
-
+from dac.source import Source, RemappedFile, Descendent
+from dac.other import Maker
 
 class Handlers:
     """ Raw value handlers """
@@ -80,11 +80,10 @@ class Target(Field):
         return data_frame[cls.name()]
 
 
-class Mapper:
-    def __init__(self, source: Source, fields: Tuple[Union[SourceField, Target]]):
-        self.source = source
+class Mapper(Maker):
+    def __init__(self, lineage: List[str], fields: Tuple[Union[SourceField, Target]]):
+        super().__init__(lineage)
         self.fields = fields
-        self.guid = uuid4()
 
     def remap(self, target_dir: Union[Path, str]) -> RemappedFile:
         df = pd.DataFrame()
@@ -92,13 +91,12 @@ class Mapper:
 
 
 class FixedWidthMapper(Mapper):
-    def __init__(self, source: Source, fields: Tuple[Union[FixedWidthSource, Target]]):
-        super().__init__(source=source, fields=fields)
+    def __init__(self, lineage: List[str], fields: List[Union[FixedWidthSource, Target]]):
+        super().__init__(lineage, fields)
 
     def remap(self, target_dir: Union[Path, str], sample_size=0) -> RemappedFile:
         name = Path(self.source.name).with_suffix('.parquet')
         p = Path(target_dir, self.guid.hex + '.parquet')
-
 
         print(f"Counting rows in {self.source.file_path}")
         if sample_size:

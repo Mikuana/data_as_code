@@ -1,3 +1,4 @@
+import pytest
 from pathlib import Path
 from dac.source import Source
 
@@ -19,4 +20,5 @@ def test_3():
     s1 = Source('1', 'www.com', 'abc123', Path('x'))
     s2 = Source('2', s1, 'efg456', Path('y'))
     s3 = Source('3', s2, 'hij789', Path('z'))
-    assert s3.is_descendent('2', '3') is False
+    with pytest.raises(KeyError):
+        s3.is_descendent('2', '3')
