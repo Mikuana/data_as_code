@@ -1,4 +1,3 @@
-from typing import Union
 from dataclasses import dataclass
 
 from hashlib import sha256
@@ -24,23 +23,3 @@ class Source:
             else:
                 return False
         return True
-
-
-@dataclass
-class RetrievedFile(Source):
-    archived: bool
-
-
-@dataclass
-class UnpackedArchive(Source):
-    origin: RetrievedFile
-
-
-@dataclass
-class RemappedFile(Source):
-    origin: [RetrievedFile, UnpackedArchive]
-
-
-class Descendent:
-    def __init__(self, *args: str):
-        self.lineage = args

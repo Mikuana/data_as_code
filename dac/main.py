@@ -1,9 +1,7 @@
 from pathlib import Path
 from typing import Union, List
 
-from dac.archiver import Archiver
-from dac.mapper import Mapper
-from dac.retriever import Retriever
+from dac.worker import _Retriever, Unzip, _Parser
 from dac.source import Source
 
 
@@ -13,17 +11,17 @@ class Processor:
 
         self.sources: List[Source] = list()
 
-    def retrieve(self, *args: Retriever):
+    def retrieve(self, *args: _Retriever):
         for arg in args:
             self.sources.append(arg.retrieve(self.working_directory))
 
-    def unpack(self, *args: Archiver):
+    def unpack(self, *args: Unzip):
         for arg in args:
             arg.source_descendent(self.sources)
             for i in arg.unpack(self.working_directory):
                 self.sources.append(i)
 
-    def remap(self, *args: Mapper):
+    def remap(self, *args: _Parser):
         for arg in args:
             arg.source_descendent(self.sources)
             self.sources.append(arg.remap(self.working_directory))
