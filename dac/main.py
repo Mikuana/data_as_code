@@ -4,7 +4,7 @@ from typing import Union, List
 from dac.retriever import Retriever
 from dac.archiver import Archiver
 from dac.mapper import Mapper
-from dac.source import RetrievedFile, UnpackedArchive
+from dac.source import RetrievedFile, UnpackedArchive, RemappedFile
 
 
 class Processor:
@@ -13,7 +13,7 @@ class Processor:
 
         self.retrieved: List[RetrievedFile] = list()
         self.unpacked: List[UnpackedArchive] = list()
-        self.remapped: List[Rem]
+        self.remapped: List[RemappedFile] = list()
 
     def retrieve(self, *args: Retriever):
         for arg in args:

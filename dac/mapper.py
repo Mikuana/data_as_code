@@ -1,3 +1,5 @@
+from hashlib import sha256
+from uuid import uuid4
 from pathlib import Path
 import pandas as pd
 import re
@@ -82,6 +84,7 @@ class Mapper:
     def __init__(self, source: Source, fields: Tuple[Union[SourceField, Target]]):
         self.source = source
         self.fields = fields
+        self.guid = uuid4()
 
     def remap(self, target_dir: Union[Path, str]) -> RemappedFile:
         df = pd.DataFrame()
@@ -93,6 +96,10 @@ class FixedWidthMapper(Mapper):
         super().__init__(source=source, fields=fields)
 
     def remap(self, target_dir: Union[Path, str], sample_size=0) -> RemappedFile:
+        name = Path(self.source.name).with_suffix('.parquet')
+        p = Path(target_dir, self.guid.hex + '.parquet')
+
+
         print(f"Counting rows in {self.source.file_path}")
         if sample_size:
             total = sample_size
@@ -114,4 +121,8 @@ class FixedWidthMapper(Mapper):
         new_keys = [x.name() for x in fd.keys()]
         fd = dict(zip(new_keys, fd.values()))
         df = pd.DataFrame.from_dict(fd)
-        return df
+
+        df.to_parquet(p)
+        h = sha256()
+        h.update(p.read_bytes())
+        return RemappedFile(name, self.source, h, p, self.guid)

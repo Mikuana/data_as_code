@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 from dataclasses import dataclass
 
 from hashlib import sha256
@@ -13,6 +13,14 @@ class Source:
     file_hash: sha256
     file_path: Path
 
+    def is_descendent(self, *args: str):
+        origin = self.origin
+        for name in args:
+            if issubclass(type(origin), Source) and origin.name == name:
+                origin = origin.origin
+            else:
+                raise KeyError("does not exist")  # TODO: make better
+        return True
 
 @dataclass
 class RetrievedFile(Source):
@@ -28,3 +36,4 @@ class UnpackedArchive(Source):
 @dataclass
 class RemappedFile(Source):
     origin: [RetrievedFile, UnpackedArchive]
+    guid: uuid4
