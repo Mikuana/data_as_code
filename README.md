@@ -20,3 +20,25 @@ Stages:
  - Transform
  - Package
  - Distribute
+
+
+# Concepts
+
+ - **Source**: primary data; the "original" that is used by a **recipe**, before
+    it has been changed in any way
+ 
+ - **Intermediary**: an intermediate object that is the result of applying
+    incremental changes to a *source*, but not the final data product that will
+    be produced by the *recipe*. Not meant to be used outside of the recipe, and
+    treated as disposable
+ 
+ - **Product**: the ultimate result of the *recipe*, which is intended for use
+    outside the *recipe*. Includes the complete *lineage* as a component of the
+    packaged product, and optionally includes the *recipe* that was used to
+    create it 
+ 
+ - **Recipe**: the set of instructions which use the specified *sources* to
+    generate a final data *product*
+ 
+ - **Lineage**: metadata that can be used to trace a *product* back to its
+    *source*, which includes all *intermediary* objects

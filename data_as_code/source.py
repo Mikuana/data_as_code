@@ -1,3 +1,4 @@
+import json
 from dataclasses import dataclass
 
 from hashlib import sha256
@@ -12,6 +13,7 @@ class Source:
     file_hash: sha256
     file_path: Path
     guid: uuid4
+    notes: str
 
     def is_descendent(self, *args: str):
         origin = self
@@ -23,3 +25,17 @@ class Source:
             else:
                 return False
         return True
+
+    def digest(self):
+        return dict(
+            name=self.name,
+            file_path=self.file_path.as_posix(),
+            file_hash=self.file_hash.hexdigest(),
+            origin=self.origin.digest() if isinstance(self.origin, Source) else self.origin
+        )
+
+
+if __name__ == '__main__':
+    s1 = Source('x', 'y', sha256(), Path('x'), uuid4())
+    s2 = Source('a', s1, sha256(), Path('x'), uuid4())
+    print(json.dumps(s2.digest(), indent=2))
