@@ -1,6 +1,6 @@
 # Package data repository
-data/
-!data/__init__.py
+data_as_code/data/
+!data_as_code/data/__init__.py
 
 
 # Created by .ignore support plugin (hsz.mobi)

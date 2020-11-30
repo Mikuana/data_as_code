@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Union, List
 
-from dac.worker import _Retriever, Unzip, _Parser
-from dac.source import Source
+from data_as_code.worker import _Retriever, Unzip, _Parser
+from data_as_code.source import Source
 
 
 class Processor:

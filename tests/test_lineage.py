@@ -1,6 +1,6 @@
 import pytest
 from pathlib import Path
-from dac.source import Source
+from data_as_code.source import Source
 
 
 def test_1():

@@ -8,8 +8,8 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
-from dac.field import _SourceField, Target, FixedWidthSource
-from dac.source import Source
+from data_as_code.field import _SourceField, Target, FixedWidthSource
+from data_as_code.source import Source
 
 
 class _Worker:
