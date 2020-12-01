@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Union, List
 
-from data_as_code.worker import _Retriever, Unzip, _Parser
 from data_as_code.source import Source
+from data_as_code.worker import _Retriever, Unzip, _Parser
 
 
 class Processor:
@@ -30,4 +30,22 @@ class Processor:
         pass
 
     def distribute(self):
+        pass
+
+
+class Lineage:
+    pass
+
+
+class Recipe:
+    pass
+
+
+class Product:
+    def __init__(self, file_path: Path, lineage: Lineage, recipe: Recipe = None):
+        self.file_path = file_path
+        self.lineage = lineage
+        self.recipe = recipe
+
+    def load(self):
         pass

@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass
 
 from hashlib import sha256
@@ -35,7 +34,5 @@ class Source:
         )
 
 
-if __name__ == '__main__':
-    s1 = Source('x', 'y', sha256(), Path('x'), uuid4())
-    s2 = Source('a', s1, sha256(), Path('x'), uuid4())
-    print(json.dumps(s2.digest(), indent=2))
+class Intermediary(Source):
+    pass
