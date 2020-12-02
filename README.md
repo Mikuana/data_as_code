@@ -24,21 +24,35 @@ Stages:
 
 # Concepts
 
- - **Source**: primary data; the "original" that is used by a **recipe**, before
-    it has been changed in any way
+ - **Artifact**: an objects which represents data, and provide a direct means of
+    obtaining it, typically via file path
+
+     - **MockSource**: a lineage *artifact* which precedes the *source*, but
+        which is not actually available for use by the recipe. Allows for a more
+        complete lineage to be declared when appropriate
+
+     - **Source**: primary data *artifact*; the "original" that is used by a
+        *recipe*, before it has been changed in any way
+     
+     - **Intermediary**: an intermediate data *artifact* that is the result of
+        applying incremental changes to a *source*, but not yet the final data
+        product produced by the *recipe*. Not meant to be used outside of the
+        recipe, and treated as disposable
+     
+     - **Product**: the ultimate data *artifact* produced by a *recipe*, which is
+        intended for use outside the *recipe*. Includes the complete *lineage*
+        as a component of the packaged product, and optionally includes the
+        *recipe* that was used to create it 
+
+ - **Processor**: a step where data artifacts are changed in any way
  
- - **Intermediary**: an intermediate object that is the result of applying
-    incremental changes to a *source*, but not the final data product that will
-    be produced by the *recipe*. Not meant to be used outside of the recipe, and
-    treated as disposable
- 
- - **Product**: the ultimate result of the *recipe*, which is intended for use
-    outside the *recipe*. Includes the complete *lineage* as a component of the
-    packaged product, and optionally includes the *recipe* that was used to
-    create it 
- 
- - **Recipe**: the set of instructions which use the specified *sources* to
-    generate a final data *product*
+    - **Bypass**: a *processor* that does not actually do the work, but instead
+        represents work that occurs outside of the *recipe*. Useful if data are
+        treated by a third-party, or by other software that cannot be
+        represented in any way in the *recipe*
+
+ - **Recipe**: the set of instructions which use the specified *sources*, and
+    *processes* them in steps to generate the final data *product*
  
  - **Lineage**: metadata that can be used to trace a *product* back to its
-    *source*, which includes all *intermediary* objects
+    *source*, which includes all data *artifacts*

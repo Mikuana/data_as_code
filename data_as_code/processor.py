@@ -9,7 +9,7 @@ import requests
 from tqdm import tqdm
 
 from data_as_code.field import _SourceField, Target, FixedWidthSource
-from data_as_code.source import Source
+from data_as_code.artifact import Artifact
 
 
 class _Worker:
@@ -17,9 +17,9 @@ class _Worker:
         self.name = name
         self.guid = uuid4()
         self.lineage = [lineage] if isinstance(lineage, str) else lineage
-        self.source: Source = None
+        self.source: Artifact = None
 
-    def source_descendent(self, sources: List[Source]):
+    def source_descendent(self, sources: List[Artifact]):
         """
         Source Descendent
 
@@ -47,7 +47,7 @@ class _Retriever(_Worker):
         super().__init__(name=name)
         self.origin = origin
 
-    def retrieve(self, target_dir: Union[Path, str]) -> Source:
+    def retrieve(self, target_dir: Union[Path, str]) -> Artifact:
         pass
 
 
@@ -55,7 +55,7 @@ class GetHTTP(_Retriever):
     def __init__(self, url, name: str = None):
         super().__init__(origin=url, name=name or Path(url).name)
 
-    def retrieve(self, target_dir: Union[Path, str]) -> Source:
+    def retrieve(self, target_dir: Union[Path, str]) -> Artifact:
         tp = Path(target_dir, self.guid.hex + Path(self.name).suffix)
         try:
             print('Downloading from URL:\n' + self.origin)
@@ -73,7 +73,7 @@ class GetHTTP(_Retriever):
             print(f'HTTP error while attempting to download: {self.origin}')
             raise te
 
-        return Source(
+        return Artifact(
             self.name, self.origin, self.sha256(tp), tp, self.guid
         )
 
@@ -83,19 +83,19 @@ class GetLocalFile(_Retriever):
         self.path = Path(path)
         super().__init__(origin=self.path.as_posix(), name=name or self.path.name)
 
-    def retrieve(self, target_dir: Union[Path, str]) -> Source:
-        return Source(
+    def retrieve(self, target_dir: Union[Path, str]) -> Artifact:
+        return Artifact(
             self.name, self.origin, self.sha256(self.path), self.path, self.guid
         )
 
 
 class Unzip(_Worker):
-    def unpack(self, target_dir: Union[Path, str]) -> Generator[Source, None, None]:
+    def unpack(self, target_dir: Union[Path, str]) -> Generator[Artifact, None, None]:
         with ZipFile(self.source.file_path) as zf:
             xd = Path(target_dir, self.source.guid.hex)
             zf.extractall(xd)
             for file in xd.rglob('*'):
-                yield Source(
+                yield Artifact(
                     file.name, self.source, self.sha256(file), file, uuid4()
                 )
 
@@ -105,7 +105,7 @@ class _Parser(_Worker):
         super().__init__(lineage)
         self.fields = fields
 
-    def remap(self, target_dir: Union[Path, str]) -> Source:
+    def remap(self, target_dir: Union[Path, str]) -> Artifact:
         df = pd.DataFrame()
         pass
 
@@ -114,7 +114,7 @@ class ParseFixedWidth(_Parser):
     def __init__(self, lineage: List[str], fields: List[Union[FixedWidthSource, Target]]):
         super().__init__(lineage=lineage, fields=fields)
 
-    def remap(self, target_dir: Union[Path, str], **kwargs) -> Source:
+    def remap(self, target_dir: Union[Path, str], **kwargs) -> Artifact:
         name = Path(self.source.name).with_suffix('.parquet')
         p = Path(target_dir, self.guid.hex + '.parquet')
 
@@ -125,7 +125,7 @@ class ParseFixedWidth(_Parser):
         df = pd.DataFrame.from_dict(fd)
 
         df.to_parquet(p)
-        return Source(name, self.source, self.sha256(p), p, self.guid)
+        return Artifact(name, self.source, self.sha256(p), p, self.guid)
 
     def _extract_text(self, sample_size=0) -> dict:
         print(f"Counting rows in {self.source.file_path}")
