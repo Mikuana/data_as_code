@@ -4,7 +4,7 @@ from typing import Union
 from uuid import uuid4
 
 
-class Artifact:
+class _Artifact:
     """
     Data Artifact
 
@@ -26,7 +26,7 @@ class Artifact:
     def is_descendent(self, *args: str):
         origin = self
         for name in args:
-            if issubclass(type(origin), Artifact) and origin.name == name:
+            if issubclass(type(origin), _Artifact) and origin.name == name:
                 origin = origin.origin
             elif isinstance(origin, str) and origin == name:
                 origin = None
@@ -39,11 +39,11 @@ class Artifact:
             name=self.name,
             file_path=self.file_path.as_posix(),
             file_hash=self.file_hash.hexdigest(),
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, _Artifact) else self.origin
         )
 
 
-class MockSource(Artifact):
+class MockSource(_Artifact):
     """
     Mock Source
 
@@ -62,11 +62,11 @@ class MockSource(Artifact):
     def digest(self):
         return dict(
             name=self.name,
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, _Artifact) else self.origin
         )
 
 
-class Source(Artifact):
+class Source(_Artifact):
     """
     Source
 
@@ -78,7 +78,7 @@ class Source(Artifact):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class _Intermediary(Artifact):
+class _Intermediary(_Artifact):
     """
     Intermediary placeholder
 
@@ -88,7 +88,7 @@ class _Intermediary(Artifact):
     pass
 
 
-class Intermediary(Artifact):
+class Intermediary(_Artifact):
     """
     Intermediary
 
@@ -102,7 +102,7 @@ class Intermediary(Artifact):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class Product(Artifact):
+class Product(_Artifact):
     """
     Product
 

@@ -1,17 +1,17 @@
 from pathlib import Path
 from typing import Union, List
 
-from data_as_code.artifact import Artifact
-from data_as_code.processor import _Retriever, Unzip, _Parser
+from data_as_code.artifact import _Artifact
+from data_as_code.processor import _Getter, Unzip, _Parser
 
 
 class Processor:
     def __init__(self, working_directory: Union[Path, str] = None):
         self.working_directory = working_directory
 
-        self.sources: List[Artifact] = list()
+        self.sources: List[_Artifact] = list()
 
-    def retrieve(self, *args: _Retriever):
+    def retrieve(self, *args: _Getter):
         for arg in args:
             self.sources.append(arg.retrieve(self.working_directory))
 
