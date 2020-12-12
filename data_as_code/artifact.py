@@ -114,3 +114,4 @@ class Product(_Artifact):
 
     def __init__(self, origin: Union[Source, Intermediary], file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
+

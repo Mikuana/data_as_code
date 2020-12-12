@@ -1,3 +1,7 @@
+from typing import List, Union, Iterable
+
+from data_as_code.artifact import Source, Intermediary
+
 from pathlib import Path
 from typing import List, Union, Generator, Tuple
 from uuid import uuid4
@@ -12,23 +16,32 @@ from data_as_code.field import _SourceField, Target, FixedWidthSource
 from data_as_code.artifact import _Artifact, Source, Intermediary
 
 
+t_lstr = Union[str, List[str]]
+t_art = List[Union[Source, Intermediary]]
+
 class _Processor:
-    def __init__(self, lineage: Union[str, List[str]] = None, name: str = None):
+    def __init__(self, lineage: t_lstr, artifacts: t_art, name: str = None):
         self.name = name
         self.guid = uuid4()
-        self.lineage = [lineage] if isinstance(lineage, str) else lineage
-        self.artifact: Union[Source, Intermediary] = None
+        self.artifact = self.get_descendent(
+            [lineage] if isinstance(lineage, str) else lineage, artifacts
+        )
 
-    def source_descendent(self, artifacts: List[Union[Source, Intermediary]]):
+    def process(self, artifacts: List[Union[Source, Intermediary]]) -> Intermediary:
+        pass
+
+    @staticmethod
+    def get_descendent(lineage: Union[str, Iterable[str]], artifacts: List[Union[Source, Intermediary]]):
         """
-        Source Descendent
+        Get Descendent
 
         Descend lineage names to select the Artifact which matches the specified
         chain from the available Artifacts.
         """
-        candidates = [x.is_descendent(*self.lineage) for x in artifacts]
+        lineage = [lineage] if isinstance(lineage, str) else lineage
+        candidates = [x.is_descendent(*lineage) for x in artifacts]
         if sum(candidates) == 1:
-            self.artifact = artifacts[candidates.index(True)]
+            return artifacts[candidates.index(True)]
         elif sum(candidates) > 1:
             # TODO: this needs to give more hints to assist resolution
             raise Exception("Lineage matches multiple candidates")
@@ -80,6 +93,8 @@ class GetLocalFile(_Getter):
 
 
 class Unzip(_Processor):
+    def process(self, artifacts: List[Union[Source, Intermediary]]) -> List[Intermediary]:
+
     def unpack(self, target_dir: Union[Path, str]) -> Generator[_Artifact, None, None]:
         with ZipFile(self.artifact.file_path) as zf:
             xd = Path(target_dir, self.artifact.guid.hex)
