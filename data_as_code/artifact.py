@@ -12,7 +12,7 @@ class _Artifact:
     obtaining it, typically via file path.
     """
 
-    def __init__(self, origin, file_path: Path, **kwargs):
+    def __init__(self, origin, file_path: Path, rename=True, **kwargs):
         self.origin = origin
         self.file_path = file_path
         self.name: str = kwargs.get('name')
@@ -22,6 +22,18 @@ class _Artifact:
         h256 = sha256()
         h256.update(self.file_path.read_bytes())
         self.file_hash = h256
+
+        if rename:
+            self._rename_to_hash()
+
+    def _rename_to_hash(self):
+
+        self.file_path = self.file_path.rename(
+            Path(
+                self.file_path.parent,
+                self.file_hash.hexdigest()[:8] + self.file_path.suffix
+            )
+        )
 
     def is_descendent(self, *args: str):
         origin = self
@@ -114,4 +126,3 @@ class Product(_Artifact):
 
     def __init__(self, origin: Union[Source, Intermediary], file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
-

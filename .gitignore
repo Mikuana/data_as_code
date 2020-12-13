@@ -150,3 +150,5 @@ cython_debug/
 
 # Scratch files
 scritch.py
+# data
+data/
