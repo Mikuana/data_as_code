@@ -17,6 +17,8 @@ class Processor:
         self.guid = uuid4()
         self.recipe = recipe
         self.result = self.process()
+        if not isinstance(self.result, Intermediary):
+            raise Exception("process method must did not return an Artifact")
 
         if isinstance(self.result, list):
             self.recipe.artifacts.extend(self.result)
