@@ -1,6 +1,7 @@
 from pathlib import Path
-from typing import Union
+from typing import Union, List, Generator
 from uuid import uuid4
+from zipfile import ZipFile
 
 import requests
 from tqdm import tqdm
@@ -16,7 +17,11 @@ class Processor:
         self.guid = uuid4()
         self.recipe = recipe
         self.result = self.process()
-        self.recipe.artifacts.append(self.result)
+
+        if isinstance(self.result, list):
+            self.recipe.artifacts.extend(self.result)
+        else:
+            self.recipe.artifacts.append(self.result)
 
     def process(self) -> Intermediary:
         pass
@@ -82,23 +87,22 @@ class GetLocalFile(_Getter):
         return Source(self.origin, self.path, name=self.name, rename=False)
 
 
+class Unzip(Processor):
+    def __init__(self, recipe: Recipe, lineage: th.lineages, name: str = None, **kwargs):
+        self.lineage = (lineage,) if isinstance(lineage, str) else lineage
+        super().__init__(recipe, name=name, **kwargs)
 
+    def process(self) -> List[Intermediary]:
+        return list(self.unpack())
 
-# class Unzip(_Processor):
-#     def __init__(self, path: Union[str, Path], name: str = None):
-#
-#
-#     def process(self) -> List[Intermediary]:
-#         return list(self.unpack(self.guid.hex))
-#
-#     def unpack(self, artifact: Union[_Artifact], target_dir: Union[Path, str]) -> Generator[_Artifact, None, None]:
-#         with ZipFile(artifact.file_path) as zf:
-#             xd = Path(target_dir, artifact.guid.hex)
-#             zf.extractall(xd)
-#             for file in xd.rglob('*'):
-#                 yield Intermediary(artifact, file, name=file.name)
-#
-#
+    def unpack(self) -> Generator[Intermediary, None, None]:
+        artifact = self.artifact(*self.lineage)
+        with ZipFile(artifact.file_path) as zf:
+            xd = Path(self.recipe.wd, 'unzip-' + artifact.file_hash.hexdigest()[:8])
+            zf.extractall(xd)
+            for file in xd.rglob('*'):
+                yield Intermediary(artifact, file, name=file.name, rename=False)
+
 # class _Parser(_Processor):
 #     def __init__(self, lineage: List[str], fields: Tuple[Union[_SourceField, Target]]):
 #         super().__init__(lineage)
