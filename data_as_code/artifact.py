@@ -5,7 +5,7 @@ from typing import Union, List
 from uuid import uuid4
 
 
-class Artifact:
+class DataArtifact:
     """
     Data Artifact
 
@@ -28,7 +28,6 @@ class Artifact:
             self._rename_to_hash()
 
     def _rename_to_hash(self):
-
         self.file_path = self.file_path.rename(
             Path(
                 self.file_path.parent,
@@ -39,7 +38,7 @@ class Artifact:
     def is_descendent(self, *args: str):
         origin = self
         for name in args:
-            if issubclass(type(origin), Artifact) and origin.name == name:
+            if issubclass(type(origin), DataArtifact) and origin.name == name:
                 origin = origin.origin
             elif isinstance(origin, str) and origin == name:
                 origin = None
@@ -52,11 +51,11 @@ class Artifact:
             name=self.name,
             file_path=self.file_path.as_posix(),
             file_hash=self.file_hash.hexdigest(),
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, DataArtifact) else self.origin
         )
 
 
-class MockSource(Artifact):
+class MockSource(DataArtifact):
     """
     Mock Source
 
@@ -75,11 +74,11 @@ class MockSource(Artifact):
     def digest(self):
         return dict(
             name=self.name,
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, DataArtifact) else self.origin
         )
 
 
-class Source(Artifact):
+class Source(DataArtifact):
     """
     Source
 
@@ -91,7 +90,7 @@ class Source(Artifact):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class Intermediary(Artifact):
+class Intermediary(DataArtifact):
     """
     Intermediary
 
@@ -101,11 +100,11 @@ class Intermediary(Artifact):
     treated as disposable.
     """
 
-    def __init__(self, origin: Artifact, file_path: Path, **kwargs):
+    def __init__(self, origin: DataArtifact, file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class Product(Artifact):
+class Product(DataArtifact):
     """
     Product
 
@@ -143,7 +142,7 @@ class Recipe:
             self._temp_dir.cleanup()
 
 
-class Ingredient(Artifact):
+class StepInput(DataArtifact):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args

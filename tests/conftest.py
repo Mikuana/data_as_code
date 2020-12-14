@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 from data_as_code.main import Product, Lineage, Recipe
-from data_as_code.artifact import Artifact, _Intermediary
+from data_as_code.artifact import DataArtifact, _Intermediary
 
 
 @pytest.fixture(scope="session")
@@ -29,4 +29,4 @@ def source_vanilla(tmpdir):
     pat.write_text('this is data')
     has = sha256()
     has.update(pat.read_bytes())
-    yield Artifact(pat.name, 'testing', has, pat, uuid4(), 'this is for testing')
+    yield DataArtifact(pat.name, 'testing', has, pat, uuid4(), 'this is for testing')
