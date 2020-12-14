@@ -1,6 +1,7 @@
 from hashlib import sha256
 from pathlib import Path
-from typing import Union
+from tempfile import TemporaryDirectory
+from typing import Union, List
 from uuid import uuid4
 
 
@@ -126,3 +127,29 @@ class Product(_Artifact):
 
     def __init__(self, origin: Union[Source, Intermediary], file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
+
+
+lineages = Union[str, List[str]]
+ain = Union[Source, Intermediary]
+ains = List[Union[Source, Intermediary]]
+
+
+class Recipe:
+    artifacts: ains = None
+    _temp_dir: TemporaryDirectory = None
+
+    def __init__(self, working_directory: Union[str, Path] = None):
+        self.wd = working_directory
+        self.artifacts = []
+
+    def __enter__(self):
+        if not self.wd:
+            self._temp_dir = TemporaryDirectory()
+            self.wd = self._temp_dir.name
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._temp_dir:
+            self._temp_dir.cleanup()
+
+
