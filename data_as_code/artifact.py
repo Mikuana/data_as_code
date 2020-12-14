@@ -5,7 +5,7 @@ from typing import Union, List
 from uuid import uuid4
 
 
-class _Artifact:
+class Artifact:
     """
     Data Artifact
 
@@ -39,7 +39,7 @@ class _Artifact:
     def is_descendent(self, *args: str):
         origin = self
         for name in args:
-            if issubclass(type(origin), _Artifact) and origin.name == name:
+            if issubclass(type(origin), Artifact) and origin.name == name:
                 origin = origin.origin
             elif isinstance(origin, str) and origin == name:
                 origin = None
@@ -52,11 +52,11 @@ class _Artifact:
             name=self.name,
             file_path=self.file_path.as_posix(),
             file_hash=self.file_hash.hexdigest(),
-            origin=self.origin.digest() if isinstance(self.origin, _Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
         )
 
 
-class MockSource(_Artifact):
+class MockSource(Artifact):
     """
     Mock Source
 
@@ -75,11 +75,11 @@ class MockSource(_Artifact):
     def digest(self):
         return dict(
             name=self.name,
-            origin=self.origin.digest() if isinstance(self.origin, _Artifact) else self.origin
+            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
         )
 
 
-class Source(_Artifact):
+class Source(Artifact):
     """
     Source
 
@@ -91,17 +91,7 @@ class Source(_Artifact):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class _Intermediary(_Artifact):
-    """
-    Intermediary placeholder
-
-    This is just here to allow appropriate self-referential type-hinting in the
-    Intermediary artifact class.
-    """
-    pass
-
-
-class Intermediary(_Artifact):
+class Intermediary(Artifact):
     """
     Intermediary
 
@@ -111,11 +101,11 @@ class Intermediary(_Artifact):
     treated as disposable.
     """
 
-    def __init__(self, origin: Union[Source, _Intermediary], file_path: Path, **kwargs):
+    def __init__(self, origin: Artifact, file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-class Product(_Artifact):
+class Product(Artifact):
     """
     Product
 
@@ -153,3 +143,21 @@ class Recipe:
             self._temp_dir.cleanup()
 
 
+class Ingredient(Artifact):
+    # noinspection PyMissingConstructor
+    def __init__(self, *args: str):
+        self.lineage = args
+
+    def artifact(self, recipe: Recipe) -> Union[Source, Intermediary]:
+        candidates = [x.is_descendent(*self.lineage) for x in recipe.artifacts]
+        if sum(candidates) == 1:
+            return recipe.artifacts[candidates.index(True)]
+        elif sum(candidates) > 1:
+            # TODO: this needs to give more hints to assist resolution
+            raise Exception("Lineage matches multiple candidates")
+        else:
+            raise Exception(
+                "Lineage does not match any candidate" + '\n',
+                f"{self.lineage}" + "\n",
+                f"{recipe.artifacts}"
+            )

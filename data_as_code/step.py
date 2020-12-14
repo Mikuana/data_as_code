@@ -7,11 +7,10 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.artifact import Source, Intermediary, Recipe, lineages
-from data_as_code.lineage import Lineage
+from data_as_code.artifact import Source, Intermediary, Recipe, lineages, Ingredient
 
 
-class Processor:
+class Step:
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
         self.name = name
         self.guid = uuid4()
@@ -33,7 +32,7 @@ class Processor:
         pass
 
     def materialize_inputs(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Lineage)):
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Ingredient)):
             self.__setattr__(k, self.artifact(*v.lineage))
 
     def artifact(self, *args: str) -> Union[Source, Intermediary]:
@@ -51,7 +50,7 @@ class Processor:
             )
 
 
-class _Getter(Processor):
+class _Getter(Step):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
         self.origin = origin
         super().__init__(recipe, name=name, **kwargs)
@@ -96,9 +95,9 @@ class GetLocalFile(_Getter):
         return Source(self.origin, self.path, name=self.name, rename=False)
 
 
-class Unzip(Processor):
+class Unzip(Step):
     def __init__(self, recipe: Recipe, lineage: lineages, name: str = None, **kwargs):
-        self.zip_archive = Lineage(lineage)
+        self.zip_archive = Ingredient(lineage)
         super().__init__(recipe, name=name, **kwargs)
 
     def process(self) -> List[Intermediary]:
