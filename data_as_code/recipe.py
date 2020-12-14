@@ -3,7 +3,7 @@ from data_as_code import __typing as th
 
 
 class Recipe:
-    artifacts: th.artifacts = None
+    artifacts: th.ains = None
     _temp_dir: TemporaryDirectory = None
 
     def __init__(self, working_directory: th.file_path = None):

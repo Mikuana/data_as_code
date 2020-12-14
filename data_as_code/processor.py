@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Union, List, Generator
 from uuid import uuid4
@@ -9,16 +10,24 @@ from tqdm import tqdm
 from data_as_code import __typing as th
 from data_as_code.artifact import Source, Intermediary
 from data_as_code.recipe import Recipe
+from data_as_code.lineage import Inputs
 
 
 class Processor:
+    inputs: Inputs
+
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
         self.name = name
         self.guid = uuid4()
         self.recipe = recipe
+        print(self.inputs)
+        self.inputs.materialize_inputs()
         self.result = self.process()
-        if not isinstance(self.result, Intermediary):
-            raise Exception("process method must did not return an Artifact")
+
+        check = self.result if isinstance(self.result, list) else [self.result]
+
+        if any([not isinstance(x, (Source, Intermediary)) for x in check]):
+            raise Exception("process method must did not returned an non-Artifact")
 
         if isinstance(self.result, list):
             self.recipe.artifacts.extend(self.result)
@@ -27,23 +36,6 @@ class Processor:
 
     def process(self) -> Intermediary:
         pass
-
-    def artifact(self, *args: str) -> Union[Source, Intermediary]:
-        """
-        Get Descendent
-
-        Descend lineage names to select the Artifact which matches the specified
-        chain from the available Artifacts.
-        """
-        lineage = [*args]
-        candidates = [x.is_descendent(*lineage) for x in self.recipe.artifacts]
-        if sum(candidates) == 1:
-            return self.recipe.artifacts[candidates.index(True)]
-        elif sum(candidates) > 1:
-            # TODO: this needs to give more hints to assist resolution
-            raise Exception("Lineage matches multiple candidates")
-        else:
-            raise Exception("Lineage does not match any candidate")
 
 
 class _Getter(Processor):
@@ -57,6 +49,7 @@ class _Getter(Processor):
 
 class GetHTTP(_Getter):
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
+        self.inputs = Inputs(recipe)
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Source:
@@ -90,20 +83,23 @@ class GetLocalFile(_Getter):
 
 
 class Unzip(Processor):
+    @dataclass
+    class MyInputs(Inputs):
+        zip_archive: th.lineages
+
     def __init__(self, recipe: Recipe, lineage: th.lineages, name: str = None, **kwargs):
-        self.lineage = (lineage,) if isinstance(lineage, str) else lineage
+        self.inputs = self.MyInputs(recipe, lineage)
         super().__init__(recipe, name=name, **kwargs)
 
     def process(self) -> List[Intermediary]:
         return list(self.unpack())
 
     def unpack(self) -> Generator[Intermediary, None, None]:
-        artifact = self.artifact(*self.lineage)
-        with ZipFile(artifact.file_path) as zf:
-            xd = Path(self.recipe.wd, 'unzip-' + artifact.file_hash.hexdigest()[:8])
+        with ZipFile(self.inputs.zip_archive.file_path) as zf:
+            xd = Path(self.recipe.wd, 'unzip-' + self.inputs.zip_archive.file_hash.hexdigest()[:8])
             zf.extractall(xd)
             for file in xd.rglob('*'):
-                yield Intermediary(artifact, file, name=file.name, rename=False)
+                yield Intermediary(self.inputs.zip_archive, file, name=file.name, rename=False)
 
 # class _Parser(_Processor):
 #     def __init__(self, lineage: List[str], fields: Tuple[Union[_SourceField, Target]]):
