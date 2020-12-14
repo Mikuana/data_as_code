@@ -56,3 +56,17 @@ Stages:
  
  - **Lineage**: metadata that can be used to trace a *product* back to its
     *source*, which includes all data *artifacts*
+
+
+# Acceptance Criteria
+
+lineage: 
+ 
+ fileA --> fileC --> fileD
+ fileB ---------------^
+
+ - open a recipe
+ - start with two source files
+ - transform `fileA` to make `fileC`
+ - merge `fileC` and `fileB` to make `fileD`
+ - be able to see the full lineage of `fileD`

@@ -10,18 +10,20 @@ from tqdm import tqdm
 from data_as_code.artifact import Source, Intermediary, Recipe, lineages, StepInput
 
 
-class Step:
+class CustomStep:
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
         self.name = name
         self.guid = uuid4()
         self.recipe = recipe
-        self.materialize_inputs()
+
+        self.inputs = self._get_inputs()
+        self._set_inputs()
         self.result = self.process()
 
         check = self.result if isinstance(self.result, list) else [self.result]
-
-        if any([not isinstance(x, (Source, Intermediary)) for x in check]):
-            raise Exception("process method must did not returned an non-Artifact")
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput)):
+            if any([not isinstance(x, (Source, Intermediary)) for x in check]):
+                raise Exception("process method must did not returned an non-Artifact")
 
         if isinstance(self.result, list):
             self.recipe.artifacts.extend(self.result)
@@ -31,7 +33,10 @@ class Step:
     def process(self) -> Intermediary:
         pass
 
-    def materialize_inputs(self):
+    def _get_inputs(self) -> List[str]:
+        return [k for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput))]
+
+    def _set_inputs(self):
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput)):
             self.__setattr__(k, self.artifact(*v.lineage))
 
@@ -50,7 +55,7 @@ class Step:
             )
 
 
-class _Getter(Step):
+class _Getter(CustomStep):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
         self.origin = origin
         super().__init__(recipe, name=name, **kwargs)
@@ -95,7 +100,7 @@ class GetLocalFile(_Getter):
         return Source(self.origin, self.path, name=self.name, rename=False)
 
 
-class Unzip(Step):
+class Unzip(CustomStep):
     def __init__(self, recipe: Recipe, lineage: lineages, name: str = None, **kwargs):
         self.zip_archive = StepInput(lineage)
         super().__init__(recipe, name=name, **kwargs)
