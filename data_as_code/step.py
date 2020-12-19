@@ -7,40 +7,35 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.artifact import Source, Intermediary, Recipe, lineages, StepInput
+from data_as_code.artifact import Source, Intermediary, Recipe, lineages, Input
 
 
-class CustomStep:
+class Step:
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
         self.name = name
         self.guid = uuid4()
         self.recipe = recipe
 
-        self.inputs = self._get_inputs()
+        self.inputs: List[str] = []
+        self.output: Intermediary
+
         self._set_inputs()
-        self.result = self.process()
+        self._set_output()
 
-        check = self.result if isinstance(self.result, list) else [self.result]
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput)):
-            if any([not isinstance(x, (Source, Intermediary)) for x in check]):
-                raise Exception("process method must did not returned an non-Artifact")
-
-        if isinstance(self.result, list):
-            self.recipe.artifacts.extend(self.result)
-        else:
-            self.recipe.artifacts.append(self.result)
-
-    def process(self) -> Intermediary:
-        pass
-
-    def _get_inputs(self) -> List[str]:
-        return [k for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput))]
+    def process(self) -> Path:
+        return None
 
     def _set_inputs(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, StepInput)):
-            self.__setattr__(k, self.artifact(*v.lineage))
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
+            self.inputs.append(k)
+            self.__setattr__(k, self._artifact(*v.lineage))
 
-    def artifact(self, *args: str) -> Union[Source, Intermediary]:
+    def _set_output(self) -> Intermediary:
+        origins = [self.__getattribute__(x) for x in self.inputs]
+        self.output = Intermediary(origins, self.process(), name=self.name)
+        self.recipe.artifacts.append(self.output)
+
+    def _artifact(self, *args: str) -> Union[Source, Intermediary]:
         lineage = [*args]
         candidates = [x.is_descendent(*lineage) for x in self.recipe.artifacts]
         if sum(candidates) == 1:
@@ -55,13 +50,10 @@ class CustomStep:
             )
 
 
-class _Getter(CustomStep):
+class _Getter(Step):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
         self.origin = origin
         super().__init__(recipe, name=name, **kwargs)
-
-    def retrieve(self, target_dir: Union[Path, str]) -> Source:
-        pass
 
 
 class GetHTTP(_Getter):
@@ -86,7 +78,7 @@ class GetHTTP(_Getter):
             print(f'HTTP error while attempting to download: {self.origin}')
             raise te
 
-        return Source(self.origin, tp, name=self.name)
+        return tp
 
 
 class GetLocalFile(_Getter):
@@ -97,12 +89,12 @@ class GetLocalFile(_Getter):
         )
 
     def process(self) -> Source:
-        return Source(self.origin, self.path, name=self.name, rename=False)
+        return self.path
 
 
-class Unzip(CustomStep):
+class Unzip(Step):
     def __init__(self, recipe: Recipe, lineage: lineages, name: str = None, **kwargs):
-        self.zip_archive = StepInput(lineage)
+        self.zip_archive = Input(lineage)
         super().__init__(recipe, name=name, **kwargs)
 
     def process(self) -> List[Intermediary]:
