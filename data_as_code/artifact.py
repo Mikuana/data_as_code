@@ -40,23 +40,14 @@ class Artifact:
         # TODO: needs to be able to handle lists of origins
         for name in args:
             for o in origin:
-                if issubclass(type(origin), Artifact) and origin.name == name:
-                    origin = origin.origin
-                elif isinstance(origin, str) and origin == name:
+                if issubclass(type(o), Artifact) and o.name == name:
+                    origin = o.origin if isinstance(o.origin, list) else [o.origin]
+                    break
+                elif isinstance(origin, str) and o == name:
                     origin = None
+                else:
+                    return False
 
-            if issubclass(type(origin), Artifact) and origin.name == name:
-                origin = origin.origin
-            elif isinstance(origin, list):
-                for o in origin:
-                    if issubclass(type(origin), Artifact) and origin.name == name:
-                        origin = origin.origin
-                    elif isinstance(origin, str) and origin == name:
-                        origin = None
-            elif isinstance(origin, str) and origin == name:
-                origin = None
-            else:
-                return False
         return True
 
     def digest(self):
