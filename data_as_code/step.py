@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.artifact import Source, Intermediary, Recipe, lineages, Input
+from data_as_code.artifact import Artifact, Source, Intermediary, Recipe, lineages, Input
 
 
 class Step:
@@ -30,12 +30,17 @@ class Step:
             self.inputs.append(k)
             self.__setattr__(k, self._artifact(*v.lineage))
 
-    def _set_output(self) -> Intermediary:
+    def _set_output(self):
         origins = [self.__getattribute__(x) for x in self.inputs]
-        self.output = Intermediary(origins, self.process(), name=self.name)
-        self.recipe.artifacts.append(self.output)
+        self.output = self.process()
+        if isinstance(self.output, list):
+            self.output = [Intermediary(origins, x, name=x.name) for x in self.output]
+            self.recipe.artifacts.extend(self.output)
+        else:
+            self.output = Intermediary(origins, self.process(), name=self.name)
+            self.recipe.artifacts.append(self.output)
 
-    def _artifact(self, *args: str) -> Union[Source, Intermediary]:
+    def _artifact(self, *args: str) -> Artifact:
         lineage = [*args]
         candidates = [x.is_descendent(*lineage) for x in self.recipe.artifacts]
         if sum(candidates) == 1:
@@ -93,19 +98,19 @@ class GetLocalFile(_Getter):
 
 
 class Unzip(Step):
-    def __init__(self, recipe: Recipe, lineage: lineages, name: str = None, **kwargs):
+    def __init__(self, recipe: Recipe, lineage: lineages, **kwargs):
         self.zip_archive = Input(lineage)
-        super().__init__(recipe, name=name, **kwargs)
+        super().__init__(recipe, **kwargs)
 
-    def process(self) -> List[Intermediary]:
+    def process(self) -> List[Path]:
         return list(self.unpack())
 
-    def unpack(self) -> Generator[Intermediary, None, None]:
+    def unpack(self) -> Generator[Path, None, None]:
         with ZipFile(self.zip_archive.file_path) as zf:
-            xd = Path(self.recipe.wd, 'unzip-' + self.zip_archive.file_hash.hexdigest()[:8])
+            xd = Path(self.recipe.wd, 'unzip' + self.zip_archive.file_hash.hexdigest()[:8])
             zf.extractall(xd)
-            for file in xd.rglob('*'):
-                yield Intermediary(self.zip_archive, file, name=file.name, rename=False)
+            for file in [x for x in xd.rglob('*') if x.is_file()]:
+                yield file
 
 # class _Parser(_Processor):
 #     def __init__(self, lineage: List[str], fields: Tuple[Union[_SourceField, Target]]):

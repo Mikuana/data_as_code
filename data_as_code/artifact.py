@@ -24,8 +24,8 @@ class Artifact:
         h256.update(self.file_path.read_bytes())
         self.file_hash = h256
 
-        if rename:
-            self._rename_to_hash()
+        # if rename:
+        #     self._rename_to_hash()
 
     def _rename_to_hash(self):
         self.file_path = self.file_path.rename(
@@ -36,10 +36,23 @@ class Artifact:
         )
 
     def is_descendent(self, *args: str):
-        origin = self
+        origin = [self]
+        # TODO: needs to be able to handle lists of origins
         for name in args:
+            for o in origin:
+                if issubclass(type(origin), Artifact) and origin.name == name:
+                    origin = origin.origin
+                elif isinstance(origin, str) and origin == name:
+                    origin = None
+
             if issubclass(type(origin), Artifact) and origin.name == name:
                 origin = origin.origin
+            elif isinstance(origin, list):
+                for o in origin:
+                    if issubclass(type(origin), Artifact) and origin.name == name:
+                        origin = origin.origin
+                    elif isinstance(origin, str) and origin == name:
+                        origin = None
             elif isinstance(origin, str) and origin == name:
                 origin = None
             else:
@@ -150,7 +163,7 @@ class Input(Artifact):
     def __init__(self, *args: str):
         self.lineage = args
 
-    def artifact(self, recipe: Recipe) -> Union[Source, Intermediary]:
+    def artifact(self, recipe: Recipe) -> Artifact:
         candidates = [x.is_descendent(*self.lineage) for x in recipe.artifacts]
         if sum(candidates) == 1:
             return recipe.artifacts[candidates.index(True)]
