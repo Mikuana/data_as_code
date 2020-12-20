@@ -37,7 +37,7 @@ class Step:
             self.output = [Intermediary(origins, x, name=x.name) for x in self.output]
             self.recipe.artifacts.extend(self.output)
         else:
-            self.output = Intermediary(origins, self.process(), name=self.name)
+            self.output = Intermediary(origins, self.output, name=self.name)
             self.recipe.artifacts.append(self.output)
 
     def _artifact(self, *args: str) -> Artifact:
@@ -57,14 +57,14 @@ class Step:
 
 class _Getter(Step):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
-        self.origins = origin
+        self.origins = [origin]
         super().__init__(recipe, name=name, **kwargs)
 
 
 class GetHTTP(_Getter):
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
-        super().__init__(recipe, origins=[url], name=name or Path(url).name, **kwargs)
+        super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Path:
         tp = Path(self.recipe.wd, self.guid.hex + Path(self.name).suffix)
