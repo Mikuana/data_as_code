@@ -13,8 +13,8 @@ class Artifact:
     obtaining it, typically via file path.
     """
 
-    def __init__(self, origin, file_path: Path, rename=True, **kwargs):
-        self.origin = origin
+    def __init__(self, origins, file_path: Path, **kwargs):
+        self.origins: list = origins
         self.file_path = file_path
         self.name: str = kwargs.get('name')
         self.notes: str = kwargs.get('notes')
@@ -24,38 +24,25 @@ class Artifact:
         h256.update(self.file_path.read_bytes())
         self.file_hash = h256
 
-        # if rename:
-        #     self._rename_to_hash()
-
-    def _rename_to_hash(self):
-        self.file_path = self.file_path.rename(
-            Path(
-                self.file_path.parent,
-                self.file_hash.hexdigest()[:8] + self.file_path.suffix
-            )
-        )
-
-    def is_descendent(self, *args: str):
-        origin = [self]
-        # TODO: needs to be able to handle lists of origins
-        for name in args:
-            for o in origin:
-                if issubclass(type(o), Artifact) and o.name == name:
-                    origin = o.origin if isinstance(o.origin, list) else [o.origin]
-                    break
-                elif isinstance(origin, str) and o == name:
-                    origin = None
-                else:
-                    return False
-
-        return True
+    def is_descendent(self, *args: str) -> bool:
+        if self.name == args[0]:
+            if not args[1:]:
+                return True
+            elif len(args) == 2 and args[1] is None and self.origins == []:
+                return True
+            else:
+                for o in self.origins:
+                    if issubclass(type(o), Artifact):
+                        if o.is_descendent(*args[1:]):
+                            return True
+        return False
 
     def digest(self):
         return dict(
             name=self.name,
             file_path=self.file_path.as_posix(),
             file_hash=self.file_hash.hexdigest(),
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origins=[x.digest() if isinstance(x, Artifact) else x for x in self.origins]
         )
 
 
@@ -78,7 +65,7 @@ class MockSource(Artifact):
     def digest(self):
         return dict(
             name=self.name,
-            origin=self.origin.digest() if isinstance(self.origin, Artifact) else self.origin
+            origin=self.origins.digest() if isinstance(self.origins, Artifact) else self.origins
         )
 
 
@@ -108,7 +95,7 @@ class Intermediary(Artifact):
     """
 
     def __init__(self, origins: _th_origins, file_path: Path, **kwargs):
-        super().__init__(origin=origins, file_path=file_path, **kwargs)
+        super().__init__(origins=origins, file_path=file_path, **kwargs)
 
 
 class Product(Artifact):
@@ -126,12 +113,12 @@ class Product(Artifact):
 
 
 lineages = Union[str, List[str]]
-ain = Union[Source, Intermediary]
-ains = List[Union[Source, Intermediary]]
+_th_artifact = Union[Source, Intermediary]
+_th_artifacts = List[_th_artifact]
 
 
 class Recipe:
-    artifacts: ains = None
+    artifacts: _th_artifacts = None
     _temp_dir: TemporaryDirectory = None
 
     def __init__(self, working_directory: Union[str, Path] = None):
@@ -153,17 +140,3 @@ class Input(Artifact):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args
-
-    def artifact(self, recipe: Recipe) -> Artifact:
-        candidates = [x.is_descendent(*self.lineage) for x in recipe.artifacts]
-        if sum(candidates) == 1:
-            return recipe.artifacts[candidates.index(True)]
-        elif sum(candidates) > 1:
-            # TODO: this needs to give more hints to assist resolution
-            raise Exception("Lineage matches multiple candidates")
-        else:
-            raise Exception(
-                "Lineage does not match any candidate" + '\n',
-                f"{self.lineage}" + "\n",
-                f"{recipe.artifacts}"
-            )

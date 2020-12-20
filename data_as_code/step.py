@@ -57,19 +57,20 @@ class Step:
 
 class _Getter(Step):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
-        self.origin = origin
+        self.origins = origin
         super().__init__(recipe, name=name, **kwargs)
 
 
 class GetHTTP(_Getter):
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
-        super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
+        self._url = url
+        super().__init__(recipe, origins=[url], name=name or Path(url).name, **kwargs)
 
-    def process(self) -> Source:
+    def process(self) -> Path:
         tp = Path(self.recipe.wd, self.guid.hex + Path(self.name).suffix)
         try:
-            print('Downloading from URL:\n' + self.origin)
-            response = requests.get(self.origin, stream=True)
+            print('Downloading from URL:\n' + self._url)
+            response = requests.get(self._url, stream=True)
             context = dict(
                 total=int(response.headers.get('content-length', 0)),
                 desc=self.name, miniters=1
@@ -80,7 +81,7 @@ class GetHTTP(_Getter):
                         stream.write(chunk)
 
         except requests.HTTPError as te:
-            print(f'HTTP error while attempting to download: {self.origin}')
+            print(f'HTTP error while attempting to download: {self._url}')
             raise te
 
         return tp
