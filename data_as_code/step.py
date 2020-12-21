@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.artifact import Artifact, Source, Intermediary, Recipe, lineages, Input
+from data_as_code.artifact import Artifact, Source, Intermediary, Recipe, lineages, InputArtifact
 
 
 class Step:
@@ -26,7 +26,7 @@ class Step:
         return None
 
     def _set_inputs(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, InputArtifact)):
             self.inputs.append(k)
             self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
@@ -87,7 +87,7 @@ class GetLocalFile(_Getter):
 
 class Unzip(Step):
     def __init__(self, recipe: Recipe, lineage: lineages, **kwargs):
-        self.zip_archive = Input(lineage)
+        self.zip_archive = InputArtifact(lineage)
         super().__init__(recipe, **kwargs)
 
     def process(self) -> List[Path]:

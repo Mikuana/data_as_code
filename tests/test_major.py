@@ -1,5 +1,5 @@
 from pathlib import Path
-from data_as_code import Recipe, GetLocalFile, Step, Input, Intermediary
+from data_as_code import Recipe, GetLocalFile, Step, InputArtifact, Intermediary
 
 
 def test_the_big_one(csv_file_a, csv_file_b):
@@ -8,8 +8,8 @@ def test_the_big_one(csv_file_a, csv_file_b):
         GetLocalFile(r, csv_file_b, name='b')
 
         class Merge(Step):
-            a = Input('a')
-            b = Input('b')
+            a = InputArtifact('a')
+            b = InputArtifact('b')
 
             def process(self) -> Path:
                 txt = self.a.file_path.read_text()

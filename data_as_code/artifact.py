@@ -156,7 +156,7 @@ class Recipe:
             )
 
 
-class Input(Artifact):
+class InputArtifact(Artifact):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args
