@@ -125,15 +125,35 @@ class Recipe:
         self.wd = working_directory
         self.artifacts = []
 
-    def __enter__(self):
+    def begin(self):
         if not self.wd:
             self._temp_dir = TemporaryDirectory()
             self.wd = self._temp_dir.name
+
+    def end(self):
+        if self._temp_dir:
+            self._temp_dir.cleanup()
+
+    def __enter__(self):
+        self.begin()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._temp_dir:
-            self._temp_dir.cleanup()
+        self.end()
+
+    def get_artifact(self, *args: str) -> Artifact:
+        lineage = [*args]
+        candidates = [x.is_descendent(*lineage) for x in self.artifacts]
+        if sum(candidates) == 1:
+            return self.artifacts[candidates.index(True)]
+        elif sum(candidates) > 1:
+            raise Exception("Lineage matches multiple candidates")
+        else:
+            raise Exception(
+                "Lineage does not match any candidate" + '\n',
+                f"{lineage}" + "\n",
+                f"{self.artifacts}"
+            )
 
 
 class Input(Artifact):

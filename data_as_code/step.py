@@ -28,7 +28,7 @@ class Step:
     def _set_inputs(self):
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
             self.inputs.append(k)
-            self.__setattr__(k, self._artifact(*v.lineage))
+            self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
     def _set_output(self):
         origins = [self.__getattribute__(x) for x in self.inputs]
@@ -39,20 +39,6 @@ class Step:
         else:
             self.output = Intermediary(origins, self.output, name=self.name)
             self.recipe.artifacts.append(self.output)
-
-    def _artifact(self, *args: str) -> Artifact:
-        lineage = [*args]
-        candidates = [x.is_descendent(*lineage) for x in self.recipe.artifacts]
-        if sum(candidates) == 1:
-            return self.recipe.artifacts[candidates.index(True)]
-        elif sum(candidates) > 1:
-            raise Exception("Lineage matches multiple candidates")
-        else:
-            raise Exception(
-                "Lineage does not match any candidate" + '\n',
-                f"{lineage}" + "\n",
-                f"{self.recipe.artifacts}"
-            )
 
 
 class _Getter(Step):
@@ -67,7 +53,8 @@ class GetHTTP(_Getter):
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Path:
-        tp = Path(self.recipe.wd, self.guid.hex + Path(self.name).suffix)
+        tp = Path(self.recipe.wd, self.guid.hex, Path(self._url).name)
+        tp.parent.mkdir()
         try:
             print('Downloading from URL:\n' + self._url)
             response = requests.get(self._url, stream=True)
