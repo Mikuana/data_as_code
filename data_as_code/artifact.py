@@ -1,7 +1,7 @@
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, List
+from typing import Union, List, Dict
 from uuid import uuid4
 
 
@@ -117,22 +117,40 @@ _th_artifact = Union[Source, Intermediary]
 _th_artifacts = List[_th_artifact]
 
 
-class Recipe:
-    artifacts: _th_artifacts = None
-    _temp_dir: TemporaryDirectory = None
+class Keep:
+    def __init__(self, **kwargs: bool):
+        self.product = kwargs.pop('product', True)
+        self.metadata = kwargs.pop('metadata', True)
+        self.recipe = kwargs.pop('recipe', True)
+        self.artifacts = kwargs.pop('artifacts', False)
+        self.workspace = kwargs.pop('workspace', False)
 
-    def __init__(self, working_directory: Union[str, Path] = None):
-        self.wd = working_directory
-        self.artifacts = []
+        if kwargs:
+            raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
+
+
+class Recipe:
+    workspace: Union[str, Path]
+    _td: TemporaryDirectory
+
+    def __init__(self, destination: Union[str, Path] = '.', keep=Keep()):
+        self.destination = Path(destination)
+        self.artifacts: List[Artifact] = []
+        self.keep = keep
 
     def begin(self):
-        if not self.wd:
-            self._temp_dir = TemporaryDirectory()
-            self.wd = self._temp_dir.name
+        if self.keep.workspace is False:
+            self._td = TemporaryDirectory()
+            self.workspace = self._td.name
+        else:
+            self.workspace = self.destination
 
     def end(self):
-        if self._temp_dir:
-            self._temp_dir.cleanup()
+        if self.keep.workspace is False:
+            self._td.cleanup()
+        elif self.keep.artifacts is False:
+            for a in self.artifacts:
+                a.file_path.unlink()
 
     def __enter__(self):
         self.begin()

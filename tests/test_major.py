@@ -14,7 +14,7 @@ def test_the_big_one(csv_file_a, csv_file_b):
             def process(self) -> Path:
                 txt = self.a.file_path.read_text()
                 txt += self.a.file_path.read_text()
-                pat = Path(self.recipe.wd, 'fileC.csv')
+                pat = Path(self.recipe.workspace, 'fileC.csv')
                 pat.write_text(txt)
                 return pat
         Merge(r, name='c')

@@ -53,7 +53,7 @@ class GetHTTP(_Getter):
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Path:
-        tp = Path(self.recipe.wd, self.guid.hex, Path(self._url).name)
+        tp = Path(self.recipe.workspace, self.guid.hex, Path(self._url).name)
         tp.parent.mkdir()
         try:
             print('Downloading from URL:\n' + self._url)
@@ -95,7 +95,7 @@ class Unzip(Step):
 
     def unpack(self) -> Generator[Path, None, None]:
         with ZipFile(self.zip_archive.file_path) as zf:
-            xd = Path(self.recipe.wd, 'unzip' + self.zip_archive.file_hash.hexdigest()[:8])
+            xd = Path(self.recipe.workspace, 'unzip' + self.zip_archive.file_hash.hexdigest()[:8])
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file
