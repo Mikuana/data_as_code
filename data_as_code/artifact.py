@@ -136,6 +136,7 @@ class Recipe:
     def __init__(self, destination: Union[str, Path] = '.', keep=Keep()):
         self.destination = Path(destination)
         self.artifacts: List[Artifact] = []
+        self.products: List[Product] = []
         self.keep = keep
 
     def begin(self):
