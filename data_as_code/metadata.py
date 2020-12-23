@@ -5,7 +5,7 @@ from typing import Union, List, Dict
 from uuid import uuid4
 
 
-class Artifact:
+class Metadata:
     """
     Data Artifact
 
@@ -32,7 +32,7 @@ class Artifact:
                 return True
             else:
                 for o in self.origins:
-                    if issubclass(type(o), Artifact):
+                    if issubclass(type(o), Metadata):
                         if o.is_descendent(*args[1:]):
                             return True
         return False
@@ -42,11 +42,11 @@ class Artifact:
             name=self.name,
             file_path=self.file_path.as_posix(),
             file_hash=self.file_hash.hexdigest(),
-            origins=[x.digest() if isinstance(x, Artifact) else x for x in self.origins]
+            origins=[x.digest() if isinstance(x, Metadata) else x for x in self.origins]
         )
 
 
-class MockSource(Artifact):
+class Mock(Metadata):
     """
     Mock Source
 
@@ -65,11 +65,11 @@ class MockSource(Artifact):
     def digest(self):
         return dict(
             name=self.name,
-            origin=self.origins.digest() if isinstance(self.origins, Artifact) else self.origins
+            origin=self.origins.digest() if isinstance(self.origins, Metadata) else self.origins
         )
 
 
-class Source(Artifact):
+class Source(Metadata):
     """
     Source
 
@@ -77,14 +77,14 @@ class Source(Artifact):
     it has been changed in any way.
     """
 
-    def __init__(self, origin: Union[str, MockSource], file_path: Path, **kwargs):
+    def __init__(self, origin: Union[str, Mock], file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 
-_th_origins = Union[Artifact, List[Artifact]]
+_th_origins = Union[Metadata, List[Metadata]]
 
 
-class Intermediary(Artifact):
+class Intermediary(Metadata):
     """
     Intermediary
 
@@ -98,7 +98,7 @@ class Intermediary(Artifact):
         super().__init__(origins=origins, file_path=file_path, **kwargs)
 
 
-class Product(Artifact):
+class Product(Metadata):
     """
     Product
 
@@ -112,7 +112,7 @@ class Product(Artifact):
         super().__init__(origin=origins, file_path=file_path, **kwargs)
 
 
-lineages = Union[str, List[str]]
+_th_lineages = Union[str, List[str]]
 _th_artifact = Union[Source, Intermediary]
 _th_artifacts = List[_th_artifact]
 
@@ -135,8 +135,8 @@ class Recipe:
 
     def __init__(self, destination: Union[str, Path] = '.', keep=Keep()):
         self.destination = Path(destination)
-        self.artifacts: List[Artifact] = []
-        self.products: List[Product] = []
+        self.artifacts: List[Metadata] = []
+        self.products: List[Metadata] = []
         self.keep = keep
 
     def begin(self):
@@ -147,6 +147,8 @@ class Recipe:
             self.workspace = self.destination
 
     def end(self):
+        self._package()
+
         if self.keep.workspace is False:
             self._td.cleanup()
         elif self.keep.artifacts is False:
@@ -160,7 +162,7 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
-    def get_artifact(self, *args: str) -> Artifact:
+    def get_artifact(self, *args: str) -> Metadata:
         lineage = [*args]
         candidates = [x.is_descendent(*lineage) for x in self.artifacts]
         if sum(candidates) == 1:
@@ -174,8 +176,16 @@ class Recipe:
                 f"{self.artifacts}"
             )
 
+    def _package(self):
+        # move products from working folder to destination and update metadata
+        for p in self.products:
+            p.file_path = Path(
+                self.destination,
+                p.file_path.rename(p.file_path.relative_to(self.workspace))
+            )
 
-class InputArtifact(Artifact):
+
+class InputMetadata(Metadata):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args

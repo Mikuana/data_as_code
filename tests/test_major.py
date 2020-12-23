@@ -1,15 +1,15 @@
 from pathlib import Path
-from data_as_code import Recipe, GetLocalFile, Step, InputArtifact, Intermediary
+from data_as_code import Recipe, SourceLocalFile, Step, InputMetadata, Intermediary
 
 
 def test_the_big_one(csv_file_a, csv_file_b):
     with Recipe() as r:
-        GetLocalFile(r, csv_file_a, name='a')
-        GetLocalFile(r, csv_file_b, name='b')
+        SourceLocalFile(r, csv_file_a, name='a')
+        SourceLocalFile(r, csv_file_b, name='b')
 
         class Merge(Step):
-            a = InputArtifact('a')
-            b = InputArtifact('b')
+            a = InputMetadata('a')
+            b = InputMetadata('b')
 
             def process(self) -> Path:
                 txt = self.a.file_path.read_text()

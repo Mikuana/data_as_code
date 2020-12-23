@@ -1,13 +1,13 @@
 import inspect
 from pathlib import Path
-from typing import Union, List, Generator
+from typing import Union, List, Generator, Tuple
 from uuid import uuid4
 from zipfile import ZipFile
 
 import requests
 from tqdm import tqdm
 
-from data_as_code.artifact import Source, Intermediary, Recipe, lineages, InputArtifact
+from data_as_code.metadata import Source, Intermediary, Recipe, _th_lineages, InputMetadata
 
 
 class Step:
@@ -18,15 +18,22 @@ class Step:
 
         self.inputs: List[str] = []
         self.output: Intermediary
+        self.is_product = kwargs.get('is_product', False)
 
         self._set_inputs()
         self._set_output()
 
+        if self.is_product:
+            self._set_product()
+
     def process(self) -> Path:
         return None
 
+    def _set_product(self):
+        self.recipe.products.append(self.output)
+
     def _set_inputs(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, InputArtifact)):
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, InputMetadata)):
             self.inputs.append(k)
             self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
@@ -41,13 +48,13 @@ class Step:
             self.recipe.artifacts.append(self.output)
 
 
-class _Getter(Step):
+class _GetSource(Step):
     def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
         self.origins = [origin]
         super().__init__(recipe, name=name, **kwargs)
 
 
-class GetHTTP(_Getter):
+class SourceHTTP(_GetSource):
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
@@ -74,7 +81,7 @@ class GetHTTP(_Getter):
         return tp
 
 
-class GetLocalFile(_Getter):
+class SourceLocalFile(_GetSource):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
         self.path = Path(path)
         super().__init__(
@@ -86,8 +93,8 @@ class GetLocalFile(_Getter):
 
 
 class Unzip(Step):
-    def __init__(self, recipe: Recipe, lineage: lineages, **kwargs):
-        self.zip_archive = InputArtifact(lineage)
+    def __init__(self, recipe: Recipe, lineage: _th_lineages, **kwargs):
+        self.zip_archive = InputMetadata(lineage)
         super().__init__(recipe, **kwargs)
 
     def process(self) -> List[Path]:
@@ -101,17 +108,9 @@ class Unzip(Step):
                 yield file
 
 
-class Package:
-    def __init__(self, recipe: Recipe, *args: str):
+class OutputProducts:
+    def __init__(self, recipe: Recipe, lineages: List[Union[str, Tuple[str]]]):
         self.recipe = recipe
-        self.artifact = self.recipe.get_artifact(*args)
-        self._move_product()
-        self.recipe.products.append(self.artifact)
-
-    def _move_product(self):
-        self.artifact.file_path = Path(
-            self.recipe.destination,
-            self.artifact.file_path.rename(
-                self.artifact.file_path.relative_to(self.recipe.workspace)
-            )
+        self.recipe.products.extend(
+            [self.recipe.get_artifact(*lineage) for lineage in lineages]
         )
