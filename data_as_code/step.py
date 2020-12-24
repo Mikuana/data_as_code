@@ -8,11 +8,12 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.metadata import Source, Intermediary, Recipe, _th_lineages, Input
+from data_as_code.metadata import Metadata, Source, Intermediary, Recipe, _th_lineages, Input
 
 
 class Step:
     name: str = None
+    origins: List[Union[Metadata, str]] = []
 
     def __init__(self, recipe: Recipe, **kwargs):
         self.name = kwargs.get('name', self.name)
@@ -43,7 +44,7 @@ class Step:
             self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
     def _set_output(self):
-        origins = [self.__getattribute__(x) for x in self.inputs]
+        origins = [self.__getattribute__(x) for x in self.inputs] + self.origins
 
         original_wd = os.getcwd()
         self._step_dir.mkdir()
