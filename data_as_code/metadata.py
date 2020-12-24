@@ -1,7 +1,7 @@
 from hashlib import sha256
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, List, Dict
+from typing import Union, List
 from uuid import uuid4
 
 
@@ -15,14 +15,14 @@ class Metadata:
 
     def __init__(self, origins, file_path: Path, **kwargs):
         self.origins: list = origins
-        self.file_path = file_path
+        self.path = file_path
         self.name: str = kwargs.get('name')
         self.notes: str = kwargs.get('notes')
 
         self.guid = uuid4()
         h256 = sha256()
-        h256.update(self.file_path.read_bytes())
-        self.file_hash = h256
+        h256.update(self.path.read_bytes())
+        self.checksum = h256
 
     def is_descendent(self, *args: str) -> bool:
         if self.name == args[0]:
@@ -40,8 +40,8 @@ class Metadata:
     def digest(self):
         return dict(
             name=self.name,
-            file_path=self.file_path.as_posix(),
-            file_hash=self.file_hash.hexdigest(),
+            path=self.path.as_posix(),
+            checksum=self.checksum.hexdigest(),
             origins=[x.digest() if isinstance(x, Metadata) else x for x in self.origins]
         )
 
@@ -153,7 +153,7 @@ class Recipe:
             self._td.cleanup()
         elif self.keep.artifacts is False:
             for a in self.artifacts:
-                a.file_path.unlink()
+                a.path.unlink()
 
     def __enter__(self):
         self.begin()
@@ -173,19 +173,19 @@ class Recipe:
             raise Exception(
                 "Lineage does not match any candidate" + '\n',
                 f"{lineage}" + "\n",
-                f"{self.artifacts}"
+                f"{[x.name for x in self.artifacts]}"
             )
 
     def _package(self):
         # move products from working folder to destination and update metadata
         for p in self.products:
-            p.file_path = Path(
+            p.path = Path(
                 self.destination,
-                p.file_path.rename(p.file_path.relative_to(self.workspace))
+                p.path.rename(p.path.relative_to(self.workspace))
             )
 
 
-class InputMetadata(Metadata):
+class Input(Metadata):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args

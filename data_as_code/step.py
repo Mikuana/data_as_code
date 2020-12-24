@@ -7,12 +7,14 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.metadata import Source, Intermediary, Recipe, _th_lineages, InputMetadata
+from data_as_code.metadata import Source, Intermediary, Recipe, _th_lineages, Input
 
 
 class Step:
-    def __init__(self, recipe: Recipe, name: str = None, **kwargs):
-        self.name = name
+    name: str = None
+
+    def __init__(self, recipe: Recipe, **kwargs):
+        self.name = kwargs.get('name', self.name)
         self.guid = uuid4()
         self.recipe = recipe
 
@@ -33,7 +35,7 @@ class Step:
         self.recipe.products.append(self.output)
 
     def _set_inputs(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, InputMetadata)):
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
             self.inputs.append(k)
             self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
@@ -44,7 +46,9 @@ class Step:
             self.output = [Intermediary(origins, x, name=x.name) for x in self.output]
             self.recipe.artifacts.extend(self.output)
         else:
-            self.output = Intermediary(origins, self.output, name=self.name)
+            self.output = Intermediary(
+                origins, self.output, name=self.name or self.output.name
+            )
             self.recipe.artifacts.append(self.output)
 
 
@@ -81,7 +85,7 @@ class SourceHTTP(_GetSource):
         return tp
 
 
-class SourceLocalFile(_GetSource):
+class SourceLocal(_GetSource):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
         self.path = Path(path)
         super().__init__(
@@ -94,23 +98,25 @@ class SourceLocalFile(_GetSource):
 
 class Unzip(Step):
     def __init__(self, recipe: Recipe, lineage: _th_lineages, **kwargs):
-        self.zip_archive = InputMetadata(lineage)
+        self.zip_archive = Input(lineage)
         super().__init__(recipe, **kwargs)
 
     def process(self) -> List[Path]:
         return list(self.unpack())
 
     def unpack(self) -> Generator[Path, None, None]:
-        with ZipFile(self.zip_archive.file_path) as zf:
-            xd = Path(self.recipe.workspace, 'unzip' + self.zip_archive.file_hash.hexdigest()[:8])
+        with ZipFile(self.zip_archive.path) as zf:
+            xd = Path(self.recipe.workspace, 'unzip' + self.zip_archive.checksum.hexdigest()[:8])
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file
 
 
-class OutputProducts:
+class Output:
     def __init__(self, recipe: Recipe, lineages: List[Union[str, Tuple[str]]]):
         self.recipe = recipe
-        self.recipe.products.extend(
-            [self.recipe.get_artifact(*lineage) for lineage in lineages]
-        )
+        for lin in lineages:
+            if isinstance(lin, list):
+                self.recipe.products.append(self.recipe.get_artifact(*lin))
+            else:
+                self.recipe.products.append(self.recipe.get_artifact(lin))
