@@ -40,7 +40,7 @@ class Metadata:
         return False
 
     def digest(self):
-        return dict(
+        d = dict(
             name=self.name,
             path=self.ref_path.as_posix(),
             checksum=self.checksum.hexdigest(),
@@ -48,6 +48,9 @@ class Metadata:
                 x.digest() if isinstance(x, Metadata) else x for x in self.origins
             ]
         )
+        if self.notes:
+            d['notes'] = self.notes
+        return d
 
 
 class Mock(Metadata):

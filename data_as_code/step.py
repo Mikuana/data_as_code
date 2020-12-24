@@ -52,17 +52,20 @@ class Step:
         self.output = self.process()
         os.chdir(original_wd)
 
+
         if isinstance(self.output, list):
+
             self.output = [
                 Intermediary(
-                    origins, Path(self._step_dir, x), name=x.name, ref_path=x
+                    origins, Path(self._step_dir, x), name=x.name, ref_path=x,
+                    notes=self.__doc__
                 )
                 for x in self.output]
             self.recipe.artifacts.extend(self.output)
         else:
             self.output = Intermediary(
                 origins, Path(self._step_dir, self.output),
-                name=self.name or self.output.name, ref_path=self.output
+                name=self.name or self.output.name, ref_path=self.output, notes=self.__doc__
             )
             self.recipe.artifacts.append(self.output)
 
