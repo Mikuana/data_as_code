@@ -1,3 +1,4 @@
+import os
 import inspect
 from pathlib import Path
 from typing import Union, List, Generator, Tuple
@@ -22,6 +23,8 @@ class Step:
         self.output: Intermediary
         self.is_product = kwargs.get('is_product', False)
 
+        self._step_dir = Path(self.recipe.workspace, self.guid.hex)
+
         self._set_inputs()
         self._set_output()
 
@@ -41,13 +44,24 @@ class Step:
 
     def _set_output(self):
         origins = [self.__getattribute__(x) for x in self.inputs]
+
+        original_wd = os.getcwd()
+        self._step_dir.mkdir()
+        os.chdir(self._step_dir)
         self.output = self.process()
+        os.chdir(original_wd)
+
         if isinstance(self.output, list):
-            self.output = [Intermediary(origins, x, name=x.name) for x in self.output]
+            self.output = [
+                Intermediary(
+                    origins, Path(self._step_dir, x), name=x.name, ref_path=x
+                )
+                for x in self.output]
             self.recipe.artifacts.extend(self.output)
         else:
             self.output = Intermediary(
-                origins, self.output, name=self.name or self.output.name
+                origins, Path(self._step_dir, self.output),
+                name=self.name or self.output.name, ref_path=self.output
             )
             self.recipe.artifacts.append(self.output)
 
@@ -64,8 +78,7 @@ class SourceHTTP(_GetSource):
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Path:
-        tp = Path(self.recipe.workspace, self.guid.hex, Path(self._url).name)
-        tp.parent.mkdir()
+        path = Path(Path(self._url).name)
         try:
             print('Downloading from URL:\n' + self._url)
             response = requests.get(self._url, stream=True)
@@ -73,7 +86,7 @@ class SourceHTTP(_GetSource):
                 total=int(response.headers.get('content-length', 0)),
                 desc=self.name, miniters=1
             )
-            with tp.open('wb') as f:
+            with path.open('wb') as f:
                 with tqdm.wrapattr(f, "write", **context) as stream:
                     for chunk in response.iter_content(chunk_size=4096):
                         stream.write(chunk)
@@ -82,7 +95,7 @@ class SourceHTTP(_GetSource):
             print(f'HTTP error while attempting to download: {self._url}')
             raise te
 
-        return tp
+        return path
 
 
 class SourceLocal(_GetSource):

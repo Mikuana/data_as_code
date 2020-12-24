@@ -3,6 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, List
 from uuid import uuid4
+import json
 
 
 class Metadata:
@@ -13,9 +14,10 @@ class Metadata:
     obtaining it, typically via file path.
     """
 
-    def __init__(self, origins, file_path: Path, **kwargs):
+    def __init__(self, origins, file_path: Path, ref_path: Path, **kwargs):
         self.origins: list = origins
         self.path = file_path
+        self.ref_path = ref_path
         self.name: str = kwargs.get('name')
         self.notes: str = kwargs.get('notes')
 
@@ -40,9 +42,11 @@ class Metadata:
     def digest(self):
         return dict(
             name=self.name,
-            path=self.path.as_posix(),
+            path=self.ref_path.as_posix(),
             checksum=self.checksum.hexdigest(),
-            origins=[x.digest() if isinstance(x, Metadata) else x for x in self.origins]
+            origins=[
+                x.digest() if isinstance(x, Metadata) else x for x in self.origins
+            ]
         )
 
 
@@ -179,9 +183,10 @@ class Recipe:
     def _package(self):
         # move products from working folder to destination and update metadata
         for p in self.products:
-            p.path = Path(
-                self.destination,
-                p.path.rename(p.path.relative_to(self.workspace))
+            p.path = p.path.rename(Path(self.destination, p.ref_path))
+            d = p.digest()
+            Path(p.path.parent, 'meta.json').write_text(
+                json.dumps(p.digest(), indent=2)
             )
 
 

@@ -1,3 +1,6 @@
+# data
+data/
+
 # Package data repository
 data_as_code/data/
 !data_as_code/data/__init__.py
