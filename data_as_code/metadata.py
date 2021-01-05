@@ -14,12 +14,12 @@ class Metadata:
     obtaining it, typically via file path.
     """
 
-    def __init__(self, origins, file_path: Path, ref_path: Path, **kwargs):
+    def __init__(self, origins, file_path: Path, ref_path: Path, name: str = None, **kwargs):
         self.origins: list = origins
         self.path = file_path
         self.ref_path = ref_path
-        self.name: str = kwargs.get('name')
-        self.notes: str = kwargs.get('notes')
+        self.name = name
+        self.kw = kwargs
 
         self.guid = uuid4()
         h256 = sha256()
@@ -48,12 +48,10 @@ class Metadata:
                 x.digest() if issubclass(type(x), Metadata) else x for x in self.origins
             ]
         )
-        if self.notes:
-            d['notes'] = self.notes
-        return d
+        return {**d, **self.kw}
 
 
-class Mock(Metadata):
+class Reference(Metadata):
     """
     Mock Source
 
@@ -63,23 +61,18 @@ class Mock(Metadata):
     """
 
     # noinspection PyMissingConstructor
-    def __init__(self, origins, name: str = None, notes: str = None):
-        self.origins = origins if isinstance(origins, list) else [origins]
-        self.name = name
-        self.notes = notes
+    def __init__(self, origins=None, **kwargs):
+        self.origins = origins if isinstance(origins, list) else [origins] if origins else []
+        self.kw = kwargs
+
         self.guid = uuid4()
 
     def digest(self) -> dict:
-        d = dict()
-        for a in ['name', 'notes', 'origins']:
-            ao = getattr(self, a)
-            if ao:
-                if a == 'origins':
-                    d[a] = [
-                        x.digest() if issubclass(type(x), Metadata) else x for x in ao
-                    ]
-                else:
-                    d[a] = ao
+        d = self.kw.copy()
+        if self.origins:
+            d['origins'] = [
+                x.digest() if issubclass(type(x), Metadata) else x for x in self.origins
+            ]
         return d
 
 
@@ -91,7 +84,7 @@ class Source(Metadata):
     it has been changed in any way.
     """
 
-    def __init__(self, origin: Union[str, Mock], file_path: Path, **kwargs):
+    def __init__(self, origin: Union[str, Reference], file_path: Path, **kwargs):
         super().__init__(origin=origin, file_path=file_path, **kwargs)
 
 

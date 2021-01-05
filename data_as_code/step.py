@@ -1,5 +1,5 @@
-import os
 import inspect
+import os
 from pathlib import Path
 from typing import Union, List, Generator, Tuple
 from uuid import uuid4
@@ -9,7 +9,7 @@ import requests
 from tqdm import tqdm
 
 from data_as_code.metadata import (
-    Metadata, Source, Intermediary, Recipe, _th_lineages, Input, Mock
+    Metadata, Source, Intermediary, Recipe, _th_lineages, Input, Reference
 )
 
 
@@ -19,6 +19,14 @@ class Step:
 
     def __init__(self, recipe: Recipe, **kwargs):
         self.name = kwargs.get('name', self.name)
+        self.origins = kwargs.get('origins')
+
+        # TODO: ew
+        if self.origins:
+            self.origins = self.origins if isinstance(self.origins, list) else [self.origins]
+        else:
+            self.origins = []
+
         self.guid = uuid4()
         self.recipe = recipe
 
@@ -72,13 +80,7 @@ class Step:
 
 
 class _GetSource(Step):
-    def __init__(
-            self, recipe: Recipe, origin: str, name: str = None, mock: Mock = None, **kwargs
-    ):
-        if mock:
-            self.origins = [Mock(mock, origin)]
-        else:
-            self.origins = [origin]
+    def __init__(self, recipe: Recipe, name: str = None, **kwargs):
         super().__init__(recipe, name=name, **kwargs)
 
 
@@ -87,7 +89,11 @@ class SourceHTTP(_GetSource):
 
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
-        super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)
+        if kwargs.get('mock'):
+            origins = Reference(kwargs.pop('mock'), url=url)
+        else:
+            origins = url
+        super().__init__(recipe, origins=origins, name=name or Path(url).name, **kwargs)
 
     def process(self) -> Path:
         path = Path(Path(self._url).name)
@@ -113,8 +119,13 @@ class SourceHTTP(_GetSource):
 class SourceLocal(_GetSource):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
         self.path = Path(path)
+        if kwargs.get('mock'):
+            origins = Reference(kwargs.pop('mock'), path=self.path.as_posix())
+        else:
+            origins = self.path.as_posix()
+
         super().__init__(
-            recipe, origin=self.path.as_posix(), name=name or self.path.name, **kwargs
+            recipe, origins=origins, name=name or self.path.name, **kwargs
         )
 
     def process(self) -> Source:
