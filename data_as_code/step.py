@@ -8,7 +8,9 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.metadata import Metadata, Source, Intermediary, Recipe, _th_lineages, Input
+from data_as_code.metadata import (
+    Metadata, Source, Intermediary, Recipe, _th_lineages, Input, Mock
+)
 
 
 class Step:
@@ -52,7 +54,6 @@ class Step:
         self.output = self.process()
         os.chdir(original_wd)
 
-
         if isinstance(self.output, list):
 
             self.output = [
@@ -71,12 +72,19 @@ class Step:
 
 
 class _GetSource(Step):
-    def __init__(self, recipe: Recipe, origin: str, name: str = None, **kwargs):
-        self.origins = [origin]
+    def __init__(
+            self, recipe: Recipe, origin: str, name: str = None, mock: Mock = None, **kwargs
+    ):
+        if mock:
+            self.origins = [Mock(mock, origin)]
+        else:
+            self.origins = [origin]
         super().__init__(recipe, name=name, **kwargs)
 
 
 class SourceHTTP(_GetSource):
+    """Download file from specified URL"""
+
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
         super().__init__(recipe, origin=url, name=name or Path(url).name, **kwargs)

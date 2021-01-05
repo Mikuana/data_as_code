@@ -39,13 +39,13 @@ class Metadata:
                             return True
         return False
 
-    def digest(self):
+    def digest(self) -> dict:
         d = dict(
             name=self.name,
             path=self.ref_path.as_posix(),
             checksum=self.checksum.hexdigest(),
             origins=[
-                x.digest() if isinstance(x, Metadata) else x for x in self.origins
+                x.digest() if issubclass(type(x), Metadata) else x for x in self.origins
             ]
         )
         if self.notes:
@@ -62,18 +62,25 @@ class Mock(Metadata):
     declared, when appropriate.
     """
 
-    def __init__(self, origin: str, name: str, notes: str):
-        skwargs = dict(
-            origin=origin, name=name, notes=notes,
-            file_path=None, file_hash=None
-        )
-        super().__init__(**skwargs)
+    # noinspection PyMissingConstructor
+    def __init__(self, origins, name: str = None, notes: str = None):
+        self.origins = origins if isinstance(origins, list) else [origins]
+        self.name = name
+        self.notes = notes
+        self.guid = uuid4()
 
-    def digest(self):
-        return dict(
-            name=self.name,
-            origin=self.origins.digest() if isinstance(self.origins, Metadata) else self.origins
-        )
+    def digest(self) -> dict:
+        d = dict()
+        for a in ['name', 'notes', 'origins']:
+            ao = getattr(self, a)
+            if ao:
+                if a == 'origins':
+                    d[a] = [
+                        x.digest() if issubclass(type(x), Metadata) else x for x in ao
+                    ]
+                else:
+                    d[a] = ao
+        return d
 
 
 class Source(Metadata):
