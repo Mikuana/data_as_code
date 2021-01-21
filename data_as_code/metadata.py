@@ -48,7 +48,8 @@ class Metadata:
                 x.digest() if issubclass(type(x), Metadata) else x for x in self.origins
             ]
         )
-        return {**d, **self.kw}
+        d = {**d, **self.kw}
+        return {k: v for k, v in d.items() if v}
 
 
 class Reference(Metadata):
@@ -187,7 +188,6 @@ class Recipe:
         # move products from working folder to destination and update metadata
         for p in self.products:
             p.path = p.path.rename(Path(self.destination, p.ref_path))
-            d = p.digest()
             Path(p.path.parent, 'meta.json').write_text(
                 json.dumps(p.digest(), indent=2)
             )

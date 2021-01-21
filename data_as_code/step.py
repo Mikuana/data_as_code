@@ -119,8 +119,8 @@ class SourceHTTP(_GetSource):
 class SourceLocal(_GetSource):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
         self.path = Path(path)
-        if kwargs.get('mock'):
-            origins = Reference(kwargs.pop('mock'), path=self.path.as_posix())
+        if kwargs.get('reference'):
+            origins = Reference(kwargs.pop('reference'), path=self.path.as_posix())
         else:
             origins = self.path.as_posix()
 
