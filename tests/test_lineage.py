@@ -1,4 +1,3 @@
-from pathlib import Path
 import pytest
 
 x = {
@@ -22,9 +21,3 @@ x = {
 ])
 def test_source_attributes(lineage: dict, key, value_type):
     assert isinstance(lineage[key], value_type)
-
-
-@pytest.mark.parametrize("lineage", [x])
-def test_lineage_absolute_path(lineage: str):
-    """ all file path references must be absolute """
-    assert Path(lineage['reference_path']).
