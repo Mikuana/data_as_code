@@ -1,6 +1,8 @@
 from typing import List, Union, Tuple
-from pathlib import Path
-from hashlib import sha256
+from uuid import uuid4
+
+import matplotlib.pyplot as plt
+import networkx as nx
 
 from data_as_code.metadata import Recipe, Input, Intermediary
 from data_as_code.step import SourceLocal, Step, SourceHTTP
@@ -43,57 +45,55 @@ class Lineage:
     """
 
     def __init__(self, name, path, checksum, kind, lineage, **kwargs):
-        self.name: str = name
-        self.path: Path = path
-        self.checksum: sha256 = checksum
+        self.name = name
+        self.path = path
+        self.checksum, self.checksum_type = checksum[0], checksum[1]
         self.lineage: Union[Lineage, List[Lineage]] = lineage
-        self.kind: str = kind
+        self.kind = kind
         self.other: dict = kwargs
+        self.guid = uuid4().hex
 
     def _get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:
         """
         Recurse through lineage to provide a list of names of artifacts in this
         lineage.
         """
-        nodes = [(self.name, self._node_data())]
+        nodes = [(self.guid, self._node_attributes())]
         edges = []
         if child:
-            edges.append((self.name, child))
+            edges.append((self.guid, child))
 
         if isinstance(self.lineage, Lineage):
-            subnet = self.lineage._get_network(self.name)
+            subnet = self.lineage._get_network(self.guid)
             nodes += subnet[0]
             edges += subnet[1]
         elif isinstance(self.lineage, list):
             for x in self.lineage:
-                subnet = x._get_network(self.name)
+                subnet = x._get_network(self.guid)
                 nodes += subnet[0]
                 edges += subnet[1]
         return nodes, edges
 
-    def _node_data(self) -> dict:
-        return {}
+    def _node_attributes(self) -> dict:
+        return dict(name=self.name)
+
+    def draw_lineage(self):
+        nodes, edges = self._get_network()
+        graph = nx.OrderedDiGraph()
+        graph.add_nodes_from(nodes)
+        graph.add_edges_from(edges)
+        return nx.draw(graph, labels=nx.get_node_attributes(graph, 'name'))
 
 
 if __name__ == '__main__':
-    z = Lineage('tom', 'y', 'abc', 'this', [
-        Lineage('jerry', 'a', '123', 'that', Lineage('l', 'c', '678', 'though',
-                                                     Lineage('sue', 'x', 'x', 'x', None))),
-        Lineage('mary', 'v', '345', 'they', Lineage('y', 'c', '678', 'though', Lineage(
-            'sue', 'a', 'a', 'a', None
+    bob = Lineage('bob', 'a', ('b', 'sha123'), 'c', None)
+    z = Lineage('tom', 'y', ('b', 'sha123'), 'this', [
+        Lineage('jerry', 'a', ('b', 'sha123'), 'that', Lineage('l', 'c', ('b', 'sha123'), 'though',
+                                                     Lineage('sue', 'x', ('b', 'sha123'), 'x', bob))),
+        Lineage('mary', 'v', ('b', 'sha123'), 'they', Lineage('y', 'c', ('b', 'sha123'), 'though', Lineage(
+            'sue', 'a', ('b', 'sha123'), 'a', bob
         )
                                                     ))
     ])
-
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    import networkx as nx
-
-    # from networkx.drawing.nx_agraph import graphviz_layout as layout
-
-    nodes, edges = z._get_network()
-    G = nx.OrderedDiGraph()
-    G.add_nodes_from(nodes)
-    G.add_edges_from(edges)
-    nx.draw(G, with_labels=True)
+    z.draw_lineage()
     plt.show()
