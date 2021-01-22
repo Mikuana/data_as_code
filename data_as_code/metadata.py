@@ -197,3 +197,5 @@ class Input(Metadata):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args
+
+

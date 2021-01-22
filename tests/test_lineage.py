@@ -1,23 +1,29 @@
+from pathlib import Path
+from data_as_code import Lineage
 import pytest
 
-x = {
-    'node_type': 'source',
-    'name': 'X',
-    'location': 'https://internet.com',
-    'ancestors': [],
-    'checksum': 'abd123',
-    'reference_path': '/home/user1/project_folder/X/',
-    'notes': 'words'
-}
+test_data = [
+    Lineage('x', 'y', 'abc', 'this', None)
+]
 
 
-@pytest.mark.parametrize("lineage", [x])
-@pytest.mark.parametrize("key,value_type", [
-    ('node_type', str),
-    ('name', str),
-    ('location', str),
-    ('ancestors', list),
-    ('reference_path', str)
-])
-def test_source_attributes(lineage: dict, key, value_type):
-    assert isinstance(lineage[key], value_type)
+@pytest.mark.parametrize('x', test_data)
+def test_has_checksum(x):
+    assert x.checksum, "does not contain an object checksum"
+
+
+@pytest.mark.parametrize('x', test_data)
+def test_has_reference_path(x):
+    assert x.path, "does not contain a reference path"
+
+
+def test_has_name():
+    assert False, "does not contain a name"
+
+
+def test_has_node_type():
+    assert False, "does not contain a node type identifier"
+
+
+def test_can_recurse_ancestors():
+    assert False, "a node in the lineage is not valid"
