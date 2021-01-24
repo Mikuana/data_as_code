@@ -1,3 +1,4 @@
+import json
 from typing import List, Union, Tuple
 from uuid import uuid4
 
@@ -75,25 +76,63 @@ class Lineage:
         return nodes, edges
 
     def _node_attributes(self) -> dict:
-        return dict(name=self.name)
+        return dict(
+            name=self.name,
+            checksum=self.checksum[:8],
+            path=self.path,
+            kind=self.kind
+        )
+
+    def _to_dict(self) -> dict:
+        return dict(
+            name=self.name
+        )
 
     def draw_lineage(self):
         nodes, edges = self._get_network()
         graph = nx.OrderedDiGraph()
         graph.add_nodes_from(nodes)
         graph.add_edges_from(edges)
-        return nx.draw(graph, labels=nx.get_node_attributes(graph, 'name'))
+        return graph
+        # return nx.draw(graph, labels=nx.get_node_attributes(graph, 'name'))
 
 
+#
 if __name__ == '__main__':
     bob = Lineage('bob', 'a', ('b', 'sha123'), 'c', None)
     z = Lineage('tom', 'y', ('b', 'sha123'), 'this', [
         Lineage('jerry', 'a', ('b', 'sha123'), 'that', Lineage('l', 'c', ('b', 'sha123'), 'though',
-                                                     Lineage('sue', 'x', ('b', 'sha123'), 'x', bob))),
+                                                               Lineage('sue', 'x', ('b', 'sha123'), 'x', bob))),
         Lineage('mary', 'v', ('b', 'sha123'), 'they', Lineage('y', 'c', ('b', 'sha123'), 'though', Lineage(
             'sue', 'a', ('b', 'sha123'), 'a', bob
         )
-                                                    ))
+                                                              ))
     ])
-    z.draw_lineage()
-    plt.show()
+    from bokeh.io import output_file, show
+    from bokeh.models import (BoxSelectTool, Circle, EdgesAndLinkedNodes, HoverTool,
+                              MultiLine, NodesAndLinkedEdges, Plot, Range1d, TapTool,
+                              BoxZoomTool, ResetTool, Line)
+    from bokeh.palettes import Spectral4
+    from bokeh.plotting import from_networkx
+
+    # Prepare Data
+    # G = nx.karate_club_graph()
+    G = z.draw_lineage()
+
+    # Show with Bokeh
+    plot = Plot(plot_width=400, plot_height=400,
+                x_range=Range1d(-1.1, 1.1), y_range=Range1d(-1.1, 1.1))
+    plot.title.text = "Graph Interaction Demonstration"
+
+    node_hover_tool = HoverTool(tooltips=[
+        ("name", "@name"), ("checksum", "@checksum"), ("path", "@path"), ("kind", "@kind")
+    ])
+    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
+
+    graph_renderer = from_networkx(G, nx.spring_layout, scale=1, center=(0, 0))
+    graph_renderer.node_renderer.glyph = Circle(size=15, fill_color=Spectral4[0])
+    graph_renderer.edge_renderer.glyph =
+    plot.renderers.append(graph_renderer)
+
+    output_file("interactive_graphs.html")
+    show(plot)
