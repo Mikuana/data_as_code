@@ -90,27 +90,25 @@ def add_edge(
 
 
 def show_lineage(graph: nx.Graph):
-    pos = nx.layout.spring_layout(graph)
-    for node in graph.nodes:
-        graph.nodes[node]['pos'] = list(pos[node])
-
-    # Controls for how the graph is drawn
+    # Graph formatting controls
     node_color = 'Blue'
     node_size = 20
     line_width = 2
     line_color = '#000000'
 
+    pos = nx.layout.spring_layout(graph)
+    for node in graph.nodes:
+        graph.nodes[node]['pos'] = list(pos[node])
+
     # Make list of nodes for plotly
-    node_x = []
-    node_y = []
+    node_x, node_y = [], []
     for node in graph.nodes():
         x, y = graph.nodes[node]['pos']
         node_x.append(x)
         node_y.append(y)
 
     # Make a list of edges for plotly, including line segments that result in arrowheads
-    edge_x = []
-    edge_y = []
+    edge_x, edge_y = [], []
     for edge in graph.edges():
         start = graph.nodes[edge[0]]['pos']
         end = graph.nodes[edge[1]]['pos']
@@ -121,9 +119,14 @@ def show_lineage(graph: nx.Graph):
         mode='lines'
     )
 
+    label_text = [v for k, v in nx.get_node_attributes(graph, 'name').items()]
+    hover_text = [f"Name: {v}" for v in label_text]
+    # hover_text = [f"Name: {v}" for v in label_text]
+
     node_trace = go.Scatter(
-        x=node_x, y=node_y, mode='markers', hoverinfo='text', text='abc123',
-        marker=dict(showscale=False, color=node_color, size=node_size)
+        x=node_x, y=node_y, mode='markers+text', hoverinfo='text',
+        marker=dict(showscale=False, color=node_color, size=node_size),
+        hovertext=hover_text, text=label_text
     )
 
     fig = go.Figure(data=[edge_trace, node_trace],
