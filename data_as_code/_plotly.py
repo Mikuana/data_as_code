@@ -91,10 +91,16 @@ def add_edge(
 
 def show_lineage(graph: nx.Graph):
     # Graph formatting controls
-    node_color = 'Blue'
+    node_color = 'grey'
     node_size = 20
     line_width = 2
-    line_color = '#000000'
+    line_color = 'grey'
+
+    label_text = [v for k, v in nx.get_node_attributes(graph, 'name').items()]
+    # TODO: pretty up the tooltip. A lot.
+    hover_text = [
+        '<br>'.join([f"{a.title()}: {b}" for a, b in v.items()]) for k, v in graph.nodes.items()
+    ]
 
     pos = nx.layout.spring_layout(graph)
     for node in graph.nodes:
@@ -116,17 +122,14 @@ def show_lineage(graph: nx.Graph):
 
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y, line=dict(width=line_width, color=line_color), hoverinfo='none',
-        mode='lines'
+        mode='lines', opacity=0.8
     )
-
-    label_text = [v for k, v in nx.get_node_attributes(graph, 'name').items()]
-    hover_text = [f"Name: {v}" for v in label_text]
-    # hover_text = [f"Name: {v}" for v in label_text]
 
     node_trace = go.Scatter(
         x=node_x, y=node_y, mode='markers+text', hoverinfo='text',
         marker=dict(showscale=False, color=node_color, size=node_size),
-        hovertext=hover_text, text=label_text
+        hovertext=hover_text, text=label_text, textfont=dict(size=18, color='black'),
+        textposition='top center'
     )
 
     fig = go.Figure(data=[edge_trace, node_trace],
