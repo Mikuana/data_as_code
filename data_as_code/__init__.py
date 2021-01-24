@@ -1,10 +1,9 @@
-import json
 from typing import List, Union, Tuple
 from uuid import uuid4
 
-import matplotlib.pyplot as plt
 import networkx as nx
 
+from data_as_code._plotly import show_lineage
 from data_as_code.metadata import Recipe, Input, Intermediary
 from data_as_code.step import SourceLocal, Step, SourceHTTP
 
@@ -88,16 +87,17 @@ class Lineage:
             name=self.name
         )
 
-    def draw_lineage(self):
+    def _draw_lineage(self) -> nx.DiGraph:
         nodes, edges = self._get_network()
         graph = nx.OrderedDiGraph()
         graph.add_nodes_from(nodes)
         graph.add_edges_from(edges)
         return graph
-        # return nx.draw(graph, labels=nx.get_node_attributes(graph, 'name'))
+
+    def show_lineage(self):
+        show_lineage(self._draw_lineage())
 
 
-#
 if __name__ == '__main__':
     bob = Lineage('bob', 'a', ('b', 'sha123'), 'c', None)
     z = Lineage('tom', 'y', ('b', 'sha123'), 'this', [
@@ -108,31 +108,4 @@ if __name__ == '__main__':
         )
                                                               ))
     ])
-    from bokeh.io import output_file, show
-    from bokeh.models import (BoxSelectTool, Circle, EdgesAndLinkedNodes, HoverTool,
-                              MultiLine, NodesAndLinkedEdges, Plot, Range1d, TapTool,
-                              BoxZoomTool, ResetTool, Line)
-    from bokeh.palettes import Spectral4
-    from bokeh.plotting import from_networkx
-
-    # Prepare Data
-    # G = nx.karate_club_graph()
-    G = z.draw_lineage()
-
-    # Show with Bokeh
-    plot = Plot(plot_width=400, plot_height=400,
-                x_range=Range1d(-1.1, 1.1), y_range=Range1d(-1.1, 1.1))
-    plot.title.text = "Graph Interaction Demonstration"
-
-    node_hover_tool = HoverTool(tooltips=[
-        ("name", "@name"), ("checksum", "@checksum"), ("path", "@path"), ("kind", "@kind")
-    ])
-    plot.add_tools(node_hover_tool, BoxZoomTool(), ResetTool())
-
-    graph_renderer = from_networkx(G, nx.spring_layout, scale=1, center=(0, 0))
-    graph_renderer.node_renderer.glyph = Circle(size=15, fill_color=Spectral4[0])
-    graph_renderer.edge_renderer.glyph =
-    plot.renderers.append(graph_renderer)
-
-    output_file("interactive_graphs.html")
-    show(plot)
+    z.show_lineage()

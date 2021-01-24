@@ -1,13 +1,17 @@
-"""
-Extends plotly to support arrow edges
-
-Code initially borrowed from GitHub project https://github.com/redransil/plotly-dirgraph
-"""
 import math
 
+import networkx as nx
+from plotly import graph_objects as go
 
-def addEdge(start, end, edge_x, edge_y, length_frac=1, arrow_pos=None, arrow_length=0.025, arrow_angle=30, dot_size=20):
+
+def add_edge(
+        start, end, edge_x, edge_y, length_frac=1, arrow_pos=None, arrow_length=0.025, arrow_angle=30, dot_size=20
+):
     """
+    Extend plotly to support arrow edges
+
+    Code initially borrowed from GitHub project https://github.com/redransil/plotly-dirgraph
+
     :param start: and end are lists defining start and end points.
     :param end: and end are lists defining start and end points.
     :param edge_x: x and y are lists used to construct the graph.
@@ -83,3 +87,54 @@ def addEdge(start, end, edge_x, edge_y, length_frac=1, arrow_pos=None, arrow_len
         edge_y.append(None)
 
     return edge_x, edge_y
+
+
+def show_lineage(graph: nx.Graph):
+    pos = nx.layout.spring_layout(graph)
+    for node in graph.nodes:
+        graph.nodes[node]['pos'] = list(pos[node])
+
+    # Controls for how the graph is drawn
+    node_color = 'Blue'
+    node_size = 20
+    line_width = 2
+    line_color = '#000000'
+
+    # Make list of nodes for plotly
+    node_x = []
+    node_y = []
+    for node in graph.nodes():
+        x, y = graph.nodes[node]['pos']
+        node_x.append(x)
+        node_y.append(y)
+
+    # Make a list of edges for plotly, including line segments that result in arrowheads
+    edge_x = []
+    edge_y = []
+    for edge in graph.edges():
+        start = graph.nodes[edge[0]]['pos']
+        end = graph.nodes[edge[1]]['pos']
+        edge_x, edge_y = add_edge(start, end, edge_x, edge_y, .8, 'end', .04, 30, node_size)
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y, line=dict(width=line_width, color=line_color), hoverinfo='none',
+        mode='lines'
+    )
+
+    node_trace = go.Scatter(
+        x=node_x, y=node_y, mode='markers', hoverinfo='text', text='abc123',
+        marker=dict(showscale=False, color=node_color, size=node_size)
+    )
+
+    fig = go.Figure(data=[edge_trace, node_trace],
+                    layout=go.Layout(
+                        showlegend=False,
+                        hovermode='closest',
+                        margin=dict(b=20, l=5, r=5, t=40),
+                        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
+                    )
+
+    # Note: if you don't use fixed ratio axes, the arrows won't be symmetrical
+    fig.update_layout(yaxis=dict(scaleanchor="x", scaleratio=1), plot_bgcolor='rgb(255,255,255)')
+    fig.show()
