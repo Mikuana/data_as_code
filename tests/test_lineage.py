@@ -1,6 +1,6 @@
-from pathlib import Path
-from data_as_code import Lineage
 import pytest
+
+from data_as_code import Lineage
 
 test_data = [
     Lineage('x', 'y', 'abc', 'this', None)
@@ -27,3 +27,15 @@ def test_has_node_type():
 
 def test_can_recurse_ancestors():
     assert False, "a node in the lineage is not valid"
+
+
+def test_can_output_json():
+    assert False, "unable to generate valid JSON from lineage"
+
+
+def test_can_reconstitute_json():
+    assert False, "cannot rebuild valid Lineage from JSON data"
+
+
+def test_can_plot_lineage():
+    assert False, "unable to generate lineage plot"
