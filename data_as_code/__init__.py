@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Dict
 from uuid import uuid4
 
 import networkx as nx
@@ -45,13 +45,15 @@ class Lineage:
     """
 
     def __init__(self, name, path, checksum, kind, lineage, **kwargs):
+        self.guid = uuid4().hex
+
         self.name = name
         self.path = path
-        self.checksum, self.checksum_type = checksum[0], checksum[1]
-        self.lineage: Union[Lineage, List[Lineage]] = lineage
         self.kind = kind
-        self.other: dict = kwargs
-        self.guid = uuid4().hex
+        self.checksum: Dict[str, str] = checksum
+        self.other: Dict[str, str] = kwargs
+
+        self.lineage: Union[Lineage, List[Lineage]] = lineage
 
     def _get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:
         """
@@ -77,15 +79,25 @@ class Lineage:
     def _node_attributes(self) -> dict:
         return dict(
             name=self.name,
-            checksum=self.checksum[:8],
+            checksum=self.checksum['value'][:8],
             path=self.path,
             kind=self.kind
         )
 
     def _to_dict(self) -> dict:
-        return dict(
-            name=self.name
+        base = dict(
+            name=self.name,
+            path=self.path,
+            checksum=self.checksum,
+            kind=self.kind,
         )
+
+        if isinstance(self.lineage, Lineage):
+            base['lineage'] = self.lineage._to_dict()
+        elif isinstance(self.lineage, list):
+            base['lineage'] = [x._to_dict() for x in self.lineage]
+
+        return {**base, **self.other}
 
     def _draw_lineage(self) -> nx.DiGraph:
         nodes, edges = self._get_network()
@@ -96,16 +108,3 @@ class Lineage:
 
     def show_lineage(self):
         show_lineage(self._draw_lineage())
-
-
-if __name__ == '__main__':
-    bob = Lineage('bob', 'a', ('b', 'sha123'), 'c', None)
-    z = Lineage('tom', 'y', ('b', 'sha123'), 'this', [
-        Lineage('jerry', 'a', ('b', 'sha123'), 'that', Lineage('l', 'c', ('b', 'sha123'), 'though',
-                                                               Lineage('sue', 'x', ('b', 'sha123'), 'x', bob))),
-        Lineage('mary', 'v', ('b', 'sha123'), 'they', Lineage('y', 'c', ('b', 'sha123'), 'though', Lineage(
-            'sue', 'a', ('b', 'sha123'), 'a', bob
-        )
-                                                              ))
-    ])
-    z.show_lineage()
