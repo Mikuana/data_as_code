@@ -60,18 +60,24 @@ class Lineage:
         Recurse through lineage to provide a list of names of artifacts in this
         lineage.
         """
-        nodes = [(self.guid, self._node_attributes())]
+        # TODO: guid is lost on lineage write to JSON, and this causes reloaded
+        # lineage to think multiple references to the same file are different.
+        # Use checksum to identify nodes instead of guid
+        # TODO: this makes it really easy to blow up the network graph with
+        # divide by zero errors. Should probably handle this in the recipe to
+        # prevent people from making a great big circle.
+        nodes = [(self.checksum['value'], self._node_attributes())]
         edges = []
         if child:
-            edges.append((self.guid, child))
+            edges.append((self.checksum['value'], child))
 
         if isinstance(self.lineage, Lineage):
-            subnet = self.lineage._get_network(self.guid)
+            subnet = self.lineage._get_network(self.checksum['value'])
             nodes += subnet[0]
             edges += subnet[1]
         elif isinstance(self.lineage, list):
             for x in self.lineage:
-                subnet = x._get_network(self.guid)
+                subnet = x._get_network(self.checksum['value'])
                 nodes += subnet[0]
                 edges += subnet[1]
         return nodes, edges
@@ -98,6 +104,21 @@ class Lineage:
             base['lineage'] = [x._to_dict() for x in self.lineage]
 
         return {**base, **self.other}
+
+    @classmethod
+    def _from_dict(cls, lineage: dict):
+        if lineage.get('lineage'):
+            nested = [cls._from_dict(x) for x in lineage.get('lineage')]
+        else:
+            nested = None
+
+        return cls(
+            name=lineage['name'],
+            path=lineage['path'],
+            checksum=lineage['checksum'],
+            kind=lineage['kind'],
+            lineage=nested
+        )
 
     def _draw_lineage(self) -> nx.DiGraph:
         nodes, edges = self._get_network()
