@@ -7,7 +7,7 @@ def test_contains_lineage():
 
 
 def test_contains_step_data():
-    assert False, "does not include data for step processing"
+    assert False, "does not include cases for step processing"
 
 
 def test_has_process():

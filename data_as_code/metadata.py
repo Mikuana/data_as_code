@@ -10,7 +10,7 @@ class Metadata:
     """
     Data Artifact
 
-    An objects which represents data, and provide a direct means of
+    An objects which represents cases, and provide a direct means of
     obtaining it, typically via file path.
     """
 
@@ -81,7 +81,7 @@ class Source(Metadata):
     """
     Source
 
-    Primary data artifact. The "original" data that is used by a recipe, before
+    Primary cases artifact. The "original" cases that is used by a recipe, before
     it has been changed in any way.
     """
 
@@ -96,8 +96,8 @@ class Intermediary(Metadata):
     """
     Intermediary
 
-    An intermediate data artifact that is the result of applying incremental
-    changes to a Source, but not yet the final data Product produced by the
+    An intermediate cases artifact that is the result of applying incremental
+    changes to a Source, but not yet the final cases Product produced by the
     recipe. The artifact is not meant to be used outside of the recipe, and
     treated as disposable.
     """
@@ -110,7 +110,7 @@ class Product(Metadata):
     """
     Product
 
-    The ultimate data artifact produced by a recipe, which is intended for use
+    The ultimate cases artifact produced by a recipe, which is intended for use
     outside the recipe. Includes the complete lineage as a component of the
     packaged product, and optionally includes the recipe that was used to create
     it.

@@ -120,7 +120,7 @@ def show_lineage(graph: nx.Graph):
         end = graph.nodes[edge[1]]['pos']
         edge_x, edge_y = add_edge(start, end, edge_x, edge_y, .8, 'end', .04, 30, node_size)
 
-    # TODO: add data for Step that generates each artifact
+    # TODO: add cases for Step that generates each artifact
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y, line=dict(width=line_width, color=line_color), hoverinfo='none',
         mode='lines', opacity=0.8

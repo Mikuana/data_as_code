@@ -1,28 +1,34 @@
+from hashlib import sha256
+from pathlib import Path
+import json
+
 import pytest
+from tests.cases import *
+from data_as_code._lineage import Lineage, from_objects, from_dictionary
 
-from data_as_code import Lineage
-
-test_data = [
-    Lineage('x', 'y', 'abc', 'this', None)
+good_data = [
+    Lineage('x', Path('y'), dict(algorithm='fake', value='abc'), 'this', 'source', []),
+    from_objects('z', Path('y'), sha256(), 'source', None)
 ]
 
 
-@pytest.mark.parametrize('x', test_data)
-@pytest.mark.parametrize('attribute', [
-    'name', 'path', 'checksum', 'kind', 'guid'
-])
-def test_has_attribute(x, attribute):
-    assert getattr(x, attribute), "does not have attribute"
-    assert isinstance(getattr(x, attribute), str), "attribute is not a string"
+@pytest.mark.parametrize('x', good_data)
+def test_output_json(x):
+    assert isinstance(json.dumps(x.unload()), str)
 
 
-def test_can_output_json():
-    assert False, "unable to generate valid JSON from lineage"
+@pytest.mark.parametrize('x', good_data)
+def test_input_json(x):
+    j1 = json.dumps(x.unload())
+    assert isinstance(from_dictionary(**json.loads(j1)), Lineage)
+    j2 = json.dumps(from_dictionary(**json.loads(j1)).unload())
+    assert j1 == j2, "lineage cases not consistent between import/export"
 
 
-def test_can_reconstitute_json():
-    assert False, "cannot rebuild valid Lineage from JSON data"
+# @pytest.mark.parametrize('x', good_data)
+# def test_can_plot_lineage(x):
+#     assert not x.show_lineage()
 
-
-def test_can_plot_lineage():
-    assert False, "unable to generate lineage plot"
+@pytest.mark.parametrize('c,doc', [c1])
+def test_json_input(c, doc):
+    assert isinstance(from_dictionary(**c), Lineage), doc

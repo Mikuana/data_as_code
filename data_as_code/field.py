@@ -47,8 +47,8 @@ class FixedWidthSource(_SourceField):
     Fixed Width Field
 
     A column that exists in the source fixed-width-file. This class maps positions,
-    NA value placeholders, and data labels if applicable. SourceField columns are not
-    necessarily included in the final output, but are instead used to provide data
+    NA value placeholders, and cases labels if applicable. SourceField columns are not
+    necessarily included in the final output, but are instead used to provide cases
     for Target columns.
     """
     positions: Tuple[int, int]
@@ -65,8 +65,8 @@ class Target(_Field):
     """
     Target Column
 
-    A column which is included in the final data output. This must include a
-    pandas data type, and methods to combine multiple SourceField columns together
+    A column which is included in the final cases output. This must include a
+    pandas cases type, and methods to combine multiple SourceField columns together
     when necessary.
     """
     pd_type: str = None
