@@ -1,7 +1,7 @@
 import pytest
 
 from data_as_code._lineage import Lineage, from_dictionary
-from tests.cases import *
+from tests.cases import valid_cases
 
 
 @pytest.mark.parametrize('x,doc', valid_cases)
@@ -21,6 +21,9 @@ def test_lineage_consistency(x, doc):
     x2 = l1.to_dict()
     assert x == x2, "lineage inconsistent between import/export"
 
-# @pytest.mark.parametrize('x', good_data)
+
+# cant test this without launching lots of browsers (annoying)
+# TODO: figure out how to test lineage plotting
+# @pytest.mark.parametrize('x', valid_cases)
 # def test_can_plot_lineage(x):
 #     assert not x.show_lineage()
