@@ -53,19 +53,16 @@ class Lineage:
             kind=self.kind
         )
 
-    def unload(self) -> dict:
+    def to_dict(self) -> dict:
         base = dict(
             name=self.name,
             path=self.path.as_posix(),
             checksum=dict(algorithm=self.checksum_algorithm, value=self.checksum_value),
-            kind=self.kind,
-            lineage=[x.unload() for x in self.lineage]
+            kind=self.kind
         )
 
-        if isinstance(self.lineage, Lineage):
-            base['lineage'] = self.lineage.unload()
-        elif isinstance(self.lineage, list):
-            base['lineage'] = [x.unload() for x in self.lineage]
+        if self.lineage:
+            base['lineage'] = [x.to_dict() for x in self.lineage]
 
         if self.other:
             base = {**base, **self.other}
