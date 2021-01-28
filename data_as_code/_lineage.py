@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import json
 from hashlib import sha256, md5
 from pathlib import Path
 from typing import Dict, List, Tuple
@@ -8,20 +8,42 @@ import networkx as nx
 from data_as_code import show_lineage
 
 
-@dataclass
 class Lineage:
     """
     The metadata corresponding to an Artifact which describes the series of
     Artifacts which describe the complete transformation of source cases into a
     final product.
+
+    :param name: ...
+    :param path: ...
+    :param checksum_value: ...
+    :param checksum_algorithm: ...
+    :param kind: ...
+    :param lineage: ...
+    :param other: ...
     """
-    name: str
-    path: Path
-    checksum_value: str
-    checksum_algorithm: str
-    kind: str
-    lineage: list
-    other: Dict[str, str] = None
+
+    def __init__(self, name: str, path: Path, checksum_value: str,
+                 checksum_algorithm: str, kind: str, lineage: list,
+                 other: Dict[str, str] = None):
+        self.name = name
+        self.path = path
+        self.checksum_value = checksum_value
+        self.checksum_algorithm = checksum_algorithm
+        self.kind = kind
+        self.lineage = lineage
+        self.other = other
+        self.fingerprint = self.calculate_fingerprint()
+
+    def calculate_fingerprint(self) -> str:
+        d = dict(
+            name=self.name, path=self.path.as_posix(),
+            checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
+            kind=self.kind,
+            lineage=sorted([x.fingerprint for x in self.lineage]),
+            other=self.other
+        )
+        return md5(json.dumps(d).encode('utf8')).hexdigest()
 
     def get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:
         """
@@ -34,14 +56,13 @@ class Lineage:
         # TODO: this makes it really easy to blow up the network graph with
         # divide by zero errors. Should probably handle this in the recipe to
         # prevent people from making a great big circle.
-        nash = self.checksum_value + md5()
-        nodes = [(self.checksum_value, self.node_attributes())]
+        nodes = [(self.fingerprint, self.node_attributes())]
         edges = []
         if child:
-            edges.append((self.checksum_value, child))
+            edges.append((self.fingerprint, child))
 
         for x in self.lineage:
-            subnet = x.get_network(self.checksum_value)
+            subnet = x.get_network(self.fingerprint)
             nodes += subnet[0]
             edges += subnet[1]
         return nodes, edges
