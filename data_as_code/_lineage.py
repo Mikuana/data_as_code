@@ -50,12 +50,6 @@ class Lineage:
         Recurse through lineage to provide a list of names of artifacts in this
         lineage.
         """
-        # TODO: guid is lost on lineage write to JSON, and this causes reloaded
-        # lineage to think multiple references to the same file are different.
-        # Use checksum to identify nodes instead of guid
-        # TODO: this makes it really easy to blow up the network graph with
-        # divide by zero errors. Should probably handle this in the recipe to
-        # prevent people from making a great big circle.
         nodes = [(self.fingerprint, self.node_attributes())]
         edges = []
         if child:
