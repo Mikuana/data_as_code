@@ -24,6 +24,6 @@ def test_lineage_consistency(x, doc):
 
 # cant test this without launching lots of browsers (annoying)
 # TODO: figure out how to test lineage plotting
-@pytest.mark.parametrize('x,doc', valid_cases)
-def test_can_plot_lineage(x, doc):
-    assert not from_dictionary(**x).show_lineage()
+# @pytest.mark.parametrize('x,doc', valid_cases)
+# def test_can_plot_lineage(x, doc):
+#     assert not from_dictionary(**x).show_lineage()

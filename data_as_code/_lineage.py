@@ -70,7 +70,7 @@ class Lineage:
     def node_attributes(self) -> dict:
         return dict(
             name=self.name,
-            checksum=self.checksum_value[:8],
+            checksum=self.checksum_value[:5],
             path=self.path,
             kind=self.kind
         )
