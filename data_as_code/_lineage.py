@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from hashlib import sha256
+from hashlib import sha256, md5
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -34,6 +34,7 @@ class Lineage:
         # TODO: this makes it really easy to blow up the network graph with
         # divide by zero errors. Should probably handle this in the recipe to
         # prevent people from making a great big circle.
+        nash = self.checksum_value + md5()
         nodes = [(self.checksum_value, self.node_attributes())]
         edges = []
         if child:

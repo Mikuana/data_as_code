@@ -4,7 +4,9 @@ import networkx as nx
 from plotly import graph_objects as go
 
 
-def add_edge(start, end, x, y, position=None, length=0.025, angle=30, dot_size=20):
+def add_edge(
+        start, end, edge_x, edge_y, length_frac=1, arrow_pos=None, arrow_length=0.025, arrow_angle=30, dot_size=20
+):
     """
     Extend plotly to support arrow edges
 
@@ -12,16 +14,15 @@ def add_edge(start, end, x, y, position=None, length=0.025, angle=30, dot_size=2
 
     :param start: and end are lists defining start and end points.
     :param end: and end are lists defining start and end points.
-    :param x: x and y are lists used to construct the graph.
-    :param y: x and y are lists used to construct the graph.
-    :param position: is None, 'middle' or 'end' based on where on the edge you
+    :param edge_x: x and y are lists used to construct the graph.
+    :param edge_y: x and y are lists used to construct the graph.
+    :param arrow_pos: is None, 'middle' or 'end' based on where on the edge you
         want the arrow to appear.
-    :param length: is the length of the arrowhead.
-    :param angle: is the angle in degrees that the arrowhead makes with the edge.
+    :param arrow_length: is the length of the arrowhead.
+    :param arrow_angle: is the angle in degrees that the arrowhead makes with the edge.
     :param dot_size: is the plotly scatter dot size you are using (used to even
         out line spacing when you have a mix of edge lengths).
     """
-    # TODO: this is really messy
     # Get start and end cartesian coordinates
     x0, y0 = start
     x1, y1 = end
@@ -31,7 +32,7 @@ def add_edge(start, end, x, y, position=None, length=0.025, angle=30, dot_size=2
     dot_size_conversion = .0565 / 20  # length units per dot size
     converted_dot_diameter = dot_size * dot_size_conversion
     length_frac_reduction = converted_dot_diameter / length
-    length_frac = 1 - length_frac_reduction
+    length_frac = length_frac - length_frac_reduction
 
     # If the line segment should not cover the entire distance, get actual start and end coords
     skip_x = (x1 - x0) * (1 - length_frac)
@@ -42,50 +43,50 @@ def add_edge(start, end, x, y, position=None, length=0.025, angle=30, dot_size=2
     y1 = y1 - skip_y / 2
 
     # Append line corresponding to the edge
-    x.append(x0)
-    x.append(x1)
-    x.append(None)  # Prevents a line being drawn from end of this edge to start of next edge
-    y.append(y0)
-    y.append(y1)
-    y.append(None)
+    edge_x.append(x0)
+    edge_x.append(x1)
+    edge_x.append(None)  # Prevents a line being drawn from end of this edge to start of next edge
+    edge_y.append(y0)
+    edge_y.append(y1)
+    edge_y.append(None)
 
     # Draw arrow
-    if not position == None:  # TODO: bad comparison style
+    if not arrow_pos == None:
+
         # Find the point of the arrow; assume is at end unless told middle
-        point_x = x1
-        point_y = y1
+        pointx = x1
+        pointy = y1
         eta = math.degrees(math.atan((x1 - x0) / (y1 - y0)))
 
-        if position == 'middle' or position == 'mid':
-            point_x = x0 + (x1 - x0) / 2
-            point_y = y0 + (y1 - y0) / 2
+        if arrow_pos == 'middle' or arrow_pos == 'mid':
+            pointx = x0 + (x1 - x0) / 2
+            pointy = y0 + (y1 - y0) / 2
 
         # Find the directions the arrows are pointing
-        sign_x = (x1 - x0) / abs(x1 - x0)
-        sign_y = (y1 - y0) / abs(y1 - y0)
+        signx = (x1 - x0) / abs(x1 - x0)
+        signy = (y1 - y0) / abs(y1 - y0)
 
-        # TODO: poor format wastes lines
         # Append first arrowhead
-        dx = length * math.sin(math.radians(eta + angle))
-        dy = length * math.cos(math.radians(eta + angle))
-        x.append(point_x)
-        x.append(point_x - sign_x ** 2 * sign_y * dx)
-        x.append(None)
-        y.append(point_y)
-        y.append(point_y - sign_x ** 2 * sign_y * dy)
-        y.append(None)
+        dx = arrow_length * math.sin(math.radians(eta + arrow_angle))
+        dy = arrow_length * math.cos(math.radians(eta + arrow_angle))
+        edge_x.append(pointx)
+        edge_x.append(pointx - signx ** 2 * signy * dx)
+        edge_x.append(None)
+        edge_y.append(pointy)
+        edge_y.append(pointy - signx ** 2 * signy * dy)
+        edge_y.append(None)
 
         # And second arrowhead
-        dx = length * math.sin(math.radians(eta - angle))
-        dy = length * math.cos(math.radians(eta - angle))
-        x.append(point_x)
-        x.append(point_x - sign_x ** 2 * sign_y * dx)
-        x.append(None)
-        y.append(point_y)
-        y.append(point_y - sign_x ** 2 * sign_y * dy)
-        y.append(None)
+        dx = arrow_length * math.sin(math.radians(eta - arrow_angle))
+        dy = arrow_length * math.cos(math.radians(eta - arrow_angle))
+        edge_x.append(pointx)
+        edge_x.append(pointx - signx ** 2 * signy * dx)
+        edge_x.append(None)
+        edge_y.append(pointy)
+        edge_y.append(pointy - signx ** 2 * signy * dy)
+        edge_y.append(None)
 
-    return x, y
+    return edge_x, edge_y
 
 
 def show_lineage(graph: nx.Graph):
@@ -119,6 +120,7 @@ def show_lineage(graph: nx.Graph):
         end = graph.nodes[edge[1]]['pos']
         edge_x, edge_y = add_edge(start, end, edge_x, edge_y, .8, 'end', .04, 30, node_size)
 
+    # TODO: add data for Step that generates each artifact
     # TODO: add cases for Step that generates each artifact
     edge_trace = go.Scatter(
         x=edge_x, y=edge_y, line=dict(width=line_width, color=line_color), hoverinfo='none',
