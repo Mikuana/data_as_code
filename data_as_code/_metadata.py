@@ -8,7 +8,7 @@ import networkx as nx
 from data_as_code import show_lineage
 
 
-class Lineage:
+class Metadata:
     """
     The metadata corresponding to an Artifact which describes the series of
     Artifacts which describe the complete transformation of source cases into a
@@ -96,11 +96,11 @@ class Lineage:
 
 
 def from_objects(n: str, p: Path, cs: sha256, k: str, lin: List[dict] = None):
-    return Lineage(n, p, cs.hexdigest(), cs.name, k, lin or [])
+    return Metadata(n, p, cs.hexdigest(), cs.name, k, lin or [])
 
 
 def from_dictionary(name: str, path: str, checksum: Dict[str, str], kind: str, lineage: List[dict] = None):
-    return Lineage(
+    return Metadata(
         name, Path(path),
         checksum['value'], checksum['algorithm'], kind,
         [from_dictionary(**x) for x in lineage or []]

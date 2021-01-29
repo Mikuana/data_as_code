@@ -1,12 +1,12 @@
 import pytest
 
-from data_as_code._lineage import Lineage, from_dictionary
+from data_as_code._metadata import Metadata, from_dictionary
 from tests.cases import valid_cases
 
 
 @pytest.mark.parametrize('x,doc', valid_cases)
 def test_from_dict(x, doc):
-    assert isinstance(from_dictionary(**x), Lineage), "cant load lineage from dictionary"
+    assert isinstance(from_dictionary(**x), Metadata), "cant load lineage from dictionary"
 
 
 @pytest.mark.parametrize('x,doc', valid_cases)

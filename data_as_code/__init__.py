@@ -19,12 +19,6 @@ class Step:
     """
 
 
-class Artifact:
-    """
-    A file which is used and/or produced by a recipe.
-    """
-
-
 class Product:
     """
     A package which is the result of executing a recipe. Includes cases (in
