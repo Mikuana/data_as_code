@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 import networkx as nx
 
-from data_as_code import show_lineage
+from data_as_code._plotly import show_lineage
 
 
 class Metadata:

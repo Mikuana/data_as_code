@@ -14,6 +14,10 @@ from data_as_code._recipe import Recipe
 
 
 class Step:
+    """
+    A process which takes one or more artifacts in a recipe, and transforms it
+    into another artifact.
+    """
     name: str = None
     lineage: List[Union[Metadata, str]] = []
 
@@ -58,17 +62,16 @@ class Step:
         # force Path output into a list of Path
         if isinstance(output, Path):
             output = [output]
-        self.output = output
 
         os.chdir(original_wd)
 
         self.output = [
             Metadata(
                 self.name, Path(self._step_dir, x),
-                md5(x.read_bytes()).hexdigest(), 'md5',
+                md5(Path(self._step_dir, x).read_bytes()).hexdigest(), 'md5',
                 'intermediary', lineage
             )
-            for x in self.output
+            for x in output
         ]
         self.recipe.artifacts.extend(self.output)
 
@@ -83,11 +86,7 @@ class SourceHTTP(_GetSource):
 
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
-        if kwargs.get('mock'):
-            origins = Reference(kwargs.pop('mock'), url=url)
-        else:
-            origins = url
-        super().__init__(recipe, origins=origins, name=name or Path(url).name, **kwargs)
+        super().__init__(recipe, name=name or Path(self._url).name, **kwargs)
 
     def process(self) -> Path:
         path = Path(Path(self._url).name)
@@ -112,22 +111,17 @@ class SourceHTTP(_GetSource):
 
 class SourceLocal(_GetSource):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
-        self.path = Path(path)
-        if kwargs.get('reference'):
-            origins = Reference(kwargs.pop('reference'), path=self.path.as_posix())
-        else:
-            origins = self.path.as_posix()
-
+        self._path = path
         super().__init__(
-            recipe, origins=origins, name=name or self.path.name, **kwargs
+            recipe, name=name or path.name, path=path, **kwargs
         )
 
-    def process(self) -> Source:
-        return self.path
+    def process(self) -> Metadata:
+        return self._path
 
 
 class Unzip(Step):
-    def __init__(self, recipe: Recipe, lineage: _th_lineages, **kwargs):
+    def __init__(self, recipe: Recipe, lineage: List[Metadata], **kwargs):
         self.zip_archive = Input(lineage)
         super().__init__(recipe, **kwargs)
 
@@ -136,7 +130,7 @@ class Unzip(Step):
 
     def unpack(self) -> Generator[Path, None, None]:
         with ZipFile(self.zip_archive.path) as zf:
-            xd = Path(self.recipe.workspace, 'unzip' + self.zip_archive.checksum.hexdigest()[:8])
+            xd = Path(self.recipe.workspace, 'unzip' + self.zip_archive.checksum_value[:8])
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file
