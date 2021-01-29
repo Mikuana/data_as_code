@@ -1,15 +1,9 @@
 from data_as_code._plotly import show_lineage
-from data_as_code.metadata import Recipe, Input, Intermediary
-from data_as_code.step import SourceLocal, Step, SourceHTTP
+from data_as_code._metadata import Input, Reference, Metadata
+from data_as_code._recipe import Recipe, Keep
+from data_as_code._step import SourceLocal, Step, SourceHTTP
 
 __version__ = '0.0.0'
-
-
-class Recipe:
-    """
-    An environment where the processing of cases artifacts from source, to final
-    product occurs.
-    """
 
 
 class Step:

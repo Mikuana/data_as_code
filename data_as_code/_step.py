@@ -1,5 +1,6 @@
 import inspect
 import os
+from hashlib import md5
 from pathlib import Path
 from typing import Union, List, Generator, Tuple
 from uuid import uuid4
@@ -8,75 +9,68 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code.metadata import (
-    Metadata, Source, Intermediary, Recipe, _th_lineages, Input, Reference
-)
+from data_as_code._metadata import Metadata, Reference, Input
+from data_as_code._recipe import Recipe
 
 
 class Step:
     name: str = None
-    origins: List[Union[Metadata, str]] = []
+    lineage: List[Union[Metadata, str]] = []
 
     def __init__(self, recipe: Recipe, **kwargs):
-        self.name = kwargs.get('name', self.name)
-        self.origins = kwargs.get('origins')
-
-        # TODO: ew
-        if self.origins:
-            self.origins = self.origins if isinstance(self.origins, list) else [self.origins]
-        else:
-            self.origins = []
-
         self.guid = uuid4()
         self.recipe = recipe
 
-        self.inputs: List[str] = []
-        self.output: Intermediary
+        self.name = kwargs.get('name', self.name)
+        self.lineage = kwargs.get('lineage', self.lineage)
         self.is_product = kwargs.get('is_product', False)
 
         self._step_dir = Path(self.recipe.workspace, self.guid.hex)
 
-        self._set_inputs()
+        self.inputs: List[str] = []
+        self.output: List[Metadata]
+
+        self._set_input()
         self._set_output()
 
         if self.is_product:
             self._set_product()
 
-    def process(self) -> Path:
+    def process(self) -> Union[Path, List[Path]]:
         return None
 
     def _set_product(self):
         self.recipe.products.append(self.output)
 
-    def _set_inputs(self):
+    def _set_input(self):
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
             self.inputs.append(k)
             self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
 
     def _set_output(self):
-        origins = [self.__getattribute__(x) for x in self.inputs] + self.origins
+        lineage = [self.__getattribute__(x) for x in self.inputs] + self.lineage
 
         original_wd = os.getcwd()
         self._step_dir.mkdir()
         os.chdir(self._step_dir)
-        self.output = self.process()
+
+        output = self.process()
+        # force Path output into a list of Path
+        if isinstance(output, Path):
+            output = [output]
+        self.output = output
+
         os.chdir(original_wd)
 
-        if isinstance(self.output, list):
-
-            self.output = [
-                Intermediary(
-                    origins, Path(self._step_dir, x), name=x.name, ref_path=x,
-                    notes=self.__doc__
-                )
-                for x in self.output]
-            self.recipe.artifacts.extend(self.output)
-        else:
-            self.output = Intermediary(
-                origins, Path(self._step_dir, self.output),
-                name=self.name or self.output.name, ref_path=self.output, notes=self.__doc__
+        self.output = [
+            Metadata(
+                self.name, Path(self._step_dir, x),
+                md5(x.read_bytes()).hexdigest(), 'md5',
+                'intermediary', lineage
             )
-            self.recipe.artifacts.append(self.output)
+            for x in self.output
+        ]
+        self.recipe.artifacts.extend(self.output)
 
 
 class _GetSource(Step):

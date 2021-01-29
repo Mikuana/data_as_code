@@ -94,6 +94,19 @@ class Metadata:
     def show_lineage(self):
         show_lineage(self.draw_lineage_graph())
 
+    def is_descendent(self, *args: str) -> bool:
+        if self.name == args[0]:
+            if not args[1:]:
+                return True
+            elif len(args) == 2 and args[1] is None and self.lineage == []:
+                return True
+            else:
+                for o in self.lineage:
+                    if issubclass(type(o), Metadata):
+                        if o.is_descendent(*args[1:]):
+                            return True
+        return False
+
 
 def from_objects(n: str, p: Path, cs: sha256, k: str, lin: List[dict] = None):
     return Metadata(n, p, cs.hexdigest(), cs.name, k, lin or [])
@@ -105,3 +118,30 @@ def from_dictionary(name: str, path: str, checksum: Dict[str, str], kind: str, l
         checksum['value'], checksum['algorithm'], kind,
         [from_dictionary(**x) for x in lineage or []]
     )
+
+
+class Reference(Metadata):
+    """
+    Mock Source
+
+    A lineage Artifact which precedes a Source, but which is not actually
+    available for use by the Recipe. Allows for a more complete lineage to be
+    declared, when appropriate.
+    """
+
+    def __init__(self, name: str, lineage: list, other: Dict[str, str] = None):
+        super().__init__(name, None, None, None, 'reference', lineage, other)
+
+    def calculate_fingerprint(self) -> str:
+        d = dict(
+            name=self.name, kind=self.kind,
+            lineage=sorted([x.fingerprint for x in self.lineage]),
+            other=self.other
+        )
+        return md5(json.dumps(d).encode('utf8')).hexdigest()
+
+
+class Input(Metadata):
+    # noinspection PyMissingConstructor
+    def __init__(self, *args: str):
+        self.lineage = args
