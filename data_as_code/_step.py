@@ -9,7 +9,7 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
-from data_as_code._metadata import Metadata, Reference, Input
+from data_as_code._metadata import Metadata, Input
 from data_as_code._recipe import Recipe
 
 
@@ -17,9 +17,12 @@ class Step:
     """
     A process which takes one or more artifacts in a recipe, and transforms it
     into another artifact.
+
+    TODO: recipe, and other params
     """
     name: str = None
     lineage: List[Union[Metadata, str]] = []
+    inputs: List[str] = []
 
     def __init__(self, recipe: Recipe, **kwargs):
         self.guid = uuid4()
@@ -28,52 +31,76 @@ class Step:
         self.name = kwargs.get('name', self.name)
         self.lineage = kwargs.get('lineage', self.lineage)
         self.is_product = kwargs.get('is_product', False)
+        self.other = kwargs.get('other')
 
-        self._step_dir = Path(self.recipe.workspace, self.guid.hex)
-
-        self.inputs: List[str] = []
-        self.output: List[Metadata]
+        self._workspace = Path(self.recipe.workspace, self.guid.hex)
 
         self._set_input()
-        self._set_output()
+        self.output = self._metadata_outputs()
+        self.recipe.artifacts.extend(self.output)
 
         if self.is_product:
             self._set_product()
 
-    def process(self) -> Union[Path, List[Path]]:
+    def instructions(self) -> Union[Path, List[Path]]:
+        """
+        Step Instructions
+
+        Define the logic for this step which will use the inputs to generate an
+        output file, and return the path, or paths, of the output.
+        """
         return None
 
-    def _set_product(self):
+    def _set_product(self):  # TODO: probably not the right way to do this
+        """ Define products """
         self.recipe.products.append(self.output)
 
     def _set_input(self):
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
-            self.inputs.append(k)
-            self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
+        """
+        Set Input Metadata
 
-    def _set_output(self):
+        Use the name lineage input defined for the Step class, get the Metadata
+        object with the corresponding lineage, and assign the object back to the
+        same attribute. This allows explict object assignment and reference in
+        the step instructions for files which may not exist until runtime.
+
+        This method must modify self, due to the dynamic naming of attributes.
+        """
+        inputs = []
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, Input)):
+            inputs.append(k)
+            self.__setattr__(k, self.recipe.get_artifact(*v.lineage))
+        self.inputs = inputs
+
+    def _metadata_outputs(self):
+        """
+        Set Output Metadata
+
+        Use the Path list returned by the Step Instructions to create a list of
+        output Metadata for the step. These outputs get added to the Recipe
+        artifacts
+        """
         lineage = [self.__getattribute__(x) for x in self.inputs] + self.lineage
 
         original_wd = os.getcwd()
-        self._step_dir.mkdir()
-        os.chdir(self._step_dir)
+        self._workspace.mkdir()
+        os.chdir(self._workspace)
 
-        output = self.process()
+        output = self.instructions()
         # force Path output into a list of Path
         if isinstance(output, Path):
             output = [output]
 
         os.chdir(original_wd)
 
-        self.output = [
+        return [
             Metadata(
-                self.name, Path(self._step_dir, x),
-                md5(Path(self._step_dir, x).read_bytes()).hexdigest(), 'md5',
-                'intermediary', lineage
+                self.name, Path(self._workspace, x),
+                md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
+                'intermediary', lineage, self.other
             )
             for x in output
         ]
-        self.recipe.artifacts.extend(self.output)
 
 
 class _GetSource(Step):
@@ -86,9 +113,10 @@ class SourceHTTP(_GetSource):
 
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
+        kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
         super().__init__(recipe, name=name or Path(self._url).name, **kwargs)
 
-    def process(self) -> Path:
+    def instructions(self) -> Path:
         path = Path(Path(self._url).name)
         try:
             print('Downloading from URL:\n' + self._url)
@@ -116,7 +144,7 @@ class SourceLocal(_GetSource):
             recipe, name=name or path.name, path=path, **kwargs
         )
 
-    def process(self) -> Metadata:
+    def instructions(self) -> Metadata:
         return self._path
 
 
@@ -125,7 +153,7 @@ class Unzip(Step):
         self.zip_archive = Input(lineage)
         super().__init__(recipe, **kwargs)
 
-    def process(self) -> List[Path]:
+    def instructions(self) -> List[Path]:
         return list(self.unpack())
 
     def unpack(self) -> Generator[Path, None, None]:
