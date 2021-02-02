@@ -171,6 +171,6 @@ class Product(Metadata):
         p = metadata.path.rename(Path(destination, metadata.path.name))
         p = p.relative_to(destination)
         return cls(
-            metadata.name, p, metadata.checksum_value, metadata.checksum_value,
+            metadata.name, p, metadata.checksum_value, metadata.checksum_algorithm,
             metadata.lineage, metadata.other
         )

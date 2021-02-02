@@ -23,6 +23,7 @@ class Step:
     name: str = None
     lineage: List[Union[Metadata, str]] = []
     inputs: List[str] = []
+    kind = 'intermediary'
 
     def __init__(self, recipe: Recipe, **kwargs):
         self.guid = uuid4()
@@ -92,13 +93,14 @@ class Step:
         return Metadata(
             self.name or x.name, Path(self._workspace, x),
             md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            'intermediary', lineage, self.other, Path(self._workspace)
+            self.kind, lineage, self.other, Path(self._workspace)
         )
 
 
 class Source(Step):
+    kind = 'source'
+
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
-        kwargs['kind'] = kwargs.get('kind', 'source')
         super().__init__(recipe, name=name, **kwargs)
 
 
@@ -145,7 +147,7 @@ class SourceLocal(Source):
         return Metadata(
             self.name or x.name, Path(self._workspace, x),
             md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            'intermediary', lineage, self.other, None
+            self.kind, lineage, self.other, None
         )
 
 
