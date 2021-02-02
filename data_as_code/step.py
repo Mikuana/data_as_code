@@ -86,14 +86,14 @@ class Step:
 
         os.chdir(original_wd)
 
-        return [
-            Metadata(
-                self.name or x.name, Path(self._workspace, x),
-                md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-                'intermediary', lineage, self.other
-            )
-            for x in output
-        ]
+        return [self._make_metadata(x, lineage) for x in output]
+
+    def _make_metadata(self, x: Path, lineage) -> Metadata:
+        return Metadata(
+            self.name or x.name, Path(self._workspace, x),
+            md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
+            'intermediary', lineage, self.other, Path(self._workspace)
+        )
 
 
 class Source(Step):
@@ -141,6 +141,13 @@ class SourceLocal(Source):
     def instructions(self) -> Metadata:
         return self._path
 
+    def _make_metadata(self, x: Path, lineage) -> Metadata:
+        return Metadata(
+            self.name or x.name, Path(self._workspace, x),
+            md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
+            'intermediary', lineage, self.other, None
+        )
+
 
 class Unzip(Step):
     def __init__(self, recipe: Recipe, lineage: List[Metadata], **kwargs):
@@ -156,13 +163,3 @@ class Unzip(Step):
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file
-
-
-class Output:
-    def __init__(self, recipe: Recipe, lineages: List[Union[str, Tuple[str]]]):
-        self.recipe = recipe
-        for lin in lineages:
-            if isinstance(lin, list):
-                self.recipe.products.append(self.recipe.get_artifact(*lin))
-            else:
-                self.recipe.products.append(self.recipe.get_artifact(lin))

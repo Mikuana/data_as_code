@@ -25,9 +25,10 @@ class Metadata:
 
     def __init__(self, name: str, path: Path, checksum_value: str,
                  checksum_algorithm: str, kind: str, lineage: list,
-                 other: Dict[str, str] = None):
+                 other: Dict[str, str] = None, relative_to: Path = None):
         self.name = name
         self.path = path
+        self._relative_to = relative_to
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
         self.kind = kind
@@ -72,7 +73,7 @@ class Metadata:
     def to_dict(self) -> dict:
         base = dict(
             name=self.name,
-            path=self.path.as_posix(),
+            path=self._path_prep().as_posix(),
             checksum=dict(algorithm=self.checksum_algorithm, value=self.checksum_value),
             kind=self.kind
         )
@@ -83,6 +84,10 @@ class Metadata:
         if self.other:
             base = {**base, **self.other}
         return base
+
+    def _path_prep(self) -> Path:
+        rt = self._relative_to
+        return self.path.relative_to(rt) if rt else self.path
 
     def draw_lineage_graph(self) -> nx.DiGraph:
         nodes, edges = self.get_network()
@@ -145,3 +150,27 @@ class Input(Metadata):
     # noinspection PyMissingConstructor
     def __init__(self, *args: str):
         self.lineage = args
+
+
+class Product(Metadata):
+    """
+    A package which is the result of executing a recipe. Includes cases (in
+    the form of a file), metadata (including lineage), and the recipe itself.
+    """
+
+    def __init__(self, name: str, path: Path, checksum_value: str,
+                 checksum_algorithm: str, lineage: list,
+                 other: Dict[str, str] = None):
+        kind = 'product'
+        super().__init__(
+            name, path, checksum_value, checksum_algorithm, kind, lineage, other
+        )
+
+    @classmethod
+    def repackage(cls, metadata: Metadata, destination: Path):
+        p = metadata.path.rename(Path(destination, metadata.path.name))
+        p = p.relative_to(destination)
+        return cls(
+            metadata.name, p, metadata.checksum_value, metadata.checksum_value,
+            metadata.lineage, metadata.other
+        )
