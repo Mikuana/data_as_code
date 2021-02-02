@@ -39,9 +39,6 @@ class Step:
         self.output = self._metadata_outputs()
         self.recipe.artifacts.extend(self.output)
 
-        if self.is_product:
-            self._set_product()
-
     def instructions(self) -> Union[Path, List[Path]]:
         """
         Step Instructions
@@ -50,10 +47,6 @@ class Step:
         output file, and return the path, or paths, of the output.
         """
         return None
-
-    def _set_product(self):  # TODO: probably not the right way to do this
-        """ Define products """
-        self.recipe.products.append(self.output)
 
     def _set_input(self):
         """
@@ -95,7 +88,7 @@ class Step:
 
         return [
             Metadata(
-                self.name, Path(self._workspace, x),
+                self.name or x.name, Path(self._workspace, x),
                 md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
                 'intermediary', lineage, self.other
             )
@@ -103,12 +96,13 @@ class Step:
         ]
 
 
-class _GetSource(Step):
+class Source(Step):
     def __init__(self, recipe: Recipe, name: str = None, **kwargs):
+        kwargs['kind'] = kwargs.get('kind', 'source')
         super().__init__(recipe, name=name, **kwargs)
 
 
-class SourceHTTP(_GetSource):
+class SourceHTTP(Source):
     """Download file from specified URL"""
 
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
@@ -137,7 +131,7 @@ class SourceHTTP(_GetSource):
         return path
 
 
-class SourceLocal(_GetSource):
+class SourceLocal(Source):
     def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
         self._path = path
         super().__init__(

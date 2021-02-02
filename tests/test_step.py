@@ -1,13 +1,31 @@
-def test_get_input():
-    assert False, "input artifact retrieval failed"
+from pathlib import Path
+from data_as_code._recipe import Recipe
+from data_as_code.step import Step, Input, Source
+from data_as_code._metadata import Metadata
 
 
-def test_accepts_recipe():
-    assert False, "did not accept recipe"
+def test_get_input(frozen_pizza):
+    class MyStep(Step):
+        file_a = Input('fileA.csv')
+
+        def instructions(self):
+            p = Path('my_step.txt')
+            p.write_text(self.file_a.path.read_text())
+            return p
+
+    assert isinstance(MyStep(frozen_pizza).file_a, Metadata)
 
 
-def test_add_output():
-    assert False, "did not add output to recipe"
+def test_add_output(frozen_pizza):
+    class MyStep(Step):
+        file_a = Input('fileA.csv')
+
+        def instructions(self):
+            p = Path('my_step.txt')
+            p.write_text(self.file_a.path.read_text())
+            return p
+
+    assert 'my_step.txt' in [x.name for x in MyStep(frozen_pizza).output]
 
 
 def test_return_path():

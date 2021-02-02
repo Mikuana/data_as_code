@@ -68,7 +68,10 @@ class Recipe:
     def _package(self):
         # move products from working folder to destination and update metadata
         for p in self.products:
-            p.path = p.path.rename(Path(self.destination, p.path))
+            p.path = p.path.rename(Path(self.destination, p.path.name))
             Path(p.path.parent, 'meta.json').write_text(
                 json.dumps(p.to_dict(), indent=2)
             )
+
+    def designate_product(self, *args):
+        self.products.append(self.get_artifact(*args))
