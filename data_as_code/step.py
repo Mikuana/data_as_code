@@ -59,7 +59,10 @@ class _Step:
         self._set_ingredients()
         self.output = self._metadata_outputs()
         if product:
-            self.recipe.products.extend(self.output)
+            if isinstance(self.output, dict):
+                self.recipe.products.extend(self.output.values())
+            else:
+                self.recipe.products.append(self.output)
 
     def instructions(self) -> Union[Path, Dict[str, Path]]:
         """
@@ -149,7 +152,7 @@ class _SourceStep(_Step):
 class SourceHTTP(_SourceStep):
     """Download file from specified URL"""
 
-    def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
+    def __init__(self, recipe: Recipe, url: str, **kwargs):
         self._url = url
         kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
         super().__init__(recipe, **kwargs)
@@ -199,7 +202,7 @@ class Unzip(_Step):
         return {x[0]: x[1] for x in self.unpack()}
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
-        with ZipFile(self.zip_archive) as zf:
+        with ZipFile(self.zip_archive.path) as zf:
             xd = Path(self.recipe.workspace, self.zip_archive.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
