@@ -2,7 +2,7 @@ import inspect
 import os
 from hashlib import md5
 from pathlib import Path
-from typing import Union, List, Generator, Dict
+from typing import Union, List, Generator, Dict, Tuple
 from uuid import uuid4
 from zipfile import ZipFile
 
@@ -50,12 +50,14 @@ class _Step:
 
         self.lineage = kwargs.get('lineage', self.lineage)
         self.other = kwargs.get('other')
-
-        self._workspace = Path(self.recipe.workspace, self.guid.hex)
+        self._workspace = kwargs.get('workspace')
+        if self._workspace:
+            self._workspace = Path(self._workspace)
+        else:
+            self._workspace = Path(self.recipe.workspace, self.guid.hex)
 
         self._set_ingredients()
         self.output = self._metadata_outputs()
-        self.recipe.artifacts.extend(self.output)
         if product:
             self.recipe.products.extend(self.output)
 
@@ -66,7 +68,7 @@ class _Step:
         Define the logic for this step which will use the inputs to generate an
         output file, and return the path, or paths, of the output.
         """
-        return None
+        pass
 
     def _set_ingredients(self):
         """
@@ -96,7 +98,7 @@ class _Step:
         lineage = [self.__getattribute__(x) for x in self.inputs] + self.lineage
 
         original_wd = os.getcwd()
-        self._workspace.mkdir()
+        self._workspace.mkdir(exist_ok=True)
         os.chdir(self._workspace)
 
         output = self.instructions()
@@ -105,6 +107,8 @@ class _Step:
             output = self._make_metadata(output, lineage)
         elif isinstance(output, dict):
             output = {k: self._make_metadata(v, lineage) for k, v in output.items()}
+        else:
+            raise TypeError("instruction return was not a Path or dictionary of Paths")
 
         os.chdir(original_wd)
 
@@ -114,7 +118,7 @@ class _Step:
         return Metadata(
             x.name, Path(self._workspace, x),
             md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            self.kind, lineage, self.other, Path(self._workspace)
+            str(self.kind), lineage, self.other, Path(self._workspace)
         )
 
 
@@ -122,24 +126,24 @@ class _Ingredient(_Step):
     output: Union[Path, Dict[str, Path]]
 
     # noinspection PyMissingConstructor
-    def __init__(self, step):
+    def __init__(self, step: _Step):
         self.step = step
 
 
-def ingredient(step: _Step) -> Union[Path, Dict[str, Path]]:
-    return _Ingredient(step)
+def ingredient(step: _Step) -> Union[Metadata, Dict[str, Metadata]]:
+    return _Ingredient(step).step.output
 
 
 class Custom(_Step):
     inputs: List[Union[Path, Dict[str, Path]]] = []
-    kind: Union[Source, Intermediary, Product]
+    kind: Union[Source, Intermediary, Product] = Intermediary
 
 
 class _SourceStep(_Step):
     kind = Source
 
-    def __init__(self, recipe: Recipe, name: str = None, **kwargs):
-        super().__init__(recipe, name=name, **kwargs)
+    def __init__(self, recipe: Recipe, **kwargs):
+        super().__init__(recipe, **kwargs)
 
 
 class SourceHTTP(_SourceStep):
@@ -148,7 +152,7 @@ class SourceHTTP(_SourceStep):
     def __init__(self, recipe: Recipe, url: str, name: str = None, **kwargs):
         self._url = url
         kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
-        super().__init__(recipe, name=name or Path(self._url).name, **kwargs)
+        super().__init__(recipe, **kwargs)
 
     def instructions(self) -> Path:
         path = Path(Path(self._url).name)
@@ -172,20 +176,17 @@ class SourceHTTP(_SourceStep):
 
 
 class SourceLocal(_SourceStep):
-    def __init__(self, recipe: Recipe, path: Union[str, Path], name: str = None, **kwargs):
+    def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
         self._path = path
-        super().__init__(
-            recipe, name=name or path.name, path=path, **kwargs
-        )
+        super().__init__(recipe, workspace='.', **kwargs)
 
-    def instructions(self) -> Metadata:
-        return self._path
+    def instructions(self) -> Path:
+        return Path(self._path).absolute()
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(
-            x.name, Path(self._workspace, x),
-            md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            self.kind, lineage, self.other, None
+            x.name, x, md5(x.read_bytes()).hexdigest(), 'md5',
+            str(self.kind), lineage, self.other, None
         )
 
 
@@ -194,12 +195,12 @@ class Unzip(_Step):
         self.zip_archive = ingredient(step)
         super().__init__(recipe, **kwargs)
 
-    def instructions(self) -> Dict[Path]:
-        return {k: v for k, v in self.unpack()}
+    def instructions(self) -> Dict[str, Path]:
+        return {x[0]: x[1] for x in self.unpack()}
 
-    def unpack(self) -> Generator[Path, None, None]:
+    def unpack(self) -> Generator[Tuple[str, Path], None, None]:
         with ZipFile(self.zip_archive) as zf:
             xd = Path(self.recipe.workspace, self.zip_archive.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
-                yield file.name, file
+                yield file.as_posix(), file
