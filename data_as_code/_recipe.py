@@ -1,4 +1,8 @@
+import shutil
+
+import gzip
 import json
+import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, List
@@ -51,30 +55,25 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
-    def get_artifact(self, *args: str) -> Metadata:
-        lineage = [*args]
-        candidates = [x.is_descendent(*lineage) for x in self.artifacts]
-        if sum(candidates) == 1:
-            return self.artifacts[candidates.index(True)]
-        elif sum(candidates) > 1:
-            raise Exception("Lineage matches multiple candidates")
-        else:
-            raise Exception(
-                "Lineage does not match any candidate" + '\n',
-                f"{lineage}" + "\n",
-                f"{[x.name for x in self.artifacts]}"
-            )
-
     def _package(self):
         # move products from working folder to destination and update metadata
+        fn = 'recipe'
         meta = []
-        for p in self.products:
-            p = Product.repackage(p, self.destination)
-            meta.append(p.to_dict())
 
-        Path(self.destination, 'metadata.json').write_text(
-            json.dumps(meta, indent=2)
-        )
+        # TODO: make tarball/gzip or zip optional
+        tp = Path(self.destination, fn + '.tar')
+        with tarfile.open(tp, "w") as tar:
+            for p in self.products:
+                tar.add(p.path)
+                p = Product.repackage(p, self.destination)  # TODO: dont move
+                meta.append(p.to_dict())
 
-    def designate_product(self, *args):
-        self.products.append(self.get_artifact(*args))
+            p = Path(self.destination, 'metadata.json')
+            p.write_text(json.dumps(meta, indent=2))
+            tar.add(p)
+
+        with gzip.open(Path(tp.parent, tp.name + '.gz'), 'wb') as f_out:
+            f_out.write(tp.read_bytes())
+
+    def designate_product(self, product: Metadata):
+        self.products.append(product)

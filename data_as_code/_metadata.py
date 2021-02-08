@@ -40,7 +40,7 @@ class Metadata:
         d = dict(
             name=self.name, path=self.path.as_posix(),
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            kind=self.kind,
+            kind=str(self.kind),
             lineage=sorted([x.fingerprint for x in self.lineage]),
             other=self.other
         )
@@ -144,12 +144,6 @@ class Reference(Metadata):
             other=self.other
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
-
-
-class Input(Metadata):
-    # noinspection PyMissingConstructor
-    def __init__(self, *args: str):
-        self.lineage = args
 
 
 class Product(Metadata):

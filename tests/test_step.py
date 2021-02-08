@@ -1,11 +1,11 @@
 from pathlib import Path
 from data_as_code._recipe import Recipe
-from data_as_code.step import Step, Input, Source
+from data_as_code.step import Custom, Input, _SourceStep
 from data_as_code._metadata import Metadata
 
 
 def test_get_input(frozen_pizza):
-    class MyStep(Step):
+    class MyStep(Custom):
         file_a = Input('fileA.csv')
 
         def instructions(self):
@@ -17,7 +17,7 @@ def test_get_input(frozen_pizza):
 
 
 def test_add_output(frozen_pizza):
-    class MyStep(Step):
+    class MyStep(Custom):
         file_a = Input('fileA.csv')
 
         def instructions(self):
