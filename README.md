@@ -1,78 +1,91 @@
 # Data as Code
 
-# Quick Start
-
-To use this package, you'll need (1) access to source data files, (2) a series
-of steps to transform the data using python. In the example below, we're going
-to retrieve a csv file from the internet, and replace the delimiter.
+A python package which handles the transformation of data as a recipe which
+enables versioning, reproducibility, and portability of data. The example below
+will download a CSV file, read it line by line, and convert the delimiter to a
+star.
 
 ```python
+# star_convert_recipe.py
 import csv
 from pathlib import Path
 
 from data_as_code import Recipe, step
 
-with Recipe() as r:
-    url = 'https://data.transportation.gov/api/views/bagt-569v/rows.csv?accessType=DOWNLOAD'
-    step.SourceHTTP(r, url, 'road_data.csv')
-    
+with Recipe('star_package') as r:
+    s1 = step.SourceHTTP(r, 'https://data-url.com/data.csv')
+
+
     class ChangeDelimiter(step.Custom):
         """ Read CSV and rewrite file with star(*) delimiter """
-        kind = step.Product
-        x = step.Input('road_data.csv')
+        i1 = step.ingredient(s1)
 
         def instructions(self):
-            op = Path('road_data_starred.csv')
+            op = Path('data_starred.csv')
             with op.open('w', newline='') as new:
                 writer = csv.writer(new, delimiter='*')
-                with self.x.path.open(newline='') as orig:
+                with self.i1.path.open(newline='') as orig:
                     reader = csv.reader(orig)
                     for row in reader:
                         writer.writerow(row)
-            return op 
-    
+            return op
+
+
     ChangeDelimiter(r)
 ```
 
-# Concepts
+This produces a package in a directory of files.
 
-- **Artifact**: an objects which represents data, and provide a direct means of
-  obtaining it, typically via file path
+```
+|-- star_package/
+    |-- env/
+        |-- requirements.txt
+    |-- metadata/
+        |-- data_starred.json
+    |-- product/
+        |-- data_starred.csv
+    |-- star_convert_recipe.py
+```
 
-    - **MockSource**: a lineage *artifact* which precedes the *source*, but
-      which is not actually available for use by the recipe. Allows for a more
-      complete lineage to be declared when appropriate
+## Why though?
 
-    - **Source**: primary data *artifact*; the "original" that is used by a
-      *recipe*, before it has been changed in any way
+The value of treating *data as code* becomes apparent when you have the right
+use cases.
 
-    - **Intermediary**: an intermediate data *artifact* that is the result of
-      applying incremental changes to a *source*, but not yet the final data
-      product produced by the *recipe*. Not meant to be used outside the recipe,
-      and treated as disposable
+### Large, publicly available data
 
-    - **Product**: the ultimate data *artifact* produced by a *recipe*, which is
-      intended for use outside the *recipe*. Includes the complete *lineage*
-      as a component of the packaged product, and optionally includes the
-      *recipe* that was used to create it
+Alice is working on a project with Bob which uses a public data set that is 100
+GB in size. Alice is the data expert, and is responsible for cleaning up the file
+before Bob looks at it. She does this in Python, but the end result is still 100
+GB. That's big enough that sending it to Bob over the internet is challenging.
 
-- **Processor**: a step where data artifacts are changed in any way
+*Instead of sending the final data, Alice can send the recipe to Bob, who can
+then use the recipe to process the data from the same source that Alice used.*
 
-    - **Bypass**: a *processor* that does not actually do the work, but instead
-      represents work that occurs outside the *recipe*. Useful if data are
-      treated by a third party, or by other software that cannot be represented
-      in any way in the *recipe*
+### Mixing public and private data
 
-- **Recipe**: the set of instructions which use the specified *sources*, and
-  *processes* them in steps to generate the final data *product*
+Alice is working with Bob again, and he wants her to enhance the large public
+data set with a smaller proprietary data that she holds. She does this in a recipe,
+but still doesn't want to send the final product over the internet because it
+is too large.
 
-- **Lineage**: metadata that can be used to trace a *product* back to its
-  *source*, which includes all data *artifacts*
+*Alice can package her proprietary data along with the recipe, without needing
+to send the public data. Bob can again generate the final product, including the
+enhancements.*
 
-# Example
+### Are we using the same data?
 
-Lets
+When Alice sends her data to Bob, he wants to know if various source files used
+to produce the final product are the same ones that were used for another project.
 
-```python
+*Alice delivers automatically generated metadata for all source and intermediate
+files involved in creating the final product, including filenames, notes, and
+checksums*
 
+# Installation
+
+This package requires Python 3.6+
+
+```shell
+pip install data_as_code
 ```
