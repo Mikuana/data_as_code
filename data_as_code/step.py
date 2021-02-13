@@ -64,7 +64,7 @@ class _Step:
         if product:
             self.recipe.products.extend(
                 self.metadata.values() if isinstance(self.metadata, dict)
-                else self.metadata
+                else [self.metadata]
             )
 
     def instructions(self) -> Union[Path, Dict[str, Path]]:

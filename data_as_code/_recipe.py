@@ -59,20 +59,20 @@ class Recipe:
         fn = 'recipe'
         meta = []
 
-        # # TODO: make tarball/gzip or zip optional
-        # tp = Path(self.destination, fn + '.tar')
-        # with tarfile.open(tp, "w") as tar:
-        #     for p in self.products:
-        #         tar.add(p.path)
-        #         p = Product.repackage(p, self.destination)  # TODO: dont move
-        #         meta.append(p.to_dict())
-        #
-        #     p = Path(self.destination, 'metadata.json')
-        #     p.write_text(json.dumps(meta, indent=2))
-        #     tar.add(p)
-        #
-        # with gzip.open(Path(tp.parent, tp.name + '.gz'), 'wb') as f_out:
-        #     f_out.write(tp.read_bytes())
+        # TODO: make tarball/gzip or zip optional
+        tp = Path(self.destination, fn + '.tar')
+        with tarfile.open(tp, "w") as tar:
+            for p in self.products:
+                tar.add(p.path)
+                p = Product.repackage(p, self.destination)  # TODO: dont move
+                meta.append(p.to_dict())
+
+            p = Path(self.destination, 'metadata.json')
+            p.write_text(json.dumps(meta, indent=2))
+            tar.add(p)
+
+        with gzip.open(Path(tp.parent, tp.name + '.gz'), 'wb') as f_out:
+            f_out.write(tp.read_bytes())
 
     def designate_product(self, product: Metadata):
         self.products.append(product)
