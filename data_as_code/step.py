@@ -43,10 +43,12 @@ class _Step:
     inputs: list = []
     kind: Union[Source, Intermediary, Product]
     lineage: List[Union[Metadata, str]] = []
+    output: Union[Path, str] = None
 
     def __init__(self, recipe: Recipe, product=False, **kwargs):
         self.guid = uuid4()
         self.recipe = recipe
+        self.output = Path(self.output) if self.output else Path(self.guid.hex[:5])
 
         self.lineage = kwargs.get('lineage', self.lineage)
         self.other = kwargs.get('other')
@@ -57,12 +59,13 @@ class _Step:
             self._workspace = Path(self.recipe.workspace, self.guid.hex)
 
         self._set_ingredients()
-        self.output = self._metadata_outputs()
+        self._execute()
+        self.metadata = self._collect_metadata()
         if product:
-            if isinstance(self.output, dict):
-                self.recipe.products.extend(self.output.values())
-            else:
-                self.recipe.products.append(self.output)
+            self.recipe.products.extend(
+                self.metadata.values() if isinstance(self.metadata, dict)
+                else self.metadata
+            )
 
     def instructions(self) -> Union[Path, Dict[str, Path]]:
         """
@@ -90,7 +93,16 @@ class _Step:
             self.__setattr__(k, v.output)
         self.inputs = inputs
 
-    def _metadata_outputs(self) -> Union[Metadata, Dict[str, Metadata]]:
+    def _execute(self):
+        original_wd = os.getcwd()
+        try:
+            self._workspace.mkdir(exist_ok=True)
+            os.chdir(self._workspace)
+            self.instructions()
+        finally:
+            os.chdir(original_wd)
+
+    def _collect_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
         """
         Set Output Metadata
 
@@ -100,22 +112,12 @@ class _Step:
         """
         lineage = [self.__getattribute__(x) for x in self.inputs] + self.lineage
 
-        original_wd = os.getcwd()
-        self._workspace.mkdir(exist_ok=True)
-        os.chdir(self._workspace)
-
-        output = self.instructions()
-        # force Path output into a list of Path
-        if isinstance(output, Path):
-            output = self._make_metadata(output, lineage)
-        elif isinstance(output, dict):
-            output = {k: self._make_metadata(v, lineage) for k, v in output.items()}
+        if isinstance(self.output, Path):
+            return self._make_metadata(self.output, lineage)
+        elif isinstance(self.output, dict):
+            return {k: self._make_metadata(v, lineage) for k, v in self.output.items()}
         else:
             raise TypeError("instruction return was not a Path or dictionary of Paths")
-
-        os.chdir(original_wd)
-
-        return output
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(
@@ -134,7 +136,7 @@ class _Ingredient(_Step):
 
 
 def ingredient(step: _Step) -> Union[Metadata, Dict[str, Metadata]]:
-    return _Ingredient(step).step.output
+    return _Ingredient(step).step.metadata
 
 
 class Custom(_Step):
@@ -157,7 +159,7 @@ class SourceHTTP(_SourceStep):
         kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
         super().__init__(recipe, **kwargs)
 
-    def instructions(self) -> Path:
+    def instructions(self):
         path = Path(Path(self._url).name)
         try:
             print('Downloading from URL:\n' + self._url)
@@ -180,26 +182,28 @@ class SourceHTTP(_SourceStep):
 
 class SourceLocal(_SourceStep):
     def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
-        self._path = path
+        self.output = path
         super().__init__(recipe, workspace='.', **kwargs)
 
-    def instructions(self) -> Path:
-        return Path(self._path).absolute()
+    def instructions(self):
+        pass
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
-        return Metadata(
-            x.name, x, md5(x.read_bytes()).hexdigest(), 'md5',
+        return Metadata(  # TODO: un-absolute this
+            x.name, x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
             str(self.kind), lineage, self.other, None
         )
 
 
 class Unzip(_Step):
+    output: dict = None
+
     def __init__(self, recipe: Recipe, step: _Step, **kwargs):
         self.zip_archive = ingredient(step)
         super().__init__(recipe, **kwargs)
 
-    def instructions(self) -> Dict[str, Path]:
-        return {x[0]: x[1] for x in self.unpack()}
+    def instructions(self):
+        self.output = {x[0]: x[1] for x in self.unpack()}
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
         with ZipFile(self.zip_archive.path) as zf:
