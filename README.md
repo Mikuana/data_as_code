@@ -12,7 +12,7 @@ from pathlib import Path
 
 from data_as_code import Recipe, step
 
-with Recipe('star_package') as r:
+with Recipe('data_package') as r:
     s1 = step.SourceHTTP(r, 'https://data-url.com/data.csv')
 
 
@@ -37,14 +37,14 @@ with Recipe('star_package') as r:
 This produces a package in a directory of files.
 
 ```
-|-- star_package/
+|-- data_package/
     |-- env/
         |-- requirements.txt
     |-- metadata/
         |-- data_starred.json
-    |-- product/
+    |-- data/
         |-- data_starred.csv
-    |-- star_convert_recipe.py
+    |-- recipe.py
 ```
 
 ## Why though?
