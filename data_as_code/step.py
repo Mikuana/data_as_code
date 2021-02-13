@@ -157,18 +157,18 @@ class SourceHTTP(_SourceStep):
     def __init__(self, recipe: Recipe, url: str, **kwargs):
         self._url = url
         kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
+        self.output = Path(Path(self._url).name)
         super().__init__(recipe, **kwargs)
 
     def instructions(self):
-        path = Path(Path(self._url).name)
         try:
             print('Downloading from URL:\n' + self._url)
             response = requests.get(self._url, stream=True)
             context = dict(
                 total=int(response.headers.get('content-length', 0)),
-                desc=path.name, miniters=1
+                desc=self.output.name, miniters=1
             )
-            with path.open('wb') as f:
+            with self.output.open('wb') as f:
                 with tqdm.wrapattr(f, "write", **context) as stream:
                     for chunk in response.iter_content(chunk_size=4096):
                         stream.write(chunk)
@@ -176,8 +176,6 @@ class SourceHTTP(_SourceStep):
         except requests.HTTPError as te:
             print(f'HTTP error while attempting to download: {self._url}')
             raise te
-
-        return path
 
 
 class SourceLocal(_SourceStep):
