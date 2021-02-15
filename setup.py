@@ -28,7 +28,6 @@ setuptools.setup(
     ],
     python_requires=">=3.8",
     install_requires=[
-      'pandas>=1.1',
       'pyarrow',
       'requests',
       'tqdm'
