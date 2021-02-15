@@ -29,47 +29,30 @@ class _Step:
         self.output = Path(self.output) if self.output else Path(self._guid.hex)
 
         self.other = kwargs.get('other')
-        self._workspace = kwargs.get('workspace')
 
+        self._workspace = kwargs.get('workspace')
         if self._workspace:
             self._workspace = Path(self._workspace)
         else:
             self._workspace = Path(self.recipe.workspace, self._guid.hex)
 
-        self._set_ingredients()
+        self._ingredients = self._get_ingredients()
         self._execute()
-        self.metadata = self._collect_metadata()
+        self.metadata = self._get_metadata()
         if product:
             self.recipe.products.extend(
                 self.metadata.values() if isinstance(self.metadata, dict)
                 else [self.metadata]
             )
 
-    def instructions(self) -> Union[Path, Dict[str, Path]]:
+    def instructions(self) -> None:
         """
         Step Instructions
 
         Define the logic for this step which will use the inputs to generate an
         output file, and return the path, or paths, of the output.
         """
-        pass
-
-    def _set_ingredients(self):
-        """
-        Set Input Metadata
-
-        Use the name lineage input defined for the Step class, get the Metadata
-        object with the corresponding lineage, and assign the object back to the
-        same attribute. This allows explict object assignment and reference in
-        the step instructions for files which may not exist until runtime.
-
-        This method must modify self, due to the dynamic naming of attributes.
-        """
-        inputs = []
-        for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), type(self))):
-            inputs.append(k)
-            self.__setattr__(k, v.output)
-        self.inputs = inputs
+        return None
 
     def _execute(self):
         original_wd = os.getcwd()
@@ -82,7 +65,24 @@ class _Step:
         finally:
             os.chdir(original_wd)
 
-    def _collect_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
+    def _get_ingredients(self):
+        """
+        Set Input Metadata
+
+        Use the name lineage input defined for the Step class, get the Metadata
+        object with the corresponding lineage, and assign the object back to the
+        same attribute. This allows explict object assignment and reference in
+        the step instructions for files which may not exist until runtime.
+
+        This method must modify self, due to the dynamic naming of attributes.
+        """
+        ingredients = []
+        for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), _Step)):
+            ingredients.append(k)
+            self.__setattr__(k, v.output)
+        return ingredients
+
+    def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
         """
         Set Output Metadata
 
@@ -115,8 +115,8 @@ class _Ingredient(_Step):
         self.step = step
 
 
-def ingredient(step: _Step) -> Union[Metadata, Dict[str, Metadata]]:
-    return _Ingredient(step).step.metadata
+def ingredient(step: _Step) -> _Step:
+    return _Ingredient(step).step
 
 
 class Custom(_Step):
