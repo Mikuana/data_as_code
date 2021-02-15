@@ -1,4 +1,7 @@
 import gzip
+import shutil
+import subprocess
+import sys
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -42,9 +45,6 @@ class Recipe:
 
         if self.keep.workspace is False:
             self._td.cleanup()
-        elif self.keep.artifacts is False:
-            for a in self.artifacts:
-                a.path.unlink()
 
     def __enter__(self):
         self.begin()
@@ -53,11 +53,14 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
-    def _package_reqs(self, target: str):
-        pass
+    def _package_env(self, target: str):
+        reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+        p = Path(self.destination, target)
+        p.parent.mkdir(exist_ok=True, parents=True)
+        p.write_bytes(reqs)
 
     def _package_recipe(self, target: str):
-        pass
+        Path(self.destination, target).write_bytes(Path(__file__).read_bytes())
 
     def _package_data(self, target: str):
         pass
@@ -67,7 +70,7 @@ class Recipe:
 
     def _package(self):
         structure = {
-            'env/requirements.txt': self._package_reqs,
+            'env/requirements.txt': self._package_env,
             'data/': self._package_data,
             'metadata/': self._package_metadata,
             'recipe.py': self._package_recipe
@@ -84,6 +87,9 @@ class Recipe:
 
             with gzip.open(tp.as_posix() + '.gz', 'wb') as f_out:
                 f_out.write(tp.read_bytes())
+
+        if self.keep.destination is False:
+            shutil.rmtree(self.destination)
 
     def designate_product(self, product: Metadata):
         self.products.append(product)
