@@ -1,21 +1,47 @@
+from pathlib import Path
+import pytest
+
 from data_as_code import Recipe
 
 
-def test_can_start():
-    assert False, "recipe cannot be started"
+@pytest.fixture
+def default_recipe(tmpdir):
+    yield Recipe(tmpdir.as_posix() + '/default')
 
 
-def test_can_stop():
-    assert False, "started recipe cannot be stopped"
+@pytest.fixture
+def started_recipe(default_recipe):
+    default_recipe.begin()
+    yield default_recipe
 
 
-def test_context_handler():
-    assert False, "context handler exception"
+def test_can_begin(default_recipe):
+    try:
+        default_recipe.begin()
+    except Exception as e:
+        assert False, e
 
 
-def test_has_working_directory():
-    assert False, "working directory unavailable"
+def test_can_end(started_recipe):
+    try:
+        started_recipe.end()
+    except Exception as e:
+        assert False, e
 
 
-def test_get_artifact():
-    assert False, "cannot get specified artifact from recipe"
+def test_context_handler(default_recipe):
+    try:
+        with default_recipe:
+            pass
+    except Exception as e:
+        assert False, e
+
+
+def test_has_workspace(started_recipe):
+    assert started_recipe.workspace.exists(), "workspace unavailable"
+
+
+def test_destinations_are_paths(started_recipe):
+    for k, v in started_recipe._destinations().items():
+        assert isinstance(v, Path), f"{k} is not a path"
+

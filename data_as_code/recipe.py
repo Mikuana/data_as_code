@@ -39,7 +39,7 @@ class Recipe:
         self._destination_check()
         if self.keep.workspace is False:
             self._td = TemporaryDirectory()
-            self.workspace = self._td.name
+            self.workspace = Path(self._td.name)
         else:
             self.workspace = self.destination
 
@@ -98,9 +98,6 @@ class Recipe:
 
         if self.keep.destination is False:
             shutil.rmtree(self.destination)
-
-    def designate_product(self, product: Metadata):
-        self.products.append(product)
 
     def _package_env(self, target: str):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
