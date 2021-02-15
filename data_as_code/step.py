@@ -20,7 +20,6 @@ class _Step:
 
     TODO: recipe, and other params
     """
-    inputs: list = []
     output: Union[Path, str] = None
 
     def __init__(self, recipe: Recipe, product=False, **kwargs):
@@ -91,7 +90,7 @@ class _Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        lineage = [self.__getattribute__(x) for x in self.inputs]
+        lineage = [self.__getattribute__(x) for x in self._ingredients]
 
         if isinstance(self.output, Path):
             return self._make_metadata(self.output, lineage)
