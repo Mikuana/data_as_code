@@ -94,6 +94,7 @@ class Recipe:
         p = Path(self.destination, target)
         for prod in self.products:
             pp = Path(p, prod.path.relative_to(prod._relative_to))
+            pp.parent.mkdir(parents=True, exist_ok=True)
             yield prod, pp
 
     def _package_data(self, target: str):

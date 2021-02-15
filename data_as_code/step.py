@@ -38,6 +38,7 @@ class _Step:
 
         self._ingredients = self._get_ingredients()
         self._execute()
+
         self.metadata = self._get_metadata()
         if product:
             self.recipe.products.extend(
@@ -79,7 +80,7 @@ class _Step:
         ingredients = []
         for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), _Step)):
             ingredients.append(k)
-            self.__setattr__(k, v.output)
+            self.__setattr__(k, v.metadata)
         return ingredients
 
     def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -100,23 +101,17 @@ class _Step:
             raise TypeError("instruction return was not a Path or dictionary of Paths")
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
-        return Metadata(
-            Path(self._workspace, x),
-            md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            lineage, self.other, Path(self._workspace)
-        )
+        p = Path(self._workspace, x)
+        hxd = md5(p.read_bytes()).hexdigest()
+        if x.name == self._guid.hex:
+            p = p.rename(Path(p.parent, hxd))
+
+        return Metadata(p, hxd, 'md5', lineage, self.other, Path(self._workspace))
 
 
-class _Ingredient(_Step):
-    output: Union[Path, Dict[str, Path]]
-
-    # noinspection PyMissingConstructor
-    def __init__(self, step: _Step):
-        self.step = step
-
-
-def ingredient(step: _Step) -> _Step:
-    return _Ingredient(step).step
+def ingredient(step: _Step) -> Metadata:
+    # noinspection PyTypeChecker
+    return step
 
 
 class Custom(_Step):
@@ -183,7 +178,7 @@ class Unzip(_Step):
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
         with ZipFile(self.zip_archive.path) as zf:
-            xd = Path(self.recipe.workspace, self.zip_archive.name)
+            xd = Path(self.recipe.workspace, self.zip_archive.path.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file.as_posix(), file
