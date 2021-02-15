@@ -34,6 +34,7 @@ setuptools.setup(
       'tqdm'
     ],
     extras_require={
+        'Lineage': ['networkx', 'plotly'],
         'Testing': ['pytest', 'pytest-mock', 'pytest-cov']
     },
     packages=setuptools.find_packages()

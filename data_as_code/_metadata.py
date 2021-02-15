@@ -3,7 +3,7 @@ from hashlib import sha256, md5
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import networkx as nx
+import networkx as nx  # TODO: move this dependency to plotly
 
 from data_as_code._plotly import show_lineage
 
