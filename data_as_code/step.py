@@ -13,26 +13,6 @@ from data_as_code._metadata import Metadata
 from data_as_code.recipe import Recipe
 
 
-class _Kind:
-    s: str
-
-    @classmethod
-    def __str__(cls):
-        return cls.s
-
-
-class Source(_Kind):
-    s = 'source'
-
-
-class Intermediary(_Kind):
-    s = 'intermediary'
-
-
-class Product(_Kind):
-    s = 'product'
-
-
 class _Step:
     """
     A process which takes one or more artifacts in a recipe, and transforms it
@@ -41,7 +21,6 @@ class _Step:
     TODO: recipe, and other params
     """
     inputs: list = []
-    kind: Union[Source, Intermediary, Product]
     lineage: List[Union[Metadata, str]] = []
     output: Union[Path, str] = None
 
@@ -123,7 +102,7 @@ class _Step:
         return Metadata(
             x.name, Path(self._workspace, x),
             md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
-            str(self.kind), lineage, self.other, Path(self._workspace)
+            lineage, self.other, Path(self._workspace)
         )
 
 
@@ -141,11 +120,9 @@ def ingredient(step: _Step) -> Union[Metadata, Dict[str, Metadata]]:
 
 class Custom(_Step):
     inputs: List[Union[Path, Dict[str, Path]]] = []
-    kind: Union[Source, Intermediary, Product] = Intermediary
 
 
 class _SourceStep(_Step):
-    kind = Source
 
     def __init__(self, recipe: Recipe, **kwargs):
         super().__init__(recipe, **kwargs)
@@ -189,7 +166,7 @@ class SourceLocal(_SourceStep):
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(  # TODO: un-absolute this
             x.name, x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
-            str(self.kind), lineage, self.other, None
+            lineage, self.other, None
         )
 
 
