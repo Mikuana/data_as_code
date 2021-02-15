@@ -105,4 +105,4 @@ class Recipe:
         for prod, pp in self._package_data_prep(target):
             d = prod.to_dict()
             j = json.dumps(d, indent=2)
-            pp.write_text(j)
+            Path(pp.as_posix() + '.json').write_text(j)
