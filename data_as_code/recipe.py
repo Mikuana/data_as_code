@@ -1,3 +1,4 @@
+import json
 import gzip
 import shutil
 import subprocess
@@ -53,21 +54,6 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
-    def _package_env(self, target: str):
-        reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
-        p = Path(self.destination, target)
-        p.parent.mkdir(exist_ok=True, parents=True)
-        p.write_bytes(reqs)
-
-    def _package_recipe(self, target: str):
-        Path(self.destination, target).write_bytes(Path(__file__).read_bytes())
-
-    def _package_data(self, target: str):
-        pass
-
-    def _package_metadata(self, target: str):
-        pass
-
     def _package(self):
         structure = {
             'env/requirements.txt': self._package_env,
@@ -93,3 +79,28 @@ class Recipe:
 
     def designate_product(self, product: Metadata):
         self.products.append(product)
+
+    def _package_env(self, target: str):
+        reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+        p = Path(self.destination, target)
+        p.parent.mkdir(exist_ok=True, parents=True)
+        p.write_bytes(reqs)
+
+    def _package_recipe(self, target: str):
+        Path(self.destination, target).write_bytes(Path(__file__).read_bytes())
+
+    def _package_data_prep(self, target: str):
+        p = Path(self.destination, target)
+        for prod in self.products:
+            pp = Path(p, prod.path.relative_to(prod._relative_to))
+            yield prod, pp
+
+    def _package_data(self, target: str):
+        for prod, pp in self._package_data_prep(target):
+            shutil.copy(prod.path, pp)
+
+    def _package_metadata(self, target: str):
+        for prod, pp in self._package_data_prep(target):
+            d = prod.to_dict()
+            j = json.dumps(d, indent=2)
+            pp.write_text(j)
