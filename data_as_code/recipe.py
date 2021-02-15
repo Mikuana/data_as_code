@@ -20,6 +20,7 @@ class Keep:
         self.destination = kwargs.pop('destination', False)
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
+        self.existing = kwargs.pop('existing', True)  # delete any existing objects
 
         if kwargs:
             raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
@@ -35,6 +36,7 @@ class Recipe:
         self.keep = keep
 
     def begin(self):
+        self._destination_check()
         if self.keep.workspace is False:
             self._td = TemporaryDirectory()
             self.workspace = self._td.name
@@ -46,6 +48,20 @@ class Recipe:
 
         if self.keep.workspace is False:
             self._td.cleanup()
+
+    def _destinations(self):
+        d = {'Directory': self.destination}
+        d['Archive'] = Path(d['Directory'].as_posix() + '.tar')
+        d['Gzip'] = Path(d['Archive'].as_posix() + '.gz')
+        return d
+
+    def _destination_check(self):
+        for k, v in self._destinations().items():
+            if v.exists() and self.keep.existing is True:
+                raise FileExistsError(
+                    f"{k} {v.as_posix()} exists and `keep.existing == True`."
+                    "\nChange the keep.existing setting to False to overwrite."
+                )
 
     def __enter__(self):
         self.begin()
@@ -61,19 +77,24 @@ class Recipe:
             'metadata/': self._package_metadata,
             'recipe.py': self._package_recipe
         }
+
+        d = self._destinations()
+        if d['Directory'].exists():
+            shutil.rmtree(d['Directory'])
+        d['Directory'].mkdir()
+
         for k, v in structure.items():
             # noinspection PyArgumentList
             v(k)
 
         if self.keep.archive is True:
-            tp = Path(self.destination.as_posix() + '.tar')
-            with tarfile.open(tp, "w") as tar:
+            with tarfile.open(d['Archive'], "w") as tar:
                 for file in self.destination.rglob('*'):
                     tar.add(file, file.relative_to(self.destination))
 
-            with gzip.open(tp.as_posix() + '.gz', 'wb') as f_out:
-                f_out.write(tp.read_bytes())
-            tp.unlink()
+            with gzip.open(d['Gzip'], 'wb') as f_out:
+                f_out.write(d['Archive'].read_bytes())
+            d['Archive'].unlink()
 
         if self.keep.destination is False:
             shutil.rmtree(self.destination)
