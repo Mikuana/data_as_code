@@ -100,7 +100,7 @@ class _Step:
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(
-            x.name, Path(self._workspace, x),
+            Path(self._workspace, x),
             md5(Path(self._workspace, x).read_bytes()).hexdigest(), 'md5',
             lineage, self.other, Path(self._workspace)
         )
@@ -165,7 +165,7 @@ class SourceLocal(_SourceStep):
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(  # TODO: un-absolute this
-            x.name, x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
+            x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
             lineage, self.other, None
         )
 
