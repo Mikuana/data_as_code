@@ -4,8 +4,10 @@ import networkx as nx
 from plotly import graph_objects as go
 
 
+# noinspection DuplicatedCode
 def add_edge(
-        start, end, edge_x, edge_y, length_frac=1, arrow_pos=None, arrow_length=0.025, arrow_angle=30, dot_size=20
+        start, end, edge_x, edge_y, length_frac=1.0, arrow_pos=None,
+        arrow_length=0.025, arrow_angle=30, dot_size=20
 ):
     """
     Extend plotly to support arrow edges
@@ -16,6 +18,7 @@ def add_edge(
     :param end: and end are lists defining start and end points.
     :param edge_x: x and y are lists used to construct the graph.
     :param edge_y: x and y are lists used to construct the graph.
+    :param length_frac: ...
     :param arrow_pos: is None, 'middle' or 'end' based on where on the edge you
         want the arrow to appear.
     :param arrow_length: is the length of the arrowhead.
@@ -51,39 +54,39 @@ def add_edge(
     edge_y.append(None)
 
     # Draw arrow
-    if not arrow_pos == None:
+    if arrow_pos is not None:
 
         # Find the point of the arrow; assume is at end unless told middle
-        pointx = x1
-        pointy = y1
+        point_x = x1
+        point_y = y1
         eta = math.degrees(math.atan((x1 - x0) / (y1 - y0)))
 
         if arrow_pos == 'middle' or arrow_pos == 'mid':
-            pointx = x0 + (x1 - x0) / 2
-            pointy = y0 + (y1 - y0) / 2
+            point_x = x0 + (x1 - x0) / 2
+            point_y = y0 + (y1 - y0) / 2
 
         # Find the directions the arrows are pointing
-        signx = (x1 - x0) / abs(x1 - x0)
-        signy = (y1 - y0) / abs(y1 - y0)
+        sign_x = (x1 - x0) / abs(x1 - x0)
+        sign_y = (y1 - y0) / abs(y1 - y0)
 
         # Append first arrowhead
         dx = arrow_length * math.sin(math.radians(eta + arrow_angle))
         dy = arrow_length * math.cos(math.radians(eta + arrow_angle))
-        edge_x.append(pointx)
-        edge_x.append(pointx - signx ** 2 * signy * dx)
+        edge_x.append(point_x)
+        edge_x.append(point_x - sign_x ** 2 * sign_y * dx)
         edge_x.append(None)
-        edge_y.append(pointy)
-        edge_y.append(pointy - signx ** 2 * signy * dy)
+        edge_y.append(point_y)
+        edge_y.append(point_y - sign_x ** 2 * sign_y * dy)
         edge_y.append(None)
 
         # And second arrowhead
         dx = arrow_length * math.sin(math.radians(eta - arrow_angle))
         dy = arrow_length * math.cos(math.radians(eta - arrow_angle))
-        edge_x.append(pointx)
-        edge_x.append(pointx - signx ** 2 * signy * dx)
+        edge_x.append(point_x)
+        edge_x.append(point_x - sign_x ** 2 * sign_y * dx)
         edge_x.append(None)
-        edge_y.append(pointy)
-        edge_y.append(pointy - signx ** 2 * signy * dy)
+        edge_y.append(point_y)
+        edge_y.append(point_y - sign_x ** 2 * sign_y * dy)
         edge_y.append(None)
 
     return edge_x, edge_y
