@@ -1,5 +1,5 @@
 from pathlib import Path
-from data_as_code._recipe import Recipe
+from data_as_code.recipe import Recipe
 from data_as_code.step import Custom, Input, _SourceStep
 from data_as_code._metadata import Metadata
 

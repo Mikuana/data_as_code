@@ -1,13 +1,10 @@
-import shutil
-
 import gzip
-import json
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, List
 
-from data_as_code._metadata import Metadata, Product
+from data_as_code._metadata import Metadata
 
 
 class Keep:
@@ -15,6 +12,8 @@ class Keep:
         self.product = kwargs.pop('product', True)
         self.metadata = kwargs.pop('metadata', True)
         self.recipe = kwargs.pop('recipe', True)
+        self.archive = kwargs.pop('archive', True)
+        self.destination = kwargs.pop('destination', True)
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
 
@@ -54,25 +53,37 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
+    def _package_reqs(self, target: str):
+        pass
+
+    def _package_recipe(self, target: str):
+        pass
+
+    def _package_data(self, target: str):
+        pass
+
+    def _package_metadata(self, target: str):
+        pass
+
     def _package(self):
-        # move products from working folder to destination and update metadata
-        fn = 'recipe'
-        meta = []
+        structure = {
+            'env/requirements.txt': self._package_reqs,
+            'data/': self._package_data,
+            'metadata/': self._package_metadata,
+            'recipe.py': self._package_recipe
+        }
+        for k, v in structure.items():
+            # noinspection PyArgumentList
+            v(k)
 
-        # TODO: make tarball/gzip or zip optional
-        tp = Path(self.destination, fn + '.tar')
-        with tarfile.open(tp, "w") as tar:
-            for p in self.products:
-                tar.add(p.path)
-                p = Product.repackage(p, self.destination)  # TODO: dont move
-                meta.append(p.to_dict())
+        if self.keep.archive is True:
+            tp = Path(self.destination.as_posix() + '.tar')
+            with tarfile.open(tp, "w") as tar:
+                for file in self.destination.rglob('*'):
+                    tar.add(file, file.relative_to(self.destination))
 
-            p = Path(self.destination, 'metadata.json')
-            p.write_text(json.dumps(meta, indent=2))
-            tar.add(p)
-
-        with gzip.open(Path(tp.parent, tp.name + '.gz'), 'wb') as f_out:
-            f_out.write(tp.read_bytes())
+            with gzip.open(tp.as_posix() + '.gz', 'wb') as f_out:
+                f_out.write(tp.read_bytes())
 
     def designate_product(self, product: Metadata):
         self.products.append(product)
