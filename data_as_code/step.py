@@ -21,21 +21,20 @@ class _Step:
     TODO: recipe, and other params
     """
     inputs: list = []
-    lineage: List[Union[Metadata, str]] = []
     output: Union[Path, str] = None
 
     def __init__(self, recipe: Recipe, product=False, **kwargs):
-        self.guid = uuid4()
+        self._guid = uuid4()
         self.recipe = recipe
-        self.output = Path(self.output) if self.output else Path(self.guid.hex[:5])
+        self.output = Path(self.output) if self.output else Path(self._guid.hex)
 
-        self.lineage = kwargs.get('lineage', self.lineage)
         self.other = kwargs.get('other')
         self._workspace = kwargs.get('workspace')
+
         if self._workspace:
             self._workspace = Path(self._workspace)
         else:
-            self._workspace = Path(self.recipe.workspace, self.guid.hex)
+            self._workspace = Path(self.recipe.workspace, self._guid.hex)
 
         self._set_ingredients()
         self._execute()
@@ -77,6 +76,8 @@ class _Step:
         try:
             self._workspace.mkdir(exist_ok=True)
             os.chdir(self._workspace)
+            if not self.output.parent == '.':
+                self.output.parent.mkdir(parents=True)
             self.instructions()
         finally:
             os.chdir(original_wd)
@@ -89,7 +90,7 @@ class _Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        lineage = [self.__getattribute__(x) for x in self.inputs] + self.lineage
+        lineage = [self.__getattribute__(x) for x in self.inputs]
 
         if isinstance(self.output, Path):
             return self._make_metadata(self.output, lineage)
