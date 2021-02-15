@@ -1,7 +1,7 @@
 from pathlib import Path
 from data_as_code.recipe import Recipe
 from data_as_code.step import Custom, Input, _SourceStep
-from data_as_code._metadata import Metadata
+from data_as_code.metadata import Metadata
 
 
 def test_get_input(frozen_pizza):

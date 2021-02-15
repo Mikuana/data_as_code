@@ -1,6 +1,6 @@
 import pytest
 
-from data_as_code._metadata import Metadata, from_dictionary
+from data_as_code.metadata import Metadata, from_dictionary
 from tests.cases import valid_cases
 
 
