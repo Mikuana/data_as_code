@@ -17,7 +17,7 @@ class Keep:
         self.metadata = kwargs.pop('metadata', True)
         self.recipe = kwargs.pop('recipe', True)
         self.archive = kwargs.pop('archive', True)
-        self.destination = kwargs.pop('destination', True)
+        self.destination = kwargs.pop('destination', False)
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
 
@@ -73,6 +73,7 @@ class Recipe:
 
             with gzip.open(tp.as_posix() + '.gz', 'wb') as f_out:
                 f_out.write(tp.read_bytes())
+            tp.unlink()
 
         if self.keep.destination is False:
             shutil.rmtree(self.destination)

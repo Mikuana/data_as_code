@@ -59,7 +59,7 @@ class _Step:
         try:
             self._workspace.mkdir(exist_ok=True)
             os.chdir(self._workspace)
-            if not self.output.parent == '.':
+            if not self.output.parent.as_posix() == '.':
                 self.output.parent.mkdir(parents=True)
             self.instructions()
         finally:
