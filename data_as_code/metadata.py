@@ -3,10 +3,6 @@ from hashlib import sha256, md5
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
-import networkx as nx  # TODO: move this dependency to plotly
-
-from data_as_code._plotly import show_lineage
-
 
 class Metadata:
     """
@@ -80,15 +76,21 @@ class Metadata:
         rt = self._relative_to
         return self.path.relative_to(rt) if rt else self.path
 
-    def draw_lineage_graph(self) -> nx.DiGraph:
+    def show_lineage(self):
+        """
+        Show plotly network graph of lineage
+
+        Note: Requires plotly and networkx packages to be installed.
+        """
+        # TODO: add import failure notice and point to Lineage extras
+        from data_as_code._plotly import show_lineage
+        import networkx as nx
+
         nodes, edges = self.get_network()
         graph = nx.OrderedDiGraph()
         graph.add_nodes_from(nodes)
         graph.add_edges_from(edges)
-        return graph
-
-    def show_lineage(self):
-        show_lineage(self.draw_lineage_graph())
+        show_lineage(graph)
 
 
 def from_objects(p: Path, cs: sha256, lin: List[dict] = None):
