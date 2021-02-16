@@ -29,12 +29,7 @@ class _Step:
 
         self.other = kwargs.get('other')
 
-        self._workspace = kwargs.get('workspace')
-        if self._workspace:
-            self._workspace = Path(self._workspace)
-        else:
-            self._workspace = Path(self.recipe.workspace, self._guid.hex)
-
+        self._workspace = Path(self.recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
         self._execute()
 
@@ -156,6 +151,9 @@ class SourceLocal(_SourceStep):
         super().__init__(recipe, workspace='.', **kwargs)
 
     def instructions(self):
+        pass
+
+    def _execute(self):
         pass
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:

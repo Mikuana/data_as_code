@@ -5,11 +5,6 @@ from data_as_code import Recipe
 
 
 @pytest.fixture
-def default_recipe(tmpdir):
-    yield Recipe(tmpdir.as_posix() + '/default')
-
-
-@pytest.fixture
 def started_recipe(default_recipe):
     default_recipe.begin()
     yield default_recipe
