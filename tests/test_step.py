@@ -1,4 +1,7 @@
 from pathlib import Path
+
+import pytest
+
 from data_as_code.exceptions import StepError
 from data_as_code import step, Metadata
 
@@ -26,3 +29,40 @@ def test_ingredient_handling(default_recipe, csv_file_a):
         post = Pre(r)
         assert isinstance(Pre.x, step._Step)
         assert isinstance(post.x, Metadata)
+
+
+# TODO: param with all step subclasses
+@pytest.mark.parametrize('s', [])
+def test_instruction_no_return(default_recipe, s):
+    """
+    Check for no return from instructions
+
+    All output should be handled in side-effect by writing results to the step
+    output files. This helps prevent *other* side-effects from sneaking in if the
+    instructions is allowed to communicate using anything but the output.
+    """
+    with default_recipe as r:
+        x = s(r)
+        assert x.instructions() is None
+
+
+# TODO: param with all step subclasses
+@pytest.mark.parametrize('s', [])
+def test_all_output_exists(default_recipe, s: step._Step):
+    """
+    Test all output
+
+    Steps should automatically check output after instructions are executed to
+    ensure that all expected output has been populated.
+    """
+    with default_recipe as r:
+        s1 = step.SourceLocal(r, __file__)
+
+        class BrokenInstructions(s):
+            x = step.ingredient(s1)
+
+            def instructions(self):
+                pass
+
+        with pytest.raises(StepError):  # TODO: make this specific to output
+            BrokenInstructions(r)

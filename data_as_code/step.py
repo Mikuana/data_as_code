@@ -21,7 +21,7 @@ class _Step:
 
     TODO: recipe, and other params
     """
-    output: Union[Path, str] = None
+    output: Union[Path, str] = None  # TODO: support multi-output
 
     def __init__(self, recipe: Recipe, product=False, **kwargs):
         self._guid = uuid4()
@@ -32,8 +32,8 @@ class _Step:
         self.output = Path(self.output) if self.output else Path(self._guid.hex)
 
         self._execute()
-
         self._metadata = self._get_metadata()
+
         if product:
             self._recipe.products.extend(
                 self._metadata.values() if isinstance(self._metadata, dict)
@@ -56,7 +56,13 @@ class _Step:
             os.chdir(self._workspace)
             if not self.output.parent.as_posix() == '.':
                 self.output.parent.mkdir(parents=True)
-            self.instructions()
+
+            if self.instructions():  # TODO: specific error
+                raise Exception("Instructions should not return anything")
+
+            if not self.output.exists():  # TODO: specific error
+                raise Exception("Expected output missing")
+
         finally:
             os.chdir(original_wd)
 
