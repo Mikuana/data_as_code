@@ -16,7 +16,7 @@ class Metadata:
     :param lineage: ...
     :param other: ...
     """
-
+    # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
                  checksum_algorithm: Union[str, None], lineage: list,
                  other: Dict[str, str] = None, relative_to: Path = None):

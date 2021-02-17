@@ -1,9 +1,10 @@
-from data_as_code.step import SourceLocal
-from data_as_code import Recipe
 import tempfile
 from pathlib import Path
 
 import pytest
+
+from data_as_code import Recipe
+from data_as_code.step import SourceLocal
 
 
 @pytest.fixture

@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from data_as_code.metadata import Metadata
 from data_as_code.recipe import Recipe
-
+from data_as_code.exceptions import StepError
 
 class _Step:
     """
@@ -92,7 +92,7 @@ class _Step:
         elif isinstance(self.output, dict):
             return {k: self._make_metadata(v, lineage) for k, v in self.output.items()}
         else:
-            raise TypeError("instruction return was not a Path or dictionary of Paths")
+            raise StepError("instruction return was not a Path or dictionary of Paths")
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         p = Path(self._workspace, x)

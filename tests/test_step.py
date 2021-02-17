@@ -1,4 +1,13 @@
+from pathlib import Path
+from data_as_code.exceptions import StepError
 from data_as_code import step, Metadata
+
+
+class SafeTestStep(step._Step):
+    """ Customize step class to be safe for testing small parts """
+
+    def _get_metadata(self):
+        return Metadata(Path(__file__), 'xyz', 'abc', list())
 
 
 def test_ingredient_handling(default_recipe, csv_file_a):
@@ -6,21 +15,14 @@ def test_ingredient_handling(default_recipe, csv_file_a):
     Check appropriate handling of ingredients
 
     Step ingredients should be added to a step as a Step class, then ultimately
-    be converted into a Metadata class for ease of use in the instructions.
+    be converted into a Metadata class after initialization.
     """
     with default_recipe as r:
-        step1 = step.SourceLocal(r, __file__)
+        s1 = step.SourceLocal(r, __file__)
 
-        class X(step.Custom):
-            # noinspection PyMissingConstructor
-            def __init__(self):
-                pass
+        class Pre(SafeTestStep):
+            x = step.ingredient(s1)
 
-            s1 = step.ingredient(step1)
-
-        assert isinstance(X.s1, step._Step)
-
-        x = X()
-        x._get_ingredients()
-
-        assert isinstance(x.s1, Metadata)
+        post = Pre(r)
+        assert isinstance(Pre.x, step._Step)
+        assert isinstance(post.x, Metadata)
