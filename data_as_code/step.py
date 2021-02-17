@@ -25,18 +25,18 @@ class _Step:
 
     def __init__(self, recipe: Recipe, product=False, **kwargs):
         self._guid = uuid4()
-        self.recipe = recipe
+        self._recipe = recipe
         self.output = Path(self.output) if self.output else Path(self._guid.hex)
 
         self.other = kwargs.get('other')
 
-        self._workspace = Path(self.recipe.workspace, self._guid.hex)
+        self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
         self._execute()
 
         self.metadata = self._get_metadata()
         if product:
-            self.recipe.products.extend(
+            self._recipe.products.extend(
                 self.metadata.values() if isinstance(self.metadata, dict)
                 else [self.metadata]
             )
@@ -176,7 +176,7 @@ class Unzip(_Step):
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
         with ZipFile(self.zip_archive.path) as zf:
-            xd = Path(self.recipe.workspace, self.zip_archive.path.name)
+            xd = Path(self._recipe.workspace, self.zip_archive.path.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file.as_posix(), file
