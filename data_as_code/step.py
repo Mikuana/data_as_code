@@ -26,19 +26,18 @@ class _Step:
     def __init__(self, recipe: Recipe, product=False, **kwargs):
         self._guid = uuid4()
         self._recipe = recipe
-        self.output = Path(self.output) if self.output else Path(self._guid.hex)
-
-        self.other = kwargs.get('other')
-
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
+
+        self.output = Path(self.output) if self.output else Path(self._guid.hex)
+
         self._execute()
 
-        self.metadata = self._get_metadata()
+        self._metadata = self._get_metadata()
         if product:
             self._recipe.products.extend(
-                self.metadata.values() if isinstance(self.metadata, dict)
-                else [self.metadata]
+                self._metadata.values() if isinstance(self._metadata, dict)
+                else [self._metadata]
             )
 
     def instructions(self) -> None:
@@ -75,7 +74,7 @@ class _Step:
         ingredients = []
         for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), _Step)):
             ingredients.append(k)
-            self.__setattr__(k, v.metadata)
+            self.__setattr__(k, v._metadata)
         return ingredients
 
     def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -101,7 +100,7 @@ class _Step:
         if x.name == self._guid.hex:
             p = p.rename(Path(p.parent, hxd))
 
-        return Metadata(p, hxd, 'md5', lineage, self.other, Path(self._workspace))
+        return Metadata(p, hxd, 'md5', lineage, Path(self._workspace))
 
 
 def ingredient(step: _Step) -> Metadata:
@@ -160,7 +159,7 @@ class SourceLocal(_SourceStep):
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(  # TODO: un-absolute this
             x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
-            lineage, self.other, None
+            lineage, None
         )
 
 

@@ -14,18 +14,16 @@ class Metadata:
     :param checksum_value: ...
     :param checksum_algorithm: ...
     :param lineage: ...
-    :param other: ...
     """
     # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
                  checksum_algorithm: Union[str, None], lineage: list,
-                 other: Dict[str, str] = None, relative_to: Path = None):
+                 relative_to: Path = None):
         self.path = path
         self._relative_to = relative_to
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
-        self.other = other
         self.fingerprint = self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
@@ -33,7 +31,6 @@ class Metadata:
             path=self.path.as_posix(),
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
             lineage=sorted([x.fingerprint for x in self.lineage]),
-            other=self.other
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
@@ -68,8 +65,6 @@ class Metadata:
         if self.lineage:
             base['lineage'] = [x.to_dict() for x in self.lineage]
 
-        if self.other:
-            base = {**base, **self.other}
         return base
 
     def _path_prep(self) -> Path:
@@ -118,8 +113,7 @@ class Reference(Metadata):
 
     def calculate_fingerprint(self) -> str:
         d = dict(
-            lineage=sorted([x.fingerprint for x in self.lineage]),
-            other=self.other
+            lineage=sorted([x.fingerprint for x in self.lineage])
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
@@ -143,5 +137,5 @@ class Product(Metadata):
         p = p.relative_to(destination)
         return cls(
             p, metadata.checksum_value, metadata.checksum_algorithm,
-            metadata.lineage, metadata.other
+            metadata.lineage
         )
