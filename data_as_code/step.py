@@ -9,9 +9,10 @@ from zipfile import ZipFile
 import requests
 from tqdm import tqdm
 
+from data_as_code.exceptions import StepError
 from data_as_code.metadata import Metadata
 from data_as_code.recipe import Recipe
-from data_as_code.exceptions import StepError
+
 
 class _Step:
     """
