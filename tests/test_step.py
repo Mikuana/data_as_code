@@ -4,7 +4,7 @@ import pytest
 
 from data_as_code import exceptions as ex
 from data_as_code._step import Step, ingredient, _Ingredient
-from data_as_code.boxed import source_local
+from data_as_code.premade import source_local
 from data_as_code.metadata import Metadata
 
 
