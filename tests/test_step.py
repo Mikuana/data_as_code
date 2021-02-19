@@ -75,8 +75,10 @@ def test_error_on_default_output_product(default_recipe):
     """
     with default_recipe as r:
         class X(Step):
+            product = True
+
             def instructions(self):
                 pass
 
         with pytest.raises(ex.StepUndefinedOutput):
-            X(r, product=True)
+            X(r)
