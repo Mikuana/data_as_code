@@ -2,7 +2,7 @@ class StepError(Exception):
     pass
 
 
-class NoReturnAllowed(StepError):
+class StepNoReturnAllowed(StepError):
     def __init__(self, msg=None, *args, **kwargs):
         default_msg = (
             'Step instructions should not provide any return value.'
@@ -12,10 +12,14 @@ class NoReturnAllowed(StepError):
         super().__init__(msg or default_msg, *args, **kwargs)
 
 
-class OutputMustExist(StepError):
+class StepOutputMustExist(StepError):
     def __init__(self, msg=None, *args, **kwargs):
         default_msg = (
             'Step instructions must populate all paths defined in output.'
         )
         # noinspection PyArgumentList
         super().__init__(msg or default_msg, *args, **kwargs)
+
+
+class StepUndefinedOutput(StepError):
+    pass

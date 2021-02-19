@@ -49,21 +49,34 @@ def test_error_on_return(default_recipe):
             def instructions(self):
                 return 1
 
-        with pytest.raises(ex.NoReturnAllowed):
+        with pytest.raises(ex.StepNoReturnAllowed):
             X(r).instructions()
 
 
 def test_error_on_missing_output(default_recipe):
     """
-    Test all output
+    Output must get populated
 
     Steps should automatically check output after instructions are executed to
-    ensure that all expected output has been populated.
+    ensure output has been populated.
     """
     with default_recipe as r:
         class X(Step):
             def instructions(self):
                 pass
 
-        with pytest.raises(ex.OutputMustExist):
+        with pytest.raises(ex.StepOutputMustExist):
             X(r)
+
+
+def test_error_on_default_output_product(default_recipe):
+    """
+    A product step must define output name
+    """
+    with default_recipe as r:
+        class X(Step):
+            def instructions(self):
+                pass
+
+        with pytest.raises(ex.StepUndefinedOutput):
+            X(r, product=True)

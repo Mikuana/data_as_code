@@ -27,7 +27,12 @@ class Step:
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
 
-        self.output = Path(self.output) if self.output else Path(self._guid.hex)
+        if product and self.output is None:
+            raise ex.StepUndefinedOutput("Products must have output defined")
+        elif self.output:
+            self.output = Path(self.output)
+        else:
+            self.output = Path(self._guid.hex)
 
         self._execute()
         self._metadata = self._get_metadata()
@@ -56,10 +61,10 @@ class Step:
                 self.output.parent.mkdir(parents=True)
 
             if self.instructions():
-                raise ex.NoReturnAllowed()
+                raise ex.StepNoReturnAllowed()
 
             if not self.output.exists():
-                raise ex.OutputMustExist()
+                raise ex.StepOutputMustExist()
 
         finally:
             os.chdir(original_wd)
