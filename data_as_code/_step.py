@@ -76,9 +76,9 @@ class Step:
         This method must modify self, due to the dynamic naming of attributes.
         """
         ingredients = []
-        for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), Step)):
+        for k, v in inspect.getmembers(self, lambda x: isinstance(x, _Ingredient)):
             ingredients.append(k)
-            self.__setattr__(k, v._metadata)
+            self.__setattr__(k, v.step._metadata)
         return ingredients
 
     def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -107,9 +107,22 @@ class Step:
         return Metadata(p, hxd, 'md5', lineage, Path(self._workspace))
 
 
+class _Ingredient:
+    def __init__(self, step: Step):
+        self.step = step
+
+
 def ingredient(step: Step) -> Metadata:
+    """
+    Prepare step ingredient
+
+    Use the metadata from a previously executed step as an ingredient for
+    another step. This function is a wrapper to allowing passing the results of
+    a previous step directly to the next, while still allowing context hints to
+    function appropriately.
+    """
     # noinspection PyTypeChecker
-    return step
+    return _Ingredient(step)
 
 
 class _SourceStep(Step):

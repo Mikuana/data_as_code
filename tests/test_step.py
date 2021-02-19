@@ -3,10 +3,12 @@ from pathlib import Path
 import pytest
 
 from data_as_code import exceptions as ex
-from data_as_code import step, Metadata
+from data_as_code._step import Step, ingredient, _Ingredient
+from data_as_code.boxed import source_local
+from data_as_code.metadata import Metadata
 
 
-class SafeTestStep(step.Step):
+class SafeTestStep(Step):
     """ Customize step class to be safe for testing small parts """
 
     def _get_metadata(self):
@@ -21,16 +23,16 @@ def test_ingredient_handling(default_recipe, csv_file_a):
     converted to a Metadata class after initialization.
     """
     with default_recipe as r:
-        s1 = step._SourceLocal(r, __file__)
+        s1 = source_local(r, __file__)
 
         class Pre(SafeTestStep):
-            x = step.ingredient(s1)
+            x = ingredient(s1)
 
             def instructions(self):
                 self.output.write_text('x')
 
         post = Pre(r)
-        assert isinstance(Pre.x, step.Step)
+        assert isinstance(Pre.x, _Ingredient)
         assert isinstance(post.x, Metadata)
 
 
@@ -43,7 +45,7 @@ def test_error_on_return(default_recipe):
     instructions are allowed to communicate back using anything but the output.
     """
     with default_recipe as r:
-        class X(step.Step):
+        class X(Step):
             def instructions(self):
                 return 1
 
@@ -59,7 +61,7 @@ def test_error_on_missing_output(default_recipe):
     ensure that all expected output has been populated.
     """
     with default_recipe as r:
-        class X(step.Step):
+        class X(Step):
             def instructions(self):
                 pass
 

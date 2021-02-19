@@ -10,15 +10,15 @@ star.
 import csv
 from pathlib import Path
 
-from data_as_code import Recipe, step
+from data_as_code import Recipe, _step
 
 with Recipe('data_package') as r:
-    s1 = step.SourceHTTP(r, 'https://data-url.com/data.csv')
+    s1 = _step.SourceHTTP(r, 'https://data-url.com/data.csv')
 
 
-    class ChangeDelimiter(step.Custom):
+    class ChangeDelimiter(_step.Custom):
         """ Read CSV and rewrite file with star(*) delimiter """
-        i1 = step.ingredient(s1)
+        i1 = _step.ingredient(s1)
 
         def instructions(self):
             op = Path('data_starred.csv')
