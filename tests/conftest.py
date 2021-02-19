@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from data_as_code import Recipe
-from data_as_code.step import SourceLocal
+from data_as_code.step import _SourceLocal
 
 
 @pytest.fixture
@@ -30,8 +30,8 @@ def csv_file_b(tmpdir) -> Path:
 @pytest.fixture
 def frozen_pizza(csv_file_a, csv_file_b):
     with Recipe() as r:
-        SourceLocal(r, csv_file_a)
-        SourceLocal(r, csv_file_b)
+        _SourceLocal(r, csv_file_a)
+        _SourceLocal(r, csv_file_b)
         yield r
 
 

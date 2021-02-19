@@ -2,28 +2,26 @@ import inspect
 import os
 from hashlib import md5
 from pathlib import Path
-from typing import Union, List, Generator, Dict, Tuple
+from typing import Union, Generator, Dict, Tuple
 from uuid import uuid4
 from zipfile import ZipFile
 
 import requests
 from tqdm import tqdm
 
-from data_as_code.exceptions import StepError
+from data_as_code import exceptions as ex
 from data_as_code.metadata import Metadata
 from data_as_code.recipe import Recipe
 
 
-class _Step:
+class Step:
     """
     A process which takes one or more artifacts in a recipe, and transforms it
     into another artifact.
-
-    TODO: recipe, and other params
     """
     output: Union[Path, str] = None  # TODO: support multi-output
 
-    def __init__(self, recipe: Recipe, product=False, **kwargs):
+    def __init__(self, recipe: Recipe, product=False):
         self._guid = uuid4()
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
@@ -40,7 +38,7 @@ class _Step:
                 else [self._metadata]
             )
 
-    def instructions(self) -> None:
+    def instructions(self):
         """
         Step Instructions
 
@@ -57,11 +55,11 @@ class _Step:
             if not self.output.parent.as_posix() == '.':
                 self.output.parent.mkdir(parents=True)
 
-            if self.instructions():  # TODO: specific error
-                raise Exception("Instructions should not return anything")
+            if self.instructions():
+                raise ex.NoReturnAllowed()
 
-            if not self.output.exists():  # TODO: specific error
-                raise Exception("Expected output missing")
+            if not self.output.exists():
+                raise ex.OutputMustExist()
 
         finally:
             os.chdir(original_wd)
@@ -78,7 +76,7 @@ class _Step:
         This method must modify self, due to the dynamic naming of attributes.
         """
         ingredients = []
-        for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), _Step)):
+        for k, v in inspect.getmembers(self, lambda x: issubclass(type(x), Step)):
             ingredients.append(k)
             self.__setattr__(k, v._metadata)
         return ingredients
@@ -98,7 +96,7 @@ class _Step:
         elif isinstance(self.output, dict):
             return {k: self._make_metadata(v, lineage) for k, v in self.output.items()}
         else:
-            raise StepError("instruction return was not a Path or dictionary of Paths")
+            raise ex.StepError("instruction return was not a Path or dictionary of Paths")
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         p = Path(self._workspace, x)
@@ -109,22 +107,18 @@ class _Step:
         return Metadata(p, hxd, 'md5', lineage, Path(self._workspace))
 
 
-def ingredient(step: _Step) -> Metadata:
+def ingredient(step: Step) -> Metadata:
     # noinspection PyTypeChecker
     return step
 
 
-class Custom(_Step):
-    inputs: List[Union[Path, Dict[str, Path]]] = []
-
-
-class _SourceStep(_Step):
+class _SourceStep(Step):
 
     def __init__(self, recipe: Recipe, **kwargs):
         super().__init__(recipe, **kwargs)
 
 
-class SourceHTTP(_SourceStep):
+class _SourceHTTP(_SourceStep):
     """Download file from specified URL"""
 
     def __init__(self, recipe: Recipe, url: str, **kwargs):
@@ -151,10 +145,10 @@ class SourceHTTP(_SourceStep):
             raise te
 
 
-class SourceLocal(_SourceStep):
+class _SourceLocal(_SourceStep):
     def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
         self.output = path
-        super().__init__(recipe, workspace='.', **kwargs)
+        super().__init__(recipe, **kwargs)
 
     def instructions(self):
         pass
@@ -169,10 +163,10 @@ class SourceLocal(_SourceStep):
         )
 
 
-class Unzip(_Step):
+class _Unzip(Step):
     output: dict = None
 
-    def __init__(self, recipe: Recipe, step: _Step, **kwargs):
+    def __init__(self, recipe: Recipe, step: Step, **kwargs):
         self.zip_archive = ingredient(step)
         super().__init__(recipe, **kwargs)
 
