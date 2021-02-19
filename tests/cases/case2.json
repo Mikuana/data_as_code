@@ -1,20 +1,16 @@
 {
-  "name": "case2",
   "path": "case/two/file.txt",
   "checksum": {
     "algorithm": "sha256",
     "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   },
-  "kind": "intermediary",
   "lineage": [
     {
-      "name": "case1",
       "path": "case/one/file.txt",
       "checksum": {
         "algorithm": "sha256",
         "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      },
-      "kind": "source"
+      }
     }
   ]
 }
