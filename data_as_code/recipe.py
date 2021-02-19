@@ -1,9 +1,10 @@
-import json
 import gzip
+import json
 import shutil
 import subprocess
 import sys
 import tarfile
+from collections import namedtuple
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, List
@@ -50,16 +51,25 @@ class Recipe:
             self._td.cleanup()
 
     def _destinations(self):
-        d = {'Directory': self.destination}
-        d['Archive'] = Path(d['Directory'].as_posix() + '.tar')
-        d['Gzip'] = Path(d['Archive'].as_posix() + '.gz')
-        return d
+        x = namedtuple('Destinations', ['directory', 'archive', 'gzip'])
+        return x(
+            self.destination,
+            Path(self.destination.as_posix() + '.tar'),
+            Path(self.destination.as_posix() + '.tar.gz')
+        )
 
     def _destination_check(self):
-        for k, v in self._destinations().items():
+        """
+        Destination path checks
+
+        Ensure that all non-temporary paths which will be used by the recipe can
+        be formed as paths, and that they do not exist (unless allowed by the
+        keep settings).
+        """
+        for v in self._destinations():
             if v.exists() and self.keep.existing is True:
                 raise FileExistsError(
-                    f"{k} {v.as_posix()} exists and `keep.existing == True`."
+                    f"{v.as_posix()} exists and `keep.existing == True`."
                     "\nChange the keep.existing setting to False to overwrite."
                 )
 
@@ -79,22 +89,22 @@ class Recipe:
         }
 
         d = self._destinations()
-        if d['Directory'].exists():
-            shutil.rmtree(d['Directory'])
-        d['Directory'].mkdir()
+        if d.directory.exists():
+            shutil.rmtree(d.directory)
+        d.directory.mkdir()
 
         for k, v in structure.items():
             # noinspection PyArgumentList
             v(k)
 
         if self.keep.archive is True:
-            with tarfile.open(d['Archive'], "w") as tar:
+            with tarfile.open(d.archive, "w") as tar:
                 for file in self.destination.rglob('*'):
                     tar.add(file, file.relative_to(self.destination))
 
-            with gzip.open(d['Gzip'], 'wb') as f_out:
-                f_out.write(d['Archive'].read_bytes())
-            d['Archive'].unlink()
+            with gzip.open(d.gzip, 'wb') as f_out:
+                f_out.write(d.archive.read_bytes())
+            d.archive.unlink()
 
         if self.keep.destination is False:
             shutil.rmtree(self.destination)
