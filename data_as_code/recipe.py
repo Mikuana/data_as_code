@@ -21,13 +21,29 @@ class Keep:
         self.destination = kwargs.pop('destination', False)
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
-        self.existing = kwargs.pop('existing', True)  # delete any existing objects
+        self.existing = kwargs.pop('existing', True)
 
         if kwargs:
             raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
 
 
 class Recipe:
+    """
+    Recipe Class
+
+    This class is responsible for managing the session details involved in
+    generation of a data product. It's primarily responsible for setting up
+    temporary directories, and moving artifacts to the appropriate location to
+    package the results.
+
+    :param destination: (optional) the folder path where the data package
+        produced by the recipe will be output. If archiving is enabled in the
+        keep parameter, the name of this folder will also dictate the archive
+        name.
+    :param keep: (optional) controls the behavior of the recipe, determining
+        which artifacts should be preserved after the recipe completes, and
+        which should be removed from the file-system.
+    """
     workspace: Union[str, Path]
     _td: TemporaryDirectory
 
@@ -37,6 +53,14 @@ class Recipe:
         self.keep = keep
 
     def begin(self):
+        """
+        Begin Recipe
+
+        Prepare to start the recipe by determining if the data package
+        destination is valid, then opening a workspace for temporary artifacts
+        to be stored. The workspace is a temporary directory, which does not
+        exist until this method is call.
+        """
         self._destination_check()
         if self.keep.workspace is False:
             self._td = TemporaryDirectory()
@@ -45,6 +69,13 @@ class Recipe:
             self.workspace = self.destination
 
     def end(self):
+        """
+        End Recipe
+
+        Complete the recipe by building the data package from the identified
+        products, then removing the workspace (unless otherwise instructed in
+        the keep parameter).
+        """
         self._package()
 
         if self.keep.workspace is False:
