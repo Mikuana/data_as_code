@@ -26,6 +26,7 @@ This package is very flexible, but it does require a few speci
    self
    quickstart
    example
+   reference
 
 Indices and tables
 ==================

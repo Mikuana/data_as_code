@@ -133,17 +133,18 @@ def ingredient(step: Step) -> Metadata:
 
 class _SourceStep(Step):
 
-    def __init__(self, recipe: Recipe):
+    def __init__(self, recipe: Recipe, product=False):
+        self.product = product
         super().__init__(recipe)
 
 
 class _SourceHTTP(_SourceStep):
     """Download file from specified URL"""
 
-    def __init__(self, recipe: Recipe, url: str):
+    def __init__(self, recipe: Recipe, url: str, **kwargs):
         self._url = url
         self.output = Path(Path(self._url).name)
-        super().__init__(recipe)  # TODO: add way to pass URL down for metadata
+        super().__init__(recipe, **kwargs)
 
     def instructions(self):
         try:
@@ -164,9 +165,9 @@ class _SourceHTTP(_SourceStep):
 
 
 class _SourceLocal(_SourceStep):
-    def __init__(self, recipe: Recipe, path: Union[str, Path]):
+    def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
         self.output = path
-        super().__init__(recipe)
+        super().__init__(recipe, **kwargs)
 
     def instructions(self):
         pass
