@@ -20,14 +20,15 @@ class Step:
     into another artifact.
     """
     output: Union[Path, str] = None  # TODO: support multi-output
+    product: bool = False
 
-    def __init__(self, recipe: Recipe, product=False):
+    def __init__(self, recipe: Recipe):
         self._guid = uuid4()
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
 
-        if product and self.output is None:
+        if self.product and self.output is None:
             raise ex.StepUndefinedOutput("Products must have output defined")
         elif self.output:
             self.output = Path(self.output)
@@ -37,7 +38,7 @@ class Step:
         self._execute()
         self._metadata = self._get_metadata()
 
-        if product:
+        if self.product:
             self._recipe.products.extend(
                 self._metadata.values() if isinstance(self._metadata, dict)
                 else [self._metadata]
@@ -132,18 +133,17 @@ def ingredient(step: Step) -> Metadata:
 
 class _SourceStep(Step):
 
-    def __init__(self, recipe: Recipe, **kwargs):
-        super().__init__(recipe, **kwargs)
+    def __init__(self, recipe: Recipe):
+        super().__init__(recipe)
 
 
 class _SourceHTTP(_SourceStep):
     """Download file from specified URL"""
 
-    def __init__(self, recipe: Recipe, url: str, **kwargs):
+    def __init__(self, recipe: Recipe, url: str):
         self._url = url
-        kwargs['other'] = {**{'url': url}, **kwargs.get('other', {})}
         self.output = Path(Path(self._url).name)
-        super().__init__(recipe, **kwargs)
+        super().__init__(recipe)  # TODO: add way to pass URL down for metadata
 
     def instructions(self):
         try:
@@ -164,9 +164,9 @@ class _SourceHTTP(_SourceStep):
 
 
 class _SourceLocal(_SourceStep):
-    def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
+    def __init__(self, recipe: Recipe, path: Union[str, Path]):
         self.output = path
-        super().__init__(recipe, **kwargs)
+        super().__init__(recipe)
 
     def instructions(self):
         pass
@@ -184,9 +184,9 @@ class _SourceLocal(_SourceStep):
 class _Unzip(Step):
     output: dict = None
 
-    def __init__(self, recipe: Recipe, step: Step, **kwargs):
+    def __init__(self, recipe: Recipe, step: Step):
         self.zip_archive = ingredient(step)
-        super().__init__(recipe, **kwargs)
+        super().__init__(recipe)
 
     def instructions(self):
         self.output = {x[0]: x[1] for x in self.unpack()}

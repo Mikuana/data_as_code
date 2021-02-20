@@ -4,7 +4,7 @@ import pytest
 
 from data_as_code import exceptions as ex
 from data_as_code._step import Step, ingredient, _Ingredient
-from data_as_code.boxed import source_local
+from data_as_code.premade import source_local
 from data_as_code.metadata import Metadata
 
 
@@ -75,8 +75,10 @@ def test_error_on_default_output_product(default_recipe):
     """
     with default_recipe as r:
         class X(Step):
+            product = True
+
             def instructions(self):
                 pass
 
         with pytest.raises(ex.StepUndefinedOutput):
-            X(r, product=True)
+            X(r)
