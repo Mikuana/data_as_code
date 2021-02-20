@@ -25,7 +25,7 @@ involved in each step in an object-oriented fashion, improving reproducibility.
     will be discarded at the end, unless otherwise indicated by the user in the
     ``keep`` parameter of the Recipe.
 
-The ``Recipe`` can be managed with a context handler:
+The :py:class:`~data_as_code.recipe.Recipe` can be managed with a context handler:
 
 .. code-block:: python
 
@@ -50,7 +50,8 @@ or with an equivalent call to begin/end:
     is equivalent, and very useful during the initial development of a recipe,
     as it will keep your workspace open between commands.
 
-.. autoclass:: data_as_code.Recipe
+.. py:module:: data_as_code
+.. autoclass:: Recipe
     :members:
 
 

@@ -42,7 +42,8 @@ class Recipe:
         name.
     :param keep: (optional) controls the behavior of the recipe, determining
         which artifacts should be preserved after the recipe completes, and
-        which should be removed from the file-system.
+        which should be removed from the file-system. This parameter is modified
+        by passing a :class:`~data_as_code.recipe.Keep` object.
     """
     workspace: Union[str, Path]
     _td: TemporaryDirectory
