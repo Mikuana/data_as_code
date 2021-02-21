@@ -24,7 +24,7 @@ This package is very flexible, but it does require a few speci
    :caption: Contents:
 
    self
-   quickstart
+   tutorial
    example
    reference
 
