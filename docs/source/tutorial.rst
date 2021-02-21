@@ -174,6 +174,6 @@ Package
     |-- metadata/
         |-- data_as_code.html.json
     |-- data/
-        |-- data_as_code.html.csv
+        |-- data_as_code.html
     |-- recipe.py
-    |-- .dacpack
+    |-- .dacpackage
