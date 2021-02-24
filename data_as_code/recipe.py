@@ -1,5 +1,5 @@
-import inspect
 import gzip
+import inspect
 import json
 import shutil
 import subprocess
@@ -15,6 +15,7 @@ from data_as_code.metadata import Metadata
 
 class Keep:
     def __init__(self, **kwargs: bool):
+        # TODO: add keep options for sources and intermediaries
         self.product = kwargs.pop('product', True)
         self.metadata = kwargs.pop('metadata', True)
         self.recipe = kwargs.pop('recipe', True)
@@ -23,6 +24,8 @@ class Keep:
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
         self.existing = kwargs.pop('existing', False)
+        self.sources = kwargs.pop('sources', False)
+        self.intermediaries = kwargs.pop('intermediaries', False)
 
         if kwargs:
             raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
@@ -37,10 +40,6 @@ class Recipe:
     temporary directories, and moving artifacts to the appropriate location to
     package the results.
 
-    :param destination: (optional) the folder path where the data package
-        produced by the recipe will be output. If archiving is enabled in the
-        keep parameter, the name of this folder will also dictate the archive
-        name.
     :param keep: (optional) controls the behavior of the recipe, determining
         which artifacts should be preserved after the recipe completes, and
         which should be removed from the file-system. This parameter is modified
@@ -51,6 +50,8 @@ class Recipe:
 
     def __init__(self, keep=Keep()):
         self.destination = Path()
+        self.sources: List[Metadata] = []
+        self.intermediaries: List[Metadata] = []
         self.products: List[Metadata] = []
         self.keep = keep
 
@@ -129,12 +130,6 @@ class Recipe:
         self.end()
 
     def _prepare(self):
-        d = self._destinations()
-        # TODO: remove this
-        # if d.directory.exists():
-        #     shutil.rmtree(d.directory)
-        # d.directory.mkdir()
-
         for k, v in self._structure.items():
             # noinspection PyArgumentList
             v(k)
@@ -172,10 +167,16 @@ class Recipe:
 
     def _package_data_prep(self, target: str):
         p = Path(self.destination, target)
-        for prod in self.products:
-            pp = Path(p, prod.path.relative_to(prod._relative_to))
-            pp.parent.mkdir(parents=True, exist_ok=True)
-            yield prod, pp
+        z = (
+            (self.sources, 'source'),
+            (self.intermediaries, 'intermediary'),
+            (self.products, 'product')
+        )
+        for artifacts, sub in z:
+            for artifact in artifacts:
+                pp = Path(p, sub, artifact.path.relative_to(artifact._relative_to))
+                pp.parent.mkdir(parents=True, exist_ok=True)
+                yield artifact, pp
 
     def _prep_data(self, target: str):
         for prod, pp in self._package_data_prep(target):

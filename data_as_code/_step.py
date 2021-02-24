@@ -13,22 +13,33 @@ from data_as_code import exceptions as ex
 from data_as_code.metadata import Metadata
 from data_as_code.recipe import Recipe
 
+source = 'source'
+intermediary = 'intermediary'
+product = 'product'
+
 
 class Step:
     """
     A process which takes one or more artifacts in a recipe, and transforms it
     into another artifact.
     """
+
     output: Union[Path, str] = None  # TODO: support multi-output
-    product: bool = False
+    type: str = intermediary
+    keep: bool = False
+
+    def _check_result_type(self):
+        """ Assigned type must be a valid choice """
+        assert self.type in (source, intermediary, product)
 
     def __init__(self, recipe: Recipe):
         self._guid = uuid4()
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
+        self._check_result_type()
 
-        if self.product and self.output is None:
+        if self.keep == product and self.output is None:
             raise ex.StepUndefinedOutput("Products must have output defined")
         elif self.output:
             self.output = Path(self.output)
@@ -38,11 +49,14 @@ class Step:
         self._execute()
         self._metadata = self._get_metadata()
 
-        if self.product:
-            self._recipe.products.extend(
-                self._metadata.values() if isinstance(self._metadata, dict)
-                else [self._metadata]
-            )
+        if self.type == product:  # always keep product
+            self._recipe.products.append(self._metadata)
+
+        elif self.type == intermediary and (self.keep or self._recipe.keep.intermediaries):
+            self._recipe.intermediaries.append(self._metadata)
+
+        elif self.type == source and (self.keep or self._recipe.keep.sources):
+            self._recipe.sources.append(self._metadata)
 
     def instructions(self):
         """
@@ -133,8 +147,9 @@ def ingredient(step: Step) -> Metadata:
 
 class _SourceStep(Step):
 
-    def __init__(self, recipe: Recipe, product=False):
-        self.product = product
+    def __init__(self, recipe: Recipe, keep=False):
+        self.keep = keep
+        self.type = 'source'
         super().__init__(recipe)
 
 

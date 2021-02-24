@@ -9,9 +9,9 @@ __all__ = [
 ]
 
 
-def source_local(recipe: Recipe, path: Union[Path, str], product=False) -> Step:
-    return _SourceLocal(recipe, path, product=product)
+def source_local(recipe: Recipe, path: Union[Path, str], keep=False) -> Step:
+    return _SourceLocal(recipe, path, keep=keep)
 
 
-def source_http(recipe: Recipe, url: str, product=False) -> Step:
-    return _SourceHTTP(recipe, url, product=product)
+def source_http(recipe: Recipe, url: str, keep=False) -> Step:
+    return _SourceHTTP(recipe, url, keep=keep)
