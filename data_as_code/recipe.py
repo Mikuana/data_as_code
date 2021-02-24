@@ -1,3 +1,4 @@
+import inspect
 import gzip
 import json
 import shutil
@@ -18,10 +19,10 @@ class Keep:
         self.metadata = kwargs.pop('metadata', True)
         self.recipe = kwargs.pop('recipe', True)
         self.archive = kwargs.pop('archive', True)
-        self.destination = kwargs.pop('destination', False)
+        self.destination = kwargs.pop('destination', True)
         self.artifacts = kwargs.pop('artifacts', False)
         self.workspace = kwargs.pop('workspace', False)
-        self.existing = kwargs.pop('existing', True)
+        self.existing = kwargs.pop('existing', False)
 
         if kwargs:
             raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
@@ -48,10 +49,26 @@ class Recipe:
     workspace: Union[str, Path]
     _td: TemporaryDirectory
 
-    def __init__(self, destination: Union[str, Path] = '.', keep=Keep()):
-        self.destination = Path(destination)
+    def __init__(self, keep=Keep()):
+        self.destination = Path()
         self.products: List[Metadata] = []
         self.keep = keep
+
+        self._structure = {
+            'data/': self._prep_data,
+            'metadata/': self._prep_metadata,
+            self._recipe_file(): self._prep_recipe,
+            'requirements.txt': self._prep_requirements
+        }
+
+    @staticmethod
+    def _recipe_file():
+        """
+        Inspect stack to find filename of calling recipe script
+
+        This is likely to break in a lot of situations
+        """
+        return Path(inspect.stack()[-1].filename).name
 
     def begin(self):
         """
@@ -77,17 +94,16 @@ class Recipe:
         products, then removing the workspace (unless otherwise instructed in
         the keep parameter).
         """
-        self._package()
+        self._prepare()
 
         if self.keep.workspace is False:
             self._td.cleanup()
 
     def _destinations(self):
-        x = namedtuple('Destinations', ['directory', 'archive', 'gzip'])
+        x = namedtuple('Destinations', ['archive', 'gzip'])
         return x(
-            self.destination,
-            Path(self.destination.as_posix() + '.tar'),
-            Path(self.destination.as_posix() + '.tar.gz')
+            Path(self.destination.absolute().name + '.tar'),
+            Path(self.destination.absolute().name + '.tar.gz')
         )
 
     def _destination_check(self):
@@ -112,27 +128,30 @@ class Recipe:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.end()
 
-    def _package(self):
-        structure = {
-            'env/requirements.txt': self._package_env,
-            'data/': self._package_data,
-            'metadata/': self._package_metadata,
-            'recipe.py': self._package_recipe
-        }
-
+    def _prepare(self):
         d = self._destinations()
-        if d.directory.exists():
-            shutil.rmtree(d.directory)
-        d.directory.mkdir()
+        # TODO: remove this
+        # if d.directory.exists():
+        #     shutil.rmtree(d.directory)
+        # d.directory.mkdir()
 
-        for k, v in structure.items():
+        for k, v in self._structure.items():
             # noinspection PyArgumentList
             v(k)
 
+        self._package()
+
+    def _package(self):
+        d = self._destinations()
         if self.keep.archive is True:
             with tarfile.open(d.archive, "w") as tar:
-                for file in self.destination.rglob('*'):
-                    tar.add(file, file.relative_to(self.destination))
+                for x in self._structure:
+                    p = Path(self.destination, x)
+                    if p.is_file():
+                        tar.add(p, p.relative_to(self.destination))
+                    else:
+                        for file in p.rglob('*'):
+                            tar.add(file, file.relative_to(self.destination))
 
             with gzip.open(d.gzip, 'wb') as f_out:
                 f_out.write(d.archive.read_bytes())
@@ -141,14 +160,15 @@ class Recipe:
         if self.keep.destination is False:
             shutil.rmtree(self.destination)
 
-    def _package_env(self, target: str):
+    def _prep_requirements(self, target: str):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
         p = Path(self.destination, target)
         p.parent.mkdir(exist_ok=True, parents=True)
         p.write_bytes(reqs)
 
-    def _package_recipe(self, target: str):
-        Path(self.destination, target).write_bytes(Path(__file__).read_bytes())
+    def _prep_recipe(self, target: str):
+        # TODO: nothing to see here yet
+        pass
 
     def _package_data_prep(self, target: str):
         p = Path(self.destination, target)
@@ -157,11 +177,11 @@ class Recipe:
             pp.parent.mkdir(parents=True, exist_ok=True)
             yield prod, pp
 
-    def _package_data(self, target: str):
+    def _prep_data(self, target: str):
         for prod, pp in self._package_data_prep(target):
             shutil.copy(prod.path, pp)
 
-    def _package_metadata(self, target: str):
+    def _prep_metadata(self, target: str):
         for prod, pp in self._package_data_prep(target):
             d = prod.to_dict()
             j = json.dumps(d, indent=2)
