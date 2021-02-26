@@ -1,3 +1,4 @@
+import json
 import inspect
 import os
 from hashlib import md5
@@ -10,7 +11,7 @@ import requests
 from tqdm import tqdm
 
 from data_as_code import exceptions as ex
-from data_as_code.metadata import Metadata
+from data_as_code.metadata import Metadata, from_dictionary
 from data_as_code.recipe import Recipe
 
 source = 'source'
@@ -151,6 +152,31 @@ class _SourceStep(Step):
         self.keep = keep
         self.type = 'source'
         super().__init__(recipe)
+
+    def _execute(self):
+        if self._check_project_source_folder() is True:
+            pass
+        else:
+            super()._execute()
+
+    def _check_project_source_folder(self):
+        """
+        Check project source folder for existing source file before attempting
+        to retrieve from indicated source. If metadata match runtime arguments,
+        and checksum for corresponding file, then reassign the output to the
+        existing file in the source folder.
+        """
+        mp = Path('metadata', 'source', f'{self.output}.json')
+        dp = Path('data', 'source', self.output)
+        if mp.is_file():
+            meta = from_dictionary(**json.loads(mp))
+            try:
+                assert meta['attribute'] == 'runtime arg for source'
+                assert md5(dp.read_bytes()) == meta['checksum']['value]']
+                self.output = dp
+                return True
+            except AssertionError:
+                return False
 
 
 class _SourceHTTP(_SourceStep):
