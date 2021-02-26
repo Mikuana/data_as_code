@@ -15,23 +15,29 @@ class Metadata:
     :param checksum_algorithm: ...
     :param lineage: ...
     """
+
     # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
                  checksum_algorithm: Union[str, None], lineage: list,
-                 relative_to: Path = None):
+                 relative_to: Path = None, other: Dict[str, str] = None):
         self.path = path
         self._relative_to = relative_to
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
+        self.other = other or {}
         self.fingerprint = self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
         d = dict(
             path=self.path.as_posix(),
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage]),
+            lineage=sorted([x.fingerprint for x in self.lineage])
         )
+        d = {
+            **d,
+            **{k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}
+        }
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
     def get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:
@@ -65,6 +71,7 @@ class Metadata:
         if self.lineage:
             base['lineage'] = [x.to_dict() for x in self.lineage]
 
+        base = {**base, **self.other}
         return base
 
     def _path_prep(self) -> Path:
@@ -92,10 +99,10 @@ def from_objects(p: Path, cs: sha256, lin: List[dict] = None):
     return Metadata(p, cs.hexdigest(), cs.name, lin or [])
 
 
-def from_dictionary(path: str, checksum: Dict[str, str], lineage: List[dict] = None):
+def from_dictionary(path: str, checksum: Dict[str, str], lineage: List[dict] = None, **kwargs):
     return Metadata(
         Path(path), checksum['value'], checksum['algorithm'],
-        [from_dictionary(**x) for x in lineage or []]
+        [from_dictionary(**x) for x in lineage or []], other=kwargs
     )
 
 

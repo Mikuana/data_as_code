@@ -33,8 +33,9 @@ class Step:
         """ Assigned type must be a valid choice """
         assert self.type in (source, intermediary, product)
 
-    def __init__(self, recipe: Recipe):
+    def __init__(self, recipe: Recipe, other: dict = None):
         self._guid = uuid4()
+        self._other_meta = other
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
@@ -125,7 +126,7 @@ class Step:
         if x.name == self._guid.hex:
             p = p.rename(Path(p.parent, hxd))
 
-        return Metadata(p, hxd, 'md5', lineage, Path(self._workspace))
+        return Metadata(p, hxd, 'md5', lineage, Path(self._workspace), self._other_meta)
 
 
 class _Ingredient:
@@ -148,16 +149,16 @@ def ingredient(step: Step) -> Metadata:
 
 class _SourceStep(Step):
 
-    def __init__(self, recipe: Recipe, keep=False):
+    def __init__(self, recipe: Recipe, keep=False, **kwargs):
         self.keep = keep
         self.type = 'source'
-        super().__init__(recipe)
+        super().__init__(recipe, **kwargs)
 
     def _execute(self):
-        if self._check_project_source_folder() is True:
-            pass
-        else:
-            super()._execute()
+        # if self._check_project_source_folder() is True:
+        #     pass
+        # else:
+        super()._execute()
 
     def _check_project_source_folder(self):
         """
@@ -169,10 +170,10 @@ class _SourceStep(Step):
         mp = Path('metadata', 'source', f'{self.output}.json')
         dp = Path('data', 'source', self.output)
         if mp.is_file():
-            meta = from_dictionary(**json.loads(mp))
+            # meta = from_dictionary(**json.loads(mp.read_text()))
             try:
-                assert meta['attribute'] == 'runtime arg for source'
-                assert md5(dp.read_bytes()) == meta['checksum']['value]']
+                # assert meta['attribute'] == 'runtime arg for source'
+                # assert md5(dp.read_bytes()) == meta['checksum']['value]']
                 self.output = dp
                 return True
             except AssertionError:
@@ -185,7 +186,7 @@ class _SourceHTTP(_SourceStep):
     def __init__(self, recipe: Recipe, url: str, **kwargs):
         self._url = url
         self.output = Path(Path(self._url).name)
-        super().__init__(recipe, **kwargs)
+        super().__init__(recipe, other=dict(url=url), **kwargs)
 
     def instructions(self):
         try:
