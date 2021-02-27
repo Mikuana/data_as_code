@@ -155,9 +155,9 @@ class _SourceStep(Step):
         super().__init__(recipe, **kwargs)
 
     def _execute(self):
-        # if self._check_project_source_folder() is True:
-        #     pass
-        # else:
+        if self._check_project_source_folder() is True:
+            print('woo')
+
         super()._execute()
 
     def _check_project_source_folder(self):
@@ -170,14 +170,21 @@ class _SourceStep(Step):
         mp = Path('metadata', 'source', f'{self.output}.json')
         dp = Path('data', 'source', self.output)
         if mp.is_file():
-            # meta = from_dictionary(**json.loads(mp.read_text()))
+            meta = from_dictionary(**json.loads(mp.read_text()))
             try:
-                # assert meta['attribute'] == 'runtime arg for source'
-                # assert md5(dp.read_bytes()) == meta['checksum']['value]']
+                assert meta.fingerprint == self._mock_fingerprint(dp)
+                assert md5(dp.read_bytes()) == meta.checksum_value
                 self.output = dp
                 return True
             except AssertionError:
                 return False
+
+    def _mock_fingerprint(self, candidate: Path) -> str:
+        """ Generate a mock metadata fingerprint """
+        lineage = [self.__getattribute__(x) for x in self._ingredients]
+        hxd = md5(candidate.read_bytes()).hexdigest()
+        m = Metadata(candidate, hxd, 'md5', lineage, None, self._other_meta)
+        return m.fingerprint
 
 
 class _SourceHTTP(_SourceStep):
