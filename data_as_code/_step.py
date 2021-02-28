@@ -168,10 +168,10 @@ class _SourceStep(Step):
         existing file in the source folder.
         """
         mp = Path('metadata', 'source', f'{self.output}.json')
-        dp = Path('data', 'source', self.output)
         if mp.is_file():
             meta = from_dictionary(**json.loads(mp.read_text()))
             try:
+                dp = Path('data', 'source', meta.path)
                 assert meta.fingerprint == self._mock_fingerprint(dp)
                 assert md5(dp.read_bytes()) == meta.checksum_value
                 self.output = dp

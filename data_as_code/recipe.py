@@ -1,3 +1,4 @@
+import os
 import gzip
 import inspect
 import json
@@ -49,7 +50,7 @@ class Recipe:
     _td: TemporaryDirectory
 
     def __init__(self, keep=Keep()):
-        self.destination = Path()
+        self.destination = Path().absolute()
         self.sources: List[Metadata] = []
         self.intermediaries: List[Metadata] = []
         self.products: List[Metadata] = []
@@ -95,10 +96,14 @@ class Recipe:
         products, then removing the workspace (unless otherwise instructed in
         the keep parameter).
         """
-        self._prepare()
-
-        if self.keep.workspace is False:
-            self._td.cleanup()
+        cwd = os.getcwd()
+        try:
+            os.chdir(self.destination)
+            self._prepare()
+            if self.keep.workspace is False:
+                self._td.cleanup()
+        finally:
+            os.chdir(cwd)
 
     def _destinations(self):
         x = namedtuple('Destinations', ['archive', 'gzip'])
@@ -158,7 +163,6 @@ class Recipe:
     def _prep_requirements(self, target: str):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
         p = Path(self.destination, target)
-        p.parent.mkdir(exist_ok=True, parents=True)
         p.write_bytes(reqs)
 
     def _prep_recipe(self, target: str):

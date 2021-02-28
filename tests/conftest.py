@@ -1,3 +1,4 @@
+import os
 import tempfile
 from pathlib import Path
 
@@ -13,7 +14,7 @@ def tmpdir():
         yield Path(d)
 
 
-@pytest.fixture
+@pytest.fixture()
 def csv_file_a(tmpdir) -> Path:
     pat = Path(tmpdir, 'fileA.csv')
     pat.write_text('x,y,z\n1,2,3')
@@ -37,4 +38,8 @@ def frozen_pizza(csv_file_a, csv_file_b):
 
 @pytest.fixture
 def default_recipe(tmpdir):
-    yield Recipe(tmpdir.as_posix() + '/default')
+    cwd = os.getcwd()
+    os.chdir(tmpdir)
+    r = Recipe()
+    os.chdir(cwd)
+    yield r

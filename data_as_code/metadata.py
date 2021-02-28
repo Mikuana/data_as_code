@@ -102,10 +102,14 @@ def from_objects(p: Path, cs: sha256, lin: List[dict] = None):
     return Metadata(p, cs.hexdigest(), cs.name, lin or [])
 
 
-def from_dictionary(path: str, checksum: Dict[str, str], lineage: List[dict] = None, **kwargs):
+def from_dictionary(
+        path: str, checksum: Dict[str, str], fingerprint: str,
+        lineage: List[dict] = None, **kwargs
+):
     return Metadata(
         Path(path), checksum['value'], checksum['algorithm'],
-        [from_dictionary(**x) for x in lineage or []], other=kwargs
+        [from_dictionary(**x) for x in lineage or []], fingerprint=fingerprint,
+        other=kwargs
     )
 
 
