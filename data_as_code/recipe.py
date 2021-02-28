@@ -192,5 +192,6 @@ class Recipe:
     def _prep_metadata(self, target: str):
         for prod, pp in self._package_data_prep(target):
             d = prod.to_dict()
+            d['path'] = Path('data', prod.type, d['path']).as_posix()
             j = json.dumps(d, indent=2)
             Path(pp.as_posix() + '.json').write_text(j)

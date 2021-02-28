@@ -28,6 +28,7 @@ class Metadata:
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
         self.other = other or {}
+        self.type = 'nada'
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:

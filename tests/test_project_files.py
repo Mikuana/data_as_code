@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from data_as_code.premade import source_local
 from data_as_code.metadata import from_dictionary
+from data_as_code._step import Step, ingredient
 
 
 def test_cache_path_is_relative(tmpdir, default_recipe, csv_file_a):
@@ -15,8 +16,19 @@ def test_cache_path_is_relative(tmpdir, default_recipe, csv_file_a):
     if the working directory is set to the root project folder.
     """
     with default_recipe as r:
-        source_local(r, csv_file_a, keep=True)
+        s1 = source_local(r, csv_file_a, keep=True)
 
-    mp = Path(r.destination, 'metadata', 'source', csv_file_a.name + '.json')
+        class Rewrite(Step):
+            """ Make Data into Code """
+            type = 'product'
+            output = Path('x.csv')
+            x = ingredient(s1)
+
+            def instructions(self):
+                self.output.write_text(self.x.path.read_text())
+
+        Rewrite(r)
+
+    mp = Path(r.destination, 'metadata/product/x.csv.json')
     mj = from_dictionary(**json.loads(mp.read_text()))
-    assert mj.path.as_posix() == Path(r.destination, 'data/source/fileA.csv').as_posix()
+    assert mj.path.as_posix() == 'data/product/x.csv'
