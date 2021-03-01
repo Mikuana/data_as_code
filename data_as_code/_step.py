@@ -127,14 +127,20 @@ class Step:
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         p = Path(self._workspace, x)
         hxd = md5(p.read_bytes()).hexdigest()
-        if x.name == self._guid.hex:
-            p = None
-        if self.keep is False:
+        if self.keep is True:
+            np = Path(self._recipe.destination, 'data', self.role, x)
+            np.parent.mkdir(parents=True, exist_ok=True)
+            p = p.rename(np)
+        else:
             p = None  # paths are not required if output is not available later
 
+        if x.name == self._guid.hex:
+            p = None
+
         return Metadata(
-            p, hxd, 'md5', lineage, self.role, Path(self._workspace),
-            self._other_meta
+            path=p, checksum_value=hxd, checksum_algorithm='md5',
+            lineage=lineage, role=self.role, relative_to=None,
+            other=self._other_meta
         )
 
 
@@ -157,10 +163,10 @@ def ingredient(step: Step) -> Metadata:
 
 
 class _SourceStep(Step):
+    role = 'source'
 
     def __init__(self, recipe: Recipe, keep=False, **kwargs):
         self.keep = keep
-        self.type = 'source'
         super().__init__(recipe, **kwargs)
 
     def _execute(self):
@@ -192,7 +198,7 @@ class _SourceStep(Step):
         """ Generate a mock metadata fingerprint """
         lineage = [self.__getattribute__(x) for x in self._ingredients]
         hxd = md5(candidate.read_bytes()).hexdigest()
-        m = Metadata(candidate, hxd, 'md5', lineage, None, self._other_meta)
+        m = Metadata(candidate, hxd, 'md5', lineage, self.role, other=self._other_meta)
         return m.fingerprint
 
 

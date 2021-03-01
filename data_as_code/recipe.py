@@ -57,7 +57,6 @@ class Recipe:
         self.keep = keep
 
         self._structure = {
-            'data/': self._prep_data,
             'metadata/': self._prep_metadata,
             self._recipe_file(): self._prep_recipe,
             'requirements.txt': self._prep_requirements
@@ -185,13 +184,8 @@ class Recipe:
                 pp.parent.mkdir(parents=True, exist_ok=True)
                 yield artifact, pp
 
-    def _prep_data(self, target: str):
-        for prod, pp in self._package_data_prep(target):
-            shutil.copy(prod.path, pp)
-
     def _prep_metadata(self, target: str):
         for prod, pp in self._package_data_prep(target):
-            d = prod.to_dict()
-            # d['path'] = Path('data', prod.type, d['path']).as_posix()
+            d = prod.to_dict(self.destination)
             j = json.dumps(d, indent=2)
             Path(pp.as_posix() + '.json').write_text(j)

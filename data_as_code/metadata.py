@@ -65,22 +65,18 @@ class Metadata:
             path=self.path
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self, relative_root: Path) -> dict:
         base = dict(
-            path=self._path_prep().as_posix(),
+            path=self.path.relative_to(relative_root).as_posix(), role=self.role,
             checksum=dict(algorithm=self.checksum_algorithm, value=self.checksum_value),
             fingerprint=self.fingerprint
         )
 
         if self.lineage:
-            base['lineage'] = [x.to_dict() for x in self.lineage]
+            base['lineage'] = [x.to_dict(relative_root) for x in self.lineage]
 
         base = {**base, **self.other}
         return base
-
-    def _path_prep(self) -> Path:
-        rt = self._relative_to
-        return self.path.relative_to(rt) if rt else self.path
 
     def show_lineage(self):
         """
