@@ -19,8 +19,8 @@ class Metadata:
     # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
                  checksum_algorithm: Union[str, None], lineage: list,
-                 relative_to: Path = None, other: Dict[str, str] = None,
-                 fingerprint: str = None
+                 type: str, relative_to: Path = None,
+                 other: Dict[str, str] = None, fingerprint: str = None
                  ):
         self.path = path
         self._relative_to = relative_to
@@ -28,7 +28,7 @@ class Metadata:
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
         self.other = other or {}
-        self.type = 'nada'
+        self.type = type
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:

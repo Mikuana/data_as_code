@@ -126,7 +126,10 @@ class Step:
         if x.name == self._guid.hex:
             p = p.rename(Path(p.parent, hxd))
 
-        return Metadata(p, hxd, 'md5', lineage, Path(self._workspace), self._other_meta)
+        return Metadata(
+            p, hxd, 'md5', lineage, Path(self._workspace), self.type,
+            self._other_meta
+        )
 
 
 class _Ingredient:
