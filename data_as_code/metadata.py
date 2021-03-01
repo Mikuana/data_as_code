@@ -19,7 +19,7 @@ class Metadata:
     # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
                  checksum_algorithm: Union[str, None], lineage: list,
-                 type: str, relative_to: Path = None,
+                 role: str, relative_to: Path = None,
                  other: Dict[str, str] = None, fingerprint: str = None
                  ):
         self.path = path
@@ -28,7 +28,7 @@ class Metadata:
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
         self.other = other or {}
-        self.type = type
+        self.role = role
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
@@ -105,12 +105,12 @@ def from_objects(p: Path, cs: sha256, lin: List[dict] = None):
 
 def from_dictionary(
         path: str, checksum: Dict[str, str], fingerprint: str,
-        lineage: List[dict] = None, **kwargs
+        role: str, lineage: List[dict] = None, **kwargs
 ):
     return Metadata(
         Path(path), checksum['value'], checksum['algorithm'],
-        [from_dictionary(**x) for x in lineage or []], fingerprint=fingerprint,
-        other=kwargs
+        [from_dictionary(**x) for x in lineage or []], role=role,
+        fingerprint=fingerprint, other=kwargs
     )
 
 

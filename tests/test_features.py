@@ -1,3 +1,7 @@
+"""
+ - metadata paths to file in project folder when kept
+ - if path is not set explicitly in step, it should not be retained in metadata
+"""
 import json
 from pathlib import Path
 from data_as_code.premade import source_local
@@ -20,7 +24,7 @@ def test_cache_path_is_relative(tmpdir, default_recipe, csv_file_a):
 
         class Rewrite(Step):
             """ Make Data into Code """
-            type = 'product'
+            role = 'product'
             output = Path('x.csv')
             x = ingredient(s1)
 

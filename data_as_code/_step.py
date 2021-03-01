@@ -1,5 +1,5 @@
-import json
 import inspect
+import json
 import os
 from hashlib import md5
 from pathlib import Path
@@ -26,12 +26,20 @@ class Step:
     """
 
     output: Union[Path, str] = None  # TODO: support multi-output
-    type: str = intermediary
+    role: str = intermediary
     keep: bool = False
 
-    def _check_result_type(self):
+    def _determine_keep(self):
         """ Assigned type must be a valid choice """
-        assert self.type in (source, intermediary, product)
+        assert self.role in (source, intermediary, product)
+        if self.role == product:  # always keep product
+            return True
+
+        elif self.role == intermediary:
+            return self.keep or self._recipe.keep.intermediaries
+
+        elif self.role == source:
+            return self.keep or self._recipe.keep.sources
 
     def __init__(self, recipe: Recipe, other: dict = None):
         self._guid = uuid4()
@@ -39,7 +47,7 @@ class Step:
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
         self._ingredients = self._get_ingredients()
-        self._check_result_type()
+        self.keep = self._determine_keep()
 
         if self.keep == product and self.output is None:
             raise ex.StepUndefinedOutput("Products must have output defined")
@@ -51,14 +59,15 @@ class Step:
         self._execute()
         self._metadata = self._get_metadata()
 
-        if self.type == product:  # always keep product
-            self._recipe.products.append(self._metadata)
+        if self.keep is True:
+            if self.role == product:
+                self._recipe.products.append(self._metadata)
 
-        elif self.type == intermediary and (self.keep or self._recipe.keep.intermediaries):
-            self._recipe.intermediaries.append(self._metadata)
+            elif self.role == intermediary:
+                self._recipe.intermediaries.append(self._metadata)
 
-        elif self.type == source and (self.keep or self._recipe.keep.sources):
-            self._recipe.sources.append(self._metadata)
+            elif self.role == source:
+                self._recipe.sources.append(self._metadata)
 
     def instructions(self):
         """
@@ -113,21 +122,18 @@ class Step:
         """
         lineage = [self.__getattribute__(x) for x in self._ingredients]
 
-        if isinstance(self.output, Path):
-            return self._make_metadata(self.output, lineage)
-        elif isinstance(self.output, dict):
-            return {k: self._make_metadata(v, lineage) for k, v in self.output.items()}
-        else:
-            raise ex.StepError("instruction return was not a Path or dictionary of Paths")
+        return self._make_metadata(self.output, lineage)
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         p = Path(self._workspace, x)
         hxd = md5(p.read_bytes()).hexdigest()
         if x.name == self._guid.hex:
-            p = p.rename(Path(p.parent, hxd))
+            p = None
+        if self.keep is False:
+            p = None  # paths are not required if output is not available later
 
         return Metadata(
-            p, hxd, 'md5', lineage, Path(self._workspace), self.type,
+            p, hxd, 'md5', lineage, self.role, Path(self._workspace),
             self._other_meta
         )
 
@@ -217,6 +223,8 @@ class _SourceHTTP(_SourceStep):
 
 
 class _SourceLocal(_SourceStep):
+    role = 'source'
+
     def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
         self.output = path
         super().__init__(recipe, **kwargs)
@@ -230,7 +238,7 @@ class _SourceLocal(_SourceStep):
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         return Metadata(  # TODO: un-absolute this
             x.absolute(), md5(x.read_bytes()).hexdigest(), 'md5',
-            lineage, None
+            lineage, self.role
         )
 
 
