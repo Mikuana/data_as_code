@@ -165,7 +165,10 @@ class Step:
                 try:
                     assert meta.fingerprint == self._mock_fingerprint(dp)
                     assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
-                    print(f"{self.output.name}: using cached file")
+                    print(
+                        f"Using cached file for {self.role.title().ljust(8)}"
+                        f" {self.output}"
+                    )
                     return meta
                 except AssertionError:
                     return

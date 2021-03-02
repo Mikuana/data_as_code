@@ -45,7 +45,6 @@ class Metadata:
             **{k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}
         }
 
-
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
     def get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:

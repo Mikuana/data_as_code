@@ -178,9 +178,9 @@ class Recipe:
         for artifacts, sub in z:
             for artifact in artifacts:
                 if artifact._relative_to:
-                    pp = Path(p, sub, artifact.path.relative_to(artifact._relative_to))
+                    pp = Path(p, sub, artifact.relative_path)
                 else:
-                    pp = Path(p, sub, artifact.path.name)
+                    pp = Path(p, sub, artifact.relative_path.name)
                 pp.parent.mkdir(parents=True, exist_ok=True)
                 yield artifact, pp
 
