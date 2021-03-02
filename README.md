@@ -24,7 +24,7 @@ with Recipe('data_package') as r:
         def instructions(self):
             with self.output.open('w', newline='') as new:
                 writer = csv.writer(new, delimiter='*')
-                with self.x.absolute_path.open(newline='') as orig:
+                with self.x.path.open(newline='') as orig:
                     reader = csv.reader(orig)
                     for row in reader:
                         writer.writerow(row)
