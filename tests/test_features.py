@@ -29,10 +29,10 @@ def test_cache_path_is_relative(tmpdir, default_recipe, csv_file_a):
             x = ingredient(s1)
 
             def instructions(self):
-                self.output.write_text(self.x.path.read_text())
+                self.output.write_text(self.x.absolute_path.read_text())
 
         Rewrite(r)
 
     mp = Path(r.destination, 'metadata/product/x.csv.json')
     mj = from_dictionary(**json.loads(mp.read_text()))
-    assert mj.path.as_posix() == 'data/product/x.csv'
+    assert mj.absolute_path.as_posix() == 'data/product/x.csv'

@@ -1,5 +1,5 @@
 import json
-from hashlib import sha256, md5
+from hashlib import md5
 from pathlib import Path
 from typing import Dict, List, Tuple, Union
 
@@ -10,19 +10,20 @@ class Metadata:
     Artifacts which describe the complete transformation of source cases into a
     final product.
 
-    :param path: ...
+    :param absolute_path: ...
     :param checksum_value: ...
     :param checksum_algorithm: ...
     :param lineage: ...
     """
 
     # TODO: path param must be required, or else use of self.path must account for None
-    def __init__(self, path: Union[Path, None], checksum_value: Union[str, None],
-                 checksum_algorithm: Union[str, None], lineage: list,
-                 role: str, relative_to: Path = None,
+    def __init__(self, absolute_path: Union[Path, None], relative_path: Union[Path, None],
+                 checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
+                 lineage: list, role: str, relative_to: Path = None,
                  other: Dict[str, str] = None, fingerprint: str = None
                  ):
-        self.path = path
+        self.absolute_path = absolute_path
+        self.relative_path = relative_path
         self._relative_to = relative_to
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
@@ -33,7 +34,7 @@ class Metadata:
 
     def calculate_fingerprint(self) -> str:
         d = dict(
-            path=self.path.as_posix(),
+            path=self.absolute_path.as_posix(),  # TODO: handle when None
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
             lineage=sorted([x.fingerprint for x in self.lineage])
         )
@@ -62,12 +63,12 @@ class Metadata:
     def node_attributes(self) -> dict:
         return dict(
             checksum=self.checksum_value[:5],
-            path=self.path
+            path=self.absolute_path
         )
 
     def to_dict(self, relative_root: Path) -> dict:
         base = dict(
-            path=self.path.relative_to(relative_root).as_posix(), role=self.role,
+            path=self.absolute_path.relative_to(relative_root).as_posix(), role=self.role,
             checksum=dict(algorithm=self.checksum_algorithm, value=self.checksum_value),
             fingerprint=self.fingerprint
         )
@@ -95,17 +96,14 @@ class Metadata:
         show_lineage(graph)
 
 
-def from_objects(p: Path, cs: sha256, lin: List[dict] = None):
-    return Metadata(p, cs.hexdigest(), cs.name, lin or [])
-
-
 def from_dictionary(
         path: str, checksum: Dict[str, str], fingerprint: str,
         role: str, lineage: List[dict] = None, **kwargs
 ):
     return Metadata(
-        Path(path), checksum['value'], checksum['algorithm'],
-        [from_dictionary(**x) for x in lineage or []], role=role,
+        absolute_path=None, relative_path=Path(path),
+        checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
+        lineage=[from_dictionary(**x) for x in lineage or []], role=role,
         fingerprint=fingerprint, other=kwargs
     )
 
@@ -120,33 +118,10 @@ class Reference(Metadata):
     """
 
     def __init__(self, lineage: list, other: Dict[str, str] = None):
-        super().__init__(None, None, None, lineage, other)
+        super().__init__(None, None, None, None, lineage, 'reference', other=other)
 
     def calculate_fingerprint(self) -> str:
         d = dict(
             lineage=sorted([x.fingerprint for x in self.lineage])
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
-
-
-class Product(Metadata):
-    """
-    A package which is the result of executing a recipe. Includes cases (in
-    the form of a file), metadata (including lineage), and the recipe itself.
-    """
-
-    def __init__(self, path: Path, checksum_value: str,
-                 checksum_algorithm: str, lineage: list,
-                 other: Dict[str, str] = None):
-        super().__init__(
-            path, checksum_value, checksum_algorithm, lineage, other
-        )
-
-    @classmethod
-    def repackage(cls, metadata: Metadata, destination: Path):
-        p = metadata.path.rename(Path(destination, metadata.path.name))
-        p = p.relative_to(destination)
-        return cls(
-            p, metadata.checksum_value, metadata.checksum_algorithm,
-            metadata.lineage
-        )

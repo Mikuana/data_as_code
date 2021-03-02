@@ -126,19 +126,22 @@ class Step:
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         p = Path(self._workspace, x)
+
         hxd = md5(p.read_bytes()).hexdigest()
-        if self.keep is True:
-            np = Path(self._recipe.destination, 'data', self.role, x)
-            np.parent.mkdir(parents=True, exist_ok=True)
-            p = p.rename(np)
-        else:
-            p = None  # paths are not required if output is not available later
 
         if x.name == self._guid.hex:
-            p = None
+            ap, rp = None, None
+        elif self.keep is True:
+            rp = Path('data', self.role, x)
+            ap = Path(self._recipe.destination, rp)
+            ap.parent.mkdir(parents=True, exist_ok=True)
+            p = p.rename(ap)
+        else:
+            ap, rp = None, None
 
         return Metadata(
-            path=p, checksum_value=hxd, checksum_algorithm='md5',
+            absolute_path=ap, relative_path=rp,
+            checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, role=self.role, relative_to=None,
             other=self._other_meta
         )
@@ -186,7 +189,7 @@ class _SourceStep(Step):
         if mp.is_file():
             meta = from_dictionary(**json.loads(mp.read_text()))
             try:
-                dp = Path('data', 'source', meta.path)
+                dp = Path('data', 'source', meta.absolute_path)
                 assert meta.fingerprint == self._mock_fingerprint(dp)
                 assert md5(dp.read_bytes()) == meta.checksum_value
                 self.output = dp
@@ -259,8 +262,8 @@ class _Unzip(Step):
         self.output = {x[0]: x[1] for x in self.unpack()}
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
-        with ZipFile(self.zip_archive.path) as zf:
-            xd = Path(self._recipe.workspace, self.zip_archive.path.name)
+        with ZipFile(self.zip_archive.absolute_path) as zf:
+            xd = Path(self._recipe.workspace, self.zip_archive.absolute_path.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file.as_posix(), file
