@@ -23,10 +23,10 @@ class Metadata:
                  other: Dict[str, str] = None, fingerprint: str = None
                  ):
         self.path = absolute_path
-        self.relative_path = relative_path
+        self._relative_path = relative_path
         self._relative_to = relative_to
-        if self.path is None and self.relative_path and self._relative_to:
-            self.path = Path(self._relative_to, self.relative_path)
+        if self.path is None and self._relative_path and self._relative_to:
+            self.path = Path(self._relative_to, self._relative_path)
 
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
@@ -40,8 +40,8 @@ class Metadata:
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
             lineage=sorted([x.fingerprint for x in self.lineage])
         )
-        if self.relative_path:
-            d['path'] = self.relative_path.as_posix()
+        if self._relative_path:
+            d['path'] = self._relative_path.as_posix()
 
         d = {
             **d,
@@ -79,7 +79,7 @@ class Metadata:
             cs = None
 
         base = {
-            'path': self.relative_path.as_posix() if self.relative_path else None,
+            'path': self._relative_path.as_posix() if self._relative_path else None,
             'role': self.role,
             'checksum': cs,
             'fingerprint': self.fingerprint,

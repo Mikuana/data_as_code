@@ -163,7 +163,7 @@ class Step:
                 **json.loads(mp.read_text()),
                 relative_to=self._recipe.destination.as_posix()
             )
-            dp = meta.relative_path
+            dp = meta._relative_path
             if dp.is_file():
                 try:
                     assert meta.fingerprint == self._mock_fingerprint(dp)
