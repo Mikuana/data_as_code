@@ -58,8 +58,7 @@ class Step:
         else:
             self.output = Path(self._guid.hex)
 
-        self._execute()
-        self._metadata = self._get_metadata()
+        self._metadata = self._execute()
 
         if self.keep is True:
             if self.role == product:
@@ -80,22 +79,27 @@ class Step:
         """
         return None
 
-    def _execute(self):
-        original_wd = os.getcwd()
-        try:
-            self._workspace.mkdir(exist_ok=True)
-            os.chdir(self._workspace)
-            if not self.output.parent.as_posix() == '.':
-                self.output.parent.mkdir(parents=True)
+    def _execute(self) -> Metadata:
+        cached = self._check_cache()
+        if cached:
+            return cached
+        else:
+            original_wd = os.getcwd()
+            try:
+                self._workspace.mkdir(exist_ok=True)
+                os.chdir(self._workspace)
+                if not self.output.parent.as_posix() == '.':
+                    self.output.parent.mkdir(parents=True)
 
-            if self.instructions():
-                raise ex.StepNoReturnAllowed()
+                if self.instructions():
+                    raise ex.StepNoReturnAllowed()
 
-            if not self.output.exists():
-                raise ex.StepOutputMustExist()
+                if not self.output.exists():
+                    raise ex.StepOutputMustExist()
 
-        finally:
-            os.chdir(original_wd)
+                return self._get_metadata()
+            finally:
+                os.chdir(original_wd)
 
     def _get_ingredients(self):
         """
@@ -147,6 +151,36 @@ class Step:
             other=self._other_meta
         )
 
+    def _check_cache(self) -> Union[Metadata, None]:
+        """
+        Check project data folder for existing file before attempting to recreate.
+        If fingerprint in the metadata matches the mocked fingerprint, use the
+        existing metadata without executing instructions.
+        """
+        mp = Path('metadata', self.role, f'{self.output}.json')
+        if mp.is_file():
+            meta = from_dictionary(**json.loads(mp.read_text()))
+            dp = meta.relative_path
+            if dp.is_file():
+                try:
+                    assert meta.fingerprint == self._mock_fingerprint(dp)
+                    assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
+                    print(f"{self.output.name}: using cached file")
+                    return meta
+                except AssertionError:
+                    return
+
+    def _mock_fingerprint(self, candidate: Path) -> str:
+        """ Generate a mock metadata fingerprint """
+        lineage = [self.__getattribute__(x) for x in self._ingredients]
+        hxd = md5(candidate.read_bytes()).hexdigest()
+        m = Metadata(
+            absolute_path=None, relative_path=candidate,
+            checksum_value=hxd, checksum_algorithm='md5',
+            lineage=lineage, role=self.role, other=self._other_meta
+        )
+        return m.fingerprint
+
 
 class _Ingredient:
     def __init__(self, step: Step):
@@ -172,42 +206,6 @@ class _SourceStep(Step):
     def __init__(self, recipe: Recipe, keep=False, **kwargs):
         self.keep = keep
         super().__init__(recipe, **kwargs)
-
-    def _execute(self):
-        if self._check_project_source_folder() is True:
-            print('woo')
-
-        super()._execute()
-
-    def _check_project_source_folder(self):
-        """
-        Check project source folder for existing source file before attempting
-        to retrieve from indicated source. If metadata match runtime arguments,
-        and checksum for corresponding file, then reassign the output to the
-        existing file in the source folder.
-        """
-        mp = Path('metadata', 'source', f'{self.output}.json')
-        if mp.is_file():
-            meta = from_dictionary(**json.loads(mp.read_text()))
-            try:
-                dp = meta.relative_path
-                assert meta.fingerprint == self._mock_fingerprint(dp)
-                assert md5(dp.read_bytes()) == meta.checksum_value
-                self.output = dp
-                return True
-            except AssertionError:
-                return False
-
-    def _mock_fingerprint(self, candidate: Path) -> str:
-        """ Generate a mock metadata fingerprint """
-        lineage = [self.__getattribute__(x) for x in self._ingredients]
-        hxd = md5(candidate.read_bytes()).hexdigest()
-        m = Metadata(
-            absolute_path=None, relative_path=candidate,
-            checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, role=self.role, other=self._other_meta
-        )
-        return m.fingerprint
 
 
 class _SourceHTTP(_SourceStep):
