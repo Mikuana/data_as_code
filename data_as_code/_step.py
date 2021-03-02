@@ -11,8 +11,8 @@ import requests
 from tqdm import tqdm
 
 from data_as_code import exceptions as ex
-from data_as_code.metadata import Metadata, from_dictionary
-from data_as_code.recipe import Recipe
+from data_as_code._metadata import Metadata, from_dictionary
+from data_as_code._recipe import Recipe
 
 source = 'source'
 intermediary = 'intermediary'

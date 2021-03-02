@@ -11,7 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, List
 
-from data_as_code.metadata import Metadata
+from data_as_code._metadata import Metadata
 
 
 class Keep:

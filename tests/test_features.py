@@ -5,7 +5,7 @@
 import json
 from pathlib import Path
 from data_as_code.premade import source_local
-from data_as_code.metadata import from_dictionary
+from data_as_code._metadata import from_dictionary
 from data_as_code._step import Step, ingredient
 
 
