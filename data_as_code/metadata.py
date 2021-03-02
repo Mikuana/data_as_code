@@ -25,6 +25,9 @@ class Metadata:
         self.path = absolute_path
         self.relative_path = relative_path
         self._relative_to = relative_to
+        if self.path is None and self.relative_path and self._relative_to:
+            self.path = Path(self._relative_to, self.relative_path)
+
         self.checksum_value = checksum_value
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
@@ -105,13 +108,14 @@ class Metadata:
 
 def from_dictionary(
         checksum: Dict[str, str], fingerprint: str,
-        role: str, lineage: List[dict] = None, path: str = None, **kwargs
+        role: str, lineage: List[dict] = None, path: str = None,
+        relative_to: str = None, **kwargs
 ):
     return Metadata(
         absolute_path=None, relative_path=Path(path) if path else None,
         checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
         lineage=[from_dictionary(**x) for x in lineage or []], role=role,
-        fingerprint=fingerprint, other=kwargs
+        fingerprint=fingerprint, relative_to=relative_to, other=kwargs
     )
 
 

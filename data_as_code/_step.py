@@ -159,7 +159,10 @@ class Step:
         """
         mp = Path('metadata', self.role, f'{self.output}.json')
         if mp.is_file():
-            meta = from_dictionary(**json.loads(mp.read_text()))
+            meta = from_dictionary(
+                **json.loads(mp.read_text()),
+                relative_to=self._recipe.destination.as_posix()
+            )
             dp = meta.relative_path
             if dp.is_file():
                 try:
