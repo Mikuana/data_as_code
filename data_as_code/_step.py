@@ -1,3 +1,4 @@
+import datetime
 import inspect
 import json
 import os
@@ -28,18 +29,6 @@ class Step:
     output: Union[Path, str] = None  # TODO: support multi-output
     role: str = intermediary
     keep: bool = False
-
-    def _determine_keep(self):
-        """ Assigned type must be a valid choice """
-        assert self.role in (source, intermediary, product)
-        if self.role == product:  # always keep product
-            return True
-
-        elif self.role == intermediary:
-            return self.keep or self._recipe.keep.intermediaries
-
-        elif self.role == source:
-            return self.keep or self._recipe.keep.sources
 
     def __init__(self, recipe: Recipe, other: dict = None):
         self._guid = uuid4()
@@ -78,6 +67,18 @@ class Step:
         output file, and return the path, or paths, of the output.
         """
         return None
+
+    def _determine_keep(self):
+        """ Assigned type must be a valid choice """
+        assert self.role in (source, intermediary, product)
+        if self.role == product:  # always keep product
+            return True
+
+        elif self.role == intermediary:
+            return self.keep or self._recipe.keep.intermediaries
+
+        elif self.role == source:
+            return self.keep or self._recipe.keep.sources
 
     def _execute(self) -> Metadata:
         cached = self._check_cache()
