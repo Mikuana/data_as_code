@@ -114,8 +114,8 @@ class Step:
         """
         ingredients = []
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, _Ingredient)):
-            ingredients.append(k)
-            self.__setattr__(k, v.step._metadata)
+            ingredients.append(v.step._metadata)
+            self.__setattr__(k, v.step._metadata.path)
         return ingredients
 
     def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -126,7 +126,7 @@ class Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        lineage = [self.__getattribute__(x) for x in self._ingredients]
+        lineage = [x for x in self._ingredients]
 
         return self._make_metadata(self.output, lineage)
 
@@ -178,7 +178,7 @@ class Step:
 
     def _mock_fingerprint(self, candidate: Path) -> str:
         """ Generate a mock metadata fingerprint """
-        lineage = [self.__getattribute__(x) for x in self._ingredients]
+        lineage = [x for x in self._ingredients]
         hxd = md5(candidate.read_bytes()).hexdigest()
         m = Metadata(
             absolute_path=None, relative_path=candidate,
@@ -193,7 +193,7 @@ class _Ingredient:
         self.step = step
 
 
-def ingredient(step: Step) -> Metadata:
+def ingredient(step: Step) -> Path:
     """
     Prepare step ingredient
 
@@ -201,6 +201,14 @@ def ingredient(step: Step) -> Metadata:
     another step. This function is a wrapper to allowing passing the results of
     a previous step directly to the next, while still allowing context hints to
     function appropriately.
+
+    The typehint says that the return is a :class:`pathlib.Path` object, but
+    that is a lie; the return is actually a semi-private Ingredient class. This
+    mismatch is done intentionally to allow all ingredients in a step to be
+    identified without first knowing the names of the attributes that they will
+    be assigned to. Once the ingredients are captured, the attribute is
+    reassigned to the path attribute for the ingredient, allowing the path to
+    be called directly from inside the :class:`Step.instructions`
     """
     # noinspection PyTypeChecker
     return _Ingredient(step)
@@ -255,7 +263,7 @@ class _SourceLocal(_SourceStep):
 
     def _make_metadata(self, x: Path, lineage) -> Metadata:
         rp = Path('data', self.role, x.name)
-        return Metadata(  # TODO: un-absolute this
+        return Metadata(
             absolute_path=x.absolute(), relative_path=rp,
             checksum_value=md5(x.read_bytes()).hexdigest(), checksum_algorithm='md5',
             lineage=lineage, role=self.role
@@ -263,6 +271,7 @@ class _SourceLocal(_SourceStep):
 
 
 class _Unzip(Step):
+    """ This doesnt work right now """
     output: dict = None
 
     def __init__(self, recipe: Recipe, step: Step):
@@ -273,8 +282,8 @@ class _Unzip(Step):
         self.output = {x[0]: x[1] for x in self.unpack()}
 
     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
-        with ZipFile(self.zip_archive.path) as zf:
-            xd = Path(self._recipe.workspace, self.zip_archive.path.name)
+        with ZipFile(self.zip_archive) as zf:
+            xd = Path(self._recipe.workspace, self.zip_archive.name)
             zf.extractall(xd)
             for file in [x for x in xd.rglob('*') if x.is_file()]:
                 yield file.as_posix(), file
