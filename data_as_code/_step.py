@@ -148,7 +148,7 @@ class Step:
             absolute_path=ap, relative_path=rp,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, role=self.role, relative_to=None,
-            other=self._other_meta
+            other=self._other_meta, step_description=self.__class__.__doc__
         )
 
     def _check_cache(self) -> Union[Metadata, None]:
@@ -223,7 +223,7 @@ class _SourceStep(Step):
 
 
 class _SourceHTTP(_SourceStep):
-    """Download file from specified URL"""
+    """Retrieve file from URL via HTTP."""
 
     def __init__(self, recipe: Recipe, url: str, **kwargs):
         self._url = url
@@ -249,6 +249,7 @@ class _SourceHTTP(_SourceStep):
 
 
 class _SourceLocal(_SourceStep):
+    """Source file from available file system."""
     role = 'source'
 
     def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
@@ -266,7 +267,7 @@ class _SourceLocal(_SourceStep):
         return Metadata(
             absolute_path=x.absolute(), relative_path=rp,
             checksum_value=md5(x.read_bytes()).hexdigest(), checksum_algorithm='md5',
-            lineage=lineage, role=self.role
+            lineage=lineage, role=self.role, step_description=self.__doc__
         )
 
 

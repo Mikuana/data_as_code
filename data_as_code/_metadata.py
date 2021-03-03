@@ -20,7 +20,8 @@ class Metadata:
     def __init__(self, absolute_path: Union[Path, None], relative_path: Union[Path, None],
                  checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
                  lineage: list, role: str, relative_to: Path = None,
-                 other: Dict[str, str] = None, fingerprint: str = None
+                 other: Dict[str, str] = None, fingerprint: str = None,
+                 step_description: str = None
                  ):
         self.path = absolute_path
         self._relative_path = relative_path
@@ -33,12 +34,14 @@ class Metadata:
         self.lineage = lineage
         self.other = other or {}
         self.role = role
+        self.step_description = step_description
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
         d = dict(
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage])
+            lineage=sorted([x.fingerprint for x in self.lineage]),
+            step_description=self.step_description
         )
         if self._relative_path:
             d['path'] = self._relative_path.as_posix()
@@ -80,6 +83,7 @@ class Metadata:
 
         base = {
             'path': self._relative_path.as_posix() if self._relative_path else None,
+            'step_description': self.step_description,
             'role': self.role,
             'checksum': cs,
             'fingerprint': self.fingerprint,
