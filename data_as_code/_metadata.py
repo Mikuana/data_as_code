@@ -21,7 +21,7 @@ class Metadata:
                  checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
                  lineage: list, role: str, relative_to: Path = None,
                  other: Dict[str, str] = None, fingerprint: str = None,
-                 step_description: str = None
+                 step_description: str = None, timing: dict = None
                  ):
         self.path = absolute_path
         self._relative_path = relative_path
@@ -35,6 +35,7 @@ class Metadata:
         self.other = other or {}
         self.role = role
         self.step_description = step_description
+        self.timing = timing or {}
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
@@ -87,7 +88,8 @@ class Metadata:
             'role': self.role,
             'checksum': cs,
             'fingerprint': self.fingerprint,
-            'lineage': [x.to_dict() for x in self.lineage]
+            'lineage': [x.to_dict() for x in self.lineage],
+            'timing': {k: str(v) for k, v in self.timing.items()}
         }
 
         base = {**{k: v for k, v in base.items() if v}, **self.other}
@@ -113,13 +115,16 @@ class Metadata:
 def from_dictionary(
         checksum: Dict[str, str], fingerprint: str,
         role: str, lineage: List[dict] = None, path: str = None,
-        relative_to: str = None, **kwargs
+        relative_to: str = None, step_description=None, timing: dict = None,
+        **kwargs
 ):
     return Metadata(
         absolute_path=None, relative_path=Path(path) if path else None,
         checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
         lineage=[from_dictionary(**x) for x in lineage or []], role=role,
-        fingerprint=fingerprint, relative_to=relative_to, other=kwargs
+        fingerprint=fingerprint, relative_to=relative_to,
+        step_description=step_description, timing=timing,
+        other=kwargs
     )
 
 

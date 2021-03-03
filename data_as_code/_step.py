@@ -1,7 +1,7 @@
-import datetime
 import inspect
 import json
 import os
+from datetime import datetime
 from hashlib import md5
 from pathlib import Path
 from typing import Union, Generator, Dict, Tuple
@@ -31,7 +31,9 @@ class Step:
     keep: bool = False
 
     def __init__(self, recipe: Recipe, other: dict = None):
+        self._timing = {'started': datetime.utcnow()}
         self._guid = uuid4()
+
         self._other_meta = other
         self._recipe = recipe
         self._workspace = Path(self._recipe.workspace, self._guid.hex)
@@ -47,6 +49,7 @@ class Step:
         else:
             self.output = Path(self._guid.hex)
 
+        self._timing['completed'] = datetime.utcnow()
         self._metadata = self._execute()
 
         if self.keep is True:
@@ -149,7 +152,8 @@ class Step:
             absolute_path=ap, relative_path=rp,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, role=self.role, relative_to=None,
-            other=self._other_meta, step_description=self.__class__.__doc__
+            other=self._other_meta, step_description=self.__class__.__doc__,
+            timing=self._timing
         )
 
     def _check_cache(self) -> Union[Metadata, None]:
@@ -184,7 +188,8 @@ class Step:
         m = Metadata(
             absolute_path=None, relative_path=candidate,
             checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, role=self.role, other=self._other_meta
+            lineage=lineage, role=self.role, step_description=self.__doc__,
+            other=self._other_meta
         )
         return m.fingerprint
 
