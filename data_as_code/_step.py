@@ -153,6 +153,7 @@ class Step:
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, role=self.role, relative_to=None,
             other=self._other_meta, step_description=self.__class__.__doc__,
+            step_instruction=inspect.getsource(self.instructions),
             timing=self._timing
         )
 
@@ -189,6 +190,7 @@ class Step:
             absolute_path=None, relative_path=candidate,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, role=self.role, step_description=self.__doc__,
+            step_instruction=inspect.getsource(self.instructions),
             other=self._other_meta
         )
         return m.fingerprint
@@ -273,7 +275,8 @@ class _SourceLocal(_SourceStep):
         return Metadata(
             absolute_path=x.absolute(), relative_path=rp,
             checksum_value=md5(x.read_bytes()).hexdigest(), checksum_algorithm='md5',
-            lineage=lineage, role=self.role, step_description=self.__doc__
+            lineage=lineage, role=self.role, step_description=self.__doc__,
+            step_instruction=inspect.getsource(self.instructions)
         )
 
 

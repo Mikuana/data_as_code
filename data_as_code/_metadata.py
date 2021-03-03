@@ -21,7 +21,8 @@ class Metadata:
                  checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
                  lineage: list, role: str, relative_to: Path = None,
                  other: Dict[str, str] = None, fingerprint: str = None,
-                 step_description: str = None, timing: dict = None
+                 step_description: str = None, step_instruction: str = None,
+                 timing: dict = None
                  ):
         self.path = absolute_path
         self._relative_path = relative_path
@@ -35,6 +36,7 @@ class Metadata:
         self.other = other or {}
         self.role = role
         self.step_description = step_description
+        self._step_instruction = step_instruction
         self.timing = timing or {}
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
@@ -42,7 +44,7 @@ class Metadata:
         d = dict(
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
             lineage=sorted([x.fingerprint for x in self.lineage]),
-            step_description=self.step_description
+            step_description=self.step_description, step_instruction=self._step_instruction
         )
         if self._relative_path:
             d['path'] = self._relative_path.as_posix()
@@ -123,8 +125,7 @@ def from_dictionary(
         checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
         lineage=[from_dictionary(**x) for x in lineage or []], role=role,
         fingerprint=fingerprint, relative_to=relative_to,
-        step_description=step_description, timing=timing,
-        other=kwargs
+        step_description=step_description, timing=timing, other=kwargs
     )
 
 
