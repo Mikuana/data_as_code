@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from data_as_code import Recipe
-from data_as_code._step import _SourceLocal
+from data_as_code.step import _SourceLocal
 
 
 @pytest.fixture

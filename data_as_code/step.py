@@ -1,16 +1,21 @@
 import inspect
 import json
 import os
+import shutil
 from datetime import datetime
 from hashlib import md5
 from pathlib import Path
-from typing import Union, Generator, Dict, Tuple
+from typing import Union, Dict, Type
 from uuid import uuid4
-from zipfile import ZipFile
+
+import requests
+from tqdm import tqdm
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code._misc import source, intermediary, product
+from data_as_code._misc import intermediary
+
+__all__ = ['Step', 'source_local', 'source_http']
 
 
 class Step:
@@ -53,18 +58,6 @@ class Step:
         """
         return None
 
-    # def _determine_keep(self):
-    #     """ Assigned type must be a valid choice """
-    #     assert self.role in (source, intermediary, product)
-    #     if self.role == product:  # always keep product
-    #         return True
-    #
-    #     elif self.role == intermediary:
-    #         return self.keep or self._recipe.keep.intermediaries
-    #
-    #     elif self.role == source:
-    #         return self.keep or self._recipe.keep.sources
-
     def _execute(self) -> Metadata:
         cached = self._check_cache()
         if cached:
@@ -83,7 +76,7 @@ class Step:
                 if not self.output.exists():
                     raise ex.StepOutputMustExist()
 
-                return self._get_metadata()
+                return self._make_metadata()
             finally:
                 os.chdir(original_wd)
 
@@ -104,7 +97,7 @@ class Step:
             self.__setattr__(k, v.step.metadata.path)
         return ingredients
 
-    def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
+    def _make_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
         """
         Set Output Metadata
 
@@ -112,20 +105,15 @@ class Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        lineage = [x for x in self._ingredients]
-
-        return self._make_metadata(self.output, lineage)
-
-    def _make_metadata(self, x: Path, lineage) -> Metadata:
-        p = Path(self._workspace, x)
+        p = Path(self._workspace, self.output)
 
         hxd = md5(p.read_bytes()).hexdigest()
 
         ap, rp = None, None
-        if x.name == self._guid.hex:
+        if self.output.name == self._guid.hex:
             ap = p
         elif self.keep is True:
-            rp = Path('data', self.role, x)
+            rp = Path('data', self.role, self.output)
             ap = Path(self._destination, rp)
             ap.parent.mkdir(parents=True, exist_ok=True)
             p.rename(ap)
@@ -133,7 +121,8 @@ class Step:
         return Metadata(
             absolute_path=ap, relative_path=rp,
             checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, role=self.role, relative_to=None,
+            lineage=[x for x in self._ingredients],
+            role=self.role, relative_to=None,
             other=self._other_meta, step_description=self.__class__.__doc__,
             step_instruction=inspect.getsource(self.instructions),
             timing=self._timing
@@ -204,43 +193,75 @@ def ingredient(step: Step) -> Path:
     return _Ingredient(step)
 
 
-class _SourceStep(Step):
-    role = 'source'
+def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
+    v_path = Path(path)
+    v_keep = keep
+
+    class PremadeSourceLocal(Step):
+        """Source file from available file system."""
+        output = v_path
+        keep = v_keep
+        role = 'source'
+
+        def instructions(self):
+            pass
+
+        def _execute(self):
+            cached = self._check_cache()
+            if cached:
+                return cached
+            else:
+                return self._make_metadata()
+
+        def _make_metadata(self) -> Metadata:
+            rp = Path('data', self.role, self.output.name)
+            if self.keep is True:
+                ap = Path(self._destination, rp)
+                ap.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(self.output.absolute(), ap)
+            else:
+                ap = self.output.absolute()
+
+            return Metadata(
+                absolute_path=ap, relative_path=rp,
+                checksum_value=md5(self.output.read_bytes()).hexdigest(),
+                checksum_algorithm='md5',
+                lineage=[x for x in self._ingredients],
+                role=self.role, step_description=self.__doc__,
+                step_instruction=inspect.getsource(self.instructions)
+            )
+
+    return PremadeSourceLocal
 
 
-class _SourceLocal(_SourceStep):
-    """Source file from available file system."""
-    role = 'source'
+def source_http(url: str, keep=False) -> Type[Step]:
+    v_url = url
+    v_keep = keep
 
-    def instructions(self):
-        pass
+    class PremadeSourceHTTP(Step):
+        """Retrieve file from URL via HTTP."""
+        output = Path(Path(v_url).name)
+        keep = v_keep
+        role = 'source'
 
-    def _execute(self):
-        pass
+        _url = v_url
+        _other_meta = dict(url=v_url)
 
-    def _make_metadata(self, x: Path, lineage) -> Metadata:
-        rp = Path('data', self.role, x.name)
-        return Metadata(
-            absolute_path=x.absolute(), relative_path=rp,
-            checksum_value=md5(x.read_bytes()).hexdigest(), checksum_algorithm='md5',
-            lineage=lineage, role=self.role, step_description=self.__doc__,
-            step_instruction=inspect.getsource(self.instructions)
-        )
+        def instructions(self):
+            try:
+                print('Downloading from URL:\n' + self._url)
+                response = requests.get(self._url, stream=True)
+                context = dict(
+                    total=int(response.headers.get('content-length', 0)),
+                    desc=self.output.name, miniters=1
+                )
+                with self.output.open('wb') as f:
+                    with tqdm.wrapattr(f, "write", **context) as stream:
+                        for chunk in response.iter_content(chunk_size=4096):
+                            stream.write(chunk)
 
-# class _Unzip(Step):
-#     """ This doesnt work right now """
-#     output: dict = None
-#
-#     def __init__(self, recipe: Recipe, step: Step):
-#         self.zip_archive = ingredient(step)
-#         super().__init__(recipe)
-#
-#     def instructions(self):
-#         self.output = {x[0]: x[1] for x in self.unpack()}
-#
-#     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
-#         with ZipFile(self.zip_archive) as zf:
-#             xd = Path(self._recipe.workspace, self.zip_archive.name)
-#             zf.extractall(xd)
-#             for file in [x for x in xd.rglob('*') if x.is_file()]:
-#                 yield file.as_posix(), file
+            except requests.HTTPError as te:
+                print(f'HTTP error while attempting to download: {self._url}')
+                raise te
+
+    return PremadeSourceHTTP

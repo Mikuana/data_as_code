@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
 from data_as_code._misc import source, intermediary, product
-from data_as_code._step import Step
+from data_as_code.step import Step
 
 
 class Keep:

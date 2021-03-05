@@ -91,7 +91,7 @@ class Metadata:
             'checksum': cs,
             'fingerprint': self.fingerprint,
             'lineage': [x.to_dict() for x in self.lineage],
-            'timing': {k: str(v) for k, v in self.timing.items()}
+            'timing': {k: str(v) for k, v in self.timing.items()}  # TODO: volatile. Think about this
         }
 
         base = {**{k: v for k, v in base.items() if v}, **self.other}

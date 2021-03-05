@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from data_as_code._metadata import from_dictionary
-from data_as_code._step import Step
+from data_as_code.step import Step
 
 
 @pytest.mark.parametrize('v_role, v_keep', [

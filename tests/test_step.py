@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from data_as_code import exceptions as ex
-from data_as_code._step import Step, ingredient, _Ingredient
+from data_as_code.step import Step, ingredient, _Ingredient
 from data_as_code.premade import source_local
 from data_as_code._metadata import Metadata
 
@@ -11,7 +11,7 @@ from data_as_code._metadata import Metadata
 class SafeTestStep(Step):
     """ Customize step class to be safe for testing small parts """
 
-    def _get_metadata(self):
+    def _make_metadata(self):
         return Metadata(Path(__file__), 'xyz', 'abc', list())
 
 
