@@ -11,25 +11,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
-from data_as_code._misc import source, intermediary, product
 from data_as_code._step import Step
-
-
-class Keep:
-    def __init__(self, **kwargs: bool):
-        self.product = kwargs.pop('product', True)
-        self.metadata = kwargs.pop('metadata', True)
-        self.recipe = kwargs.pop('recipe', True)
-        self.archive = kwargs.pop('archive', True)
-        self.destination = kwargs.pop('destination', True)
-        self.artifacts = kwargs.pop('artifacts', False)
-        self.workspace = kwargs.pop('workspace', False)
-        self.existing = kwargs.pop('existing', False)
-        self.sources = kwargs.pop('sources', False)
-        self.intermediaries = kwargs.pop('intermediaries', False)
-
-        if kwargs:
-            raise KeyError(f"Received unexpected keywords {list(kwargs.keys())}")
 
 
 class Recipe:
@@ -43,39 +25,23 @@ class Recipe:
 
     """
     workspace: Union[str, Path]
-    keep: Keep = Keep()
     _td: TemporaryDirectory
 
-    @classmethod
-    def steps(cls, role_filter: str = None) -> Dict[str, Type[Step]]:
-        d = {
-            k: v for k, v in cls.__dict__.items()
-            if (isinstance(v, type) and issubclass(v, Step))
-        }
-        if role_filter:
-            return {k: v for k, v in d.items() if v.role == role_filter}
-        else:
-            return d
-
-    @classmethod
-    def sources(cls) -> Dict[str, Type[Step]]:
-        return cls.steps(source)
-
-    @classmethod
-    def intermediaries(cls) -> Dict[str, Type[Step]]:
-        return cls.steps(intermediary)
-
-    @classmethod
-    def products(cls) -> Dict[str, Type[Step]]:
-        return cls.steps(product)
-
-    def __init__(self, destination: Union[str, Path] = '.'):
+    def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None):
+        self.keep = keep or {}
         self._results: Dict[str, Step] = {}
         self.destination = Path(destination)
         self._structure = {
             'metadata/': self._prep_metadata,
             self._recipe_file(): self._prep_recipe,
             'requirements.txt': self._prep_requirements
+        }
+
+    @classmethod
+    def steps(cls) -> Dict[str, Type[Step]]:
+        return {
+            k: v for k, v in cls.__dict__.items()
+            if (isinstance(v, type) and issubclass(v, Step))
         }
 
     @staticmethod
@@ -91,6 +57,9 @@ class Recipe:
         self.begin()
 
         for name, step in self.steps().items():
+            if self.keep.get(step.role, False) is True:
+                step.keep = True
+
             self._results[name] = step(
                 self.workspace, self.destination, self._results
             )
@@ -108,7 +77,7 @@ class Recipe:
         """
         self.destination.mkdir(exist_ok=True)
         self._destination_check()
-        if self.keep.workspace is False:
+        if self.keep.get('workspace', False) is False:
             self._td = TemporaryDirectory()
             self.workspace = Path(self._td.name)
         else:
@@ -126,7 +95,7 @@ class Recipe:
         try:
             os.chdir(self.destination)
             self._prepare()
-            if self.keep.workspace is False:
+            if self.keep.get('workspace', False) is False:
                 self._td.cleanup()
         finally:
             os.chdir(cwd)
@@ -147,7 +116,7 @@ class Recipe:
         keep settings).
         """
         for v in self._destinations():
-            if v.exists() and self.keep.existing is True:
+            if v.exists() and self.keep.get('existing', False) is True:
                 raise FileExistsError(
                     f"{v.as_posix()} exists and `keep.existing == True`."
                     "\nChange the keep.existing setting to False to overwrite."
@@ -162,7 +131,7 @@ class Recipe:
 
     def _package(self):
         d = self._destinations()
-        if self.keep.archive is True:
+        if self.keep.get('archive', True) is True:
             with tarfile.open(d.archive, "w") as tar:
                 for x in self._structure:
                     p = Path(self.destination, x)
@@ -176,7 +145,7 @@ class Recipe:
                 f_out.write(d.archive.read_bytes())
             d.archive.unlink()
 
-        if self.keep.destination is False:
+        if self.keep.get('destination', True) is False:
             shutil.rmtree(self.destination)
 
     def _prep_requirements(self, target: str):
