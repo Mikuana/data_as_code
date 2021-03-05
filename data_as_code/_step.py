@@ -90,7 +90,7 @@ class Step:
         ingredients = []
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, _Ingredient)):
             ingredients.append(self._antecedents[v.step_name].metadata)
-            self.__setattr__(k, self._antecedents[v.step_name].metadata)
+            self.__setattr__(k, self._antecedents[v.step_name].metadata.path)
         return ingredients
 
     def _make_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -110,7 +110,7 @@ class Step:
             ap = p
         elif self.keep is True:
             rp = Path('data', self.role, self.output)
-            ap = Path(self._destination, rp)
+            ap = Path(self._destination, rp).absolute()
             ap.parent.mkdir(parents=True, exist_ok=True)
             p.rename(ap)
 
@@ -118,7 +118,7 @@ class Step:
             absolute_path=ap, relative_path=rp,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=[x for x in self._ingredients],
-            role=self.role, relative_to=None,
+            role=self.role, relative_to=self._destination.absolute(),
             other=self._other_meta, step_description=self.__class__.__doc__,
             step_instruction=inspect.getsource(self.instructions),
             timing=self._timing
