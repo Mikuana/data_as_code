@@ -1,47 +1,15 @@
 import inspect
 import json
 import os
-import shutil
 from datetime import datetime
 from hashlib import md5
 from pathlib import Path
-from typing import Union, Dict, Type
+from typing import Union, Dict
 from uuid import uuid4
-
-import requests
-from tqdm import tqdm
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code._misc import intermediary
-
-__all__ = ['Step', 'source_local', 'source_http']
-
-
-class _Ingredient:
-    def __init__(self, step_name: str):
-        self.step_name = step_name
-
-
-def ingredient(step: str) -> Path:
-    """
-    Prepare step ingredient
-
-    Use the metadata from a previously executed step as an ingredient for
-    another step. This function is a wrapper to allowing passing the results of
-    a previous step directly to the next, while still allowing context hints to
-    function appropriately.
-
-    The typehint says that the return is a :class:`pathlib.Path` object, but
-    that is a lie; the return is actually a semi-private Ingredient class. This
-    mismatch is done intentionally to allow all ingredients in a step to be
-    identified without first knowing the names of the attributes that they will
-    be assigned to. Once the ingredients are captured, the attribute is
-    reassigned to the path attribute for the ingredient, allowing the path to
-    be called directly from inside the :class:`Step.instructions`
-    """
-    # noinspection PyTypeChecker
-    return _Ingredient(step)
+from data_as_code._misc import intermediary, _Ingredient
 
 
 class Step:
@@ -193,77 +161,3 @@ class Step:
             other=self._other_meta
         )
         return m.fingerprint
-
-
-def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
-    v_path = Path(path)
-    v_keep = keep
-
-    class PremadeSourceLocal(Step):
-        """Source file from available file system."""
-        output = v_path
-        keep = v_keep
-        role = 'source'
-
-        def instructions(self):
-            pass
-
-        def _execute(self):
-            cached = self._check_cache()
-            if cached:
-                return cached
-            else:
-                return self._make_metadata()
-
-        def _make_metadata(self) -> Metadata:
-            rp = Path('data', self.role, self.output.name)
-            if self.keep is True:
-                ap = Path(self._destination, rp)
-                ap.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(self.output.absolute(), ap)
-            else:
-                ap = self.output.absolute()
-
-            return Metadata(
-                absolute_path=ap, relative_path=rp,
-                checksum_value=md5(self.output.read_bytes()).hexdigest(),
-                checksum_algorithm='md5',
-                lineage=[x for x in self._ingredients],
-                role=self.role, step_description=self.__doc__,
-                step_instruction=inspect.getsource(self.instructions)
-            )
-
-    return PremadeSourceLocal
-
-
-def source_http(url: str, keep=False) -> Type[Step]:
-    v_url = url
-    v_keep = keep
-
-    class PremadeSourceHTTP(Step):
-        """Retrieve file from URL via HTTP."""
-        output = Path(Path(v_url).name)
-        keep = v_keep
-        role = 'source'
-
-        _url = v_url
-        _other_meta = dict(url=v_url)
-
-        def instructions(self):
-            try:
-                print('Downloading from URL:\n' + self._url)
-                response = requests.get(self._url, stream=True)
-                context = dict(
-                    total=int(response.headers.get('content-length', 0)),
-                    desc=self.output.name, miniters=1
-                )
-                with self.output.open('wb') as f:
-                    with tqdm.wrapattr(f, "write", **context) as stream:
-                        for chunk in response.iter_content(chunk_size=4096):
-                            stream.write(chunk)
-
-            except requests.HTTPError as te:
-                print(f'HTTP error while attempting to download: {self._url}')
-                raise te
-
-    return PremadeSourceHTTP

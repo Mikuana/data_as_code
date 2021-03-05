@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from data_as_code import exceptions as ex
-from data_as_code.step import Step, ingredient, _Ingredient
+from data_as_code import exceptions as ex, ingredient
+from data_as_code._step import Step
+from data_as_code._misc import _Ingredient
 from data_as_code.premade import source_local
 from data_as_code._metadata import Metadata
 
