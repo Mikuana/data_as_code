@@ -9,14 +9,14 @@ import tarfile
 from collections import namedtuple
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, List
+from typing import Union, Dict, Type
 
-from data_as_code._metadata import Metadata
+from data_as_code._misc import source, intermediary, product
+from data_as_code._step import Step
 
 
 class Keep:
     def __init__(self, **kwargs: bool):
-        # TODO: add keep options for sources and intermediaries
         self.product = kwargs.pop('product', True)
         self.metadata = kwargs.pop('metadata', True)
         self.recipe = kwargs.pop('recipe', True)
@@ -41,21 +41,37 @@ class Recipe:
     temporary directories, and moving artifacts to the appropriate location to
     package the results.
 
-    :param keep: (optional) controls the behavior of the recipe, determining
-        which artifacts should be preserved after the recipe completes, and
-        which should be removed from the file-system. This parameter is modified
-        by passing a :class:`~data_as_code.recipe.Keep` object.
     """
     workspace: Union[str, Path]
+    keep: Keep = Keep()
     _td: TemporaryDirectory
 
-    def __init__(self, keep=Keep()):
-        self.destination = Path().absolute()
-        self.sources: List[Metadata] = []
-        self.intermediaries: List[Metadata] = []
-        self.products: List[Metadata] = []
-        self.keep = keep
+    @classmethod
+    def steps(cls, role_filter: str = None) -> Dict[str, Type[Step]]:
+        d = {
+            k: v for k, v in cls.__dict__.items()
+            if (isinstance(v, type) and issubclass(v, Step))
+        }
+        if role_filter:
+            return {k: v for k, v in d.items() if v.role == role_filter}
+        else:
+            return d
 
+    @classmethod
+    def sources(cls) -> Dict[str, Type[Step]]:
+        return cls.steps(source)
+
+    @classmethod
+    def intermediaries(cls) -> Dict[str, Type[Step]]:
+        return cls.steps(intermediary)
+
+    @classmethod
+    def products(cls) -> Dict[str, Type[Step]]:
+        return cls.steps(product)
+
+    def __init__(self, destination: Union[str, Path] = '.'):
+        self._results: Dict[str, Step] = {}
+        self.destination = Path(destination)
         self._structure = {
             'metadata/': self._prep_metadata,
             self._recipe_file(): self._prep_recipe,
@@ -71,6 +87,14 @@ class Recipe:
         """
         return Path(inspect.stack()[-1].filename).name
 
+    def execute(self):
+        self.begin()
+
+        for k, v in self.steps().items():
+            self._results[k] = v(self.workspace, self.destination)
+
+        self.end()
+
     def begin(self):
         """
         Begin Recipe
@@ -80,6 +104,7 @@ class Recipe:
         to be stored. The workspace is a temporary directory, which does not
         exist until this method is call.
         """
+        self.destination.mkdir(exist_ok=True)
         self._destination_check()
         if self.keep.workspace is False:
             self._td = TemporaryDirectory()
@@ -126,13 +151,6 @@ class Recipe:
                     "\nChange the keep.existing setting to False to overwrite."
                 )
 
-    def __enter__(self):
-        self.begin()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.end()
-
     def _prepare(self):
         for k, v in self._structure.items():
             # noinspection PyArgumentList
@@ -168,24 +186,16 @@ class Recipe:
         # TODO: nothing to see here yet
         pass
 
-    def _package_data_prep(self, target: str):
-        p = Path(self.destination, target)
-        z = (
-            (self.sources, 'source'),
-            (self.intermediaries, 'intermediary'),
-            (self.products, 'product')
-        )
-        for artifacts, sub in z:
-            for artifact in artifacts:
-                if artifact._relative_to:
-                    pp = Path(p, sub, artifact._relative_path)
-                else:
-                    pp = Path(p, sub, artifact._relative_path.name)
-                pp.parent.mkdir(parents=True, exist_ok=True)
-                yield artifact, pp
-
     def _prep_metadata(self, target: str):
-        for prod, pp in self._package_data_prep(target):
-            d = prod.to_dict()
-            j = json.dumps(d, indent=2)
-            Path(pp.as_posix() + '.json').write_text(j)
+        p = Path(self.destination, target)
+        for result in self._results.values():
+            if result.keep is True:
+                if result.metadata._relative_to:
+                    pp = Path(p, result.metadata.role, result.metadata._relative_to)
+                else:
+                    pp = Path(p, result.metadata.role, result.metadata._relative_path.name)
+                pp.parent.mkdir(parents=True, exist_ok=True)
+
+                d = result.metadata.to_dict()
+                j = json.dumps(d, indent=2)
+                Path(pp.as_posix() + '.json').write_text(j)

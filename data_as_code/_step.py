@@ -8,16 +8,9 @@ from typing import Union, Generator, Dict, Tuple
 from uuid import uuid4
 from zipfile import ZipFile
 
-import requests
-from tqdm import tqdm
-
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code._recipe import Recipe
-
-source = 'source'
-intermediary = 'intermediary'
-product = 'product'
+from data_as_code._misc import source, intermediary, product
 
 
 class Step:
@@ -26,19 +19,18 @@ class Step:
     into another artifact.
     """
 
-    output: Union[Path, str] = None  # TODO: support multi-output
+    output: Union[Path, str] = None
     role: str = intermediary
     keep: bool = False
+    _other_meta: Dict[str, str] = {}
 
-    def __init__(self, recipe: Recipe, other: dict = None):
+    def __init__(self, workspace: Path, destination: Path):
         self._timing = {'started': datetime.utcnow()}
         self._guid = uuid4()
 
-        self._other_meta = other
-        self._recipe = recipe
-        self._workspace = Path(self._recipe.workspace, self._guid.hex)
+        self._workspace = Path(workspace, self._guid.hex)
+        self._destination = destination
         self._ingredients = self._get_ingredients()
-        self.keep = self._determine_keep()
 
         if self.output is None and self.keep is True:
             raise ex.StepUndefinedOutput(
@@ -49,18 +41,8 @@ class Step:
         else:
             self.output = Path(self._guid.hex)
 
+        self.metadata = self._execute()
         self._timing['completed'] = datetime.utcnow()
-        self._metadata = self._execute()
-
-        if self.keep is True:
-            if self.role == product:
-                self._recipe.products.append(self._metadata)
-
-            elif self.role == intermediary:
-                self._recipe.intermediaries.append(self._metadata)
-
-            elif self.role == source:
-                self._recipe.sources.append(self._metadata)
 
     def instructions(self):
         """
@@ -71,17 +53,17 @@ class Step:
         """
         return None
 
-    def _determine_keep(self):
-        """ Assigned type must be a valid choice """
-        assert self.role in (source, intermediary, product)
-        if self.role == product:  # always keep product
-            return True
-
-        elif self.role == intermediary:
-            return self.keep or self._recipe.keep.intermediaries
-
-        elif self.role == source:
-            return self.keep or self._recipe.keep.sources
+    # def _determine_keep(self):
+    #     """ Assigned type must be a valid choice """
+    #     assert self.role in (source, intermediary, product)
+    #     if self.role == product:  # always keep product
+    #         return True
+    #
+    #     elif self.role == intermediary:
+    #         return self.keep or self._recipe.keep.intermediaries
+    #
+    #     elif self.role == source:
+    #         return self.keep or self._recipe.keep.sources
 
     def _execute(self) -> Metadata:
         cached = self._check_cache()
@@ -118,8 +100,8 @@ class Step:
         """
         ingredients = []
         for k, v in inspect.getmembers(self, lambda x: isinstance(x, _Ingredient)):
-            ingredients.append(v.step._metadata)
-            self.__setattr__(k, v.step._metadata.path)
+            ingredients.append(v.step.metadata)
+            self.__setattr__(k, v.step.metadata.path)
         return ingredients
 
     def _get_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
@@ -144,7 +126,7 @@ class Step:
             ap = p
         elif self.keep is True:
             rp = Path('data', self.role, x)
-            ap = Path(self._recipe.destination, rp)
+            ap = Path(self._destination, rp)
             ap.parent.mkdir(parents=True, exist_ok=True)
             p.rename(ap)
 
@@ -167,7 +149,7 @@ class Step:
         if mp.is_file():
             meta = from_dictionary(
                 **json.loads(mp.read_text()),
-                relative_to=self._recipe.destination.as_posix()
+                relative_to=self._destination.as_posix()
             )
             dp = meta._relative_path
             if dp.is_file():
@@ -225,44 +207,10 @@ def ingredient(step: Step) -> Path:
 class _SourceStep(Step):
     role = 'source'
 
-    def __init__(self, recipe: Recipe, keep=False, **kwargs):
-        self.keep = keep
-        super().__init__(recipe, **kwargs)
-
-
-class _SourceHTTP(_SourceStep):
-    """Retrieve file from URL via HTTP."""
-
-    def __init__(self, recipe: Recipe, url: str, **kwargs):
-        self._url = url
-        self.output = Path(Path(self._url).name)
-        super().__init__(recipe, other=dict(url=url), **kwargs)
-
-    def instructions(self):
-        try:
-            print('Downloading from URL:\n' + self._url)
-            response = requests.get(self._url, stream=True)
-            context = dict(
-                total=int(response.headers.get('content-length', 0)),
-                desc=self.output.name, miniters=1
-            )
-            with self.output.open('wb') as f:
-                with tqdm.wrapattr(f, "write", **context) as stream:
-                    for chunk in response.iter_content(chunk_size=4096):
-                        stream.write(chunk)
-
-        except requests.HTTPError as te:
-            print(f'HTTP error while attempting to download: {self._url}')
-            raise te
-
 
 class _SourceLocal(_SourceStep):
     """Source file from available file system."""
     role = 'source'
-
-    def __init__(self, recipe: Recipe, path: Union[str, Path], **kwargs):
-        self.output = path
-        super().__init__(recipe, **kwargs)
 
     def instructions(self):
         pass
@@ -279,21 +227,20 @@ class _SourceLocal(_SourceStep):
             step_instruction=inspect.getsource(self.instructions)
         )
 
-
-class _Unzip(Step):
-    """ This doesnt work right now """
-    output: dict = None
-
-    def __init__(self, recipe: Recipe, step: Step):
-        self.zip_archive = ingredient(step)
-        super().__init__(recipe)
-
-    def instructions(self):
-        self.output = {x[0]: x[1] for x in self.unpack()}
-
-    def unpack(self) -> Generator[Tuple[str, Path], None, None]:
-        with ZipFile(self.zip_archive) as zf:
-            xd = Path(self._recipe.workspace, self.zip_archive.name)
-            zf.extractall(xd)
-            for file in [x for x in xd.rglob('*') if x.is_file()]:
-                yield file.as_posix(), file
+# class _Unzip(Step):
+#     """ This doesnt work right now """
+#     output: dict = None
+#
+#     def __init__(self, recipe: Recipe, step: Step):
+#         self.zip_archive = ingredient(step)
+#         super().__init__(recipe)
+#
+#     def instructions(self):
+#         self.output = {x[0]: x[1] for x in self.unpack()}
+#
+#     def unpack(self) -> Generator[Tuple[str, Path], None, None]:
+#         with ZipFile(self.zip_archive) as zf:
+#             xd = Path(self._recipe.workspace, self.zip_archive.name)
+#             zf.extractall(xd)
+#             for file in [x for x in xd.rglob('*') if x.is_file()]:
+#                 yield file.as_posix(), file
