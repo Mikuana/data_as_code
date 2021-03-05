@@ -90,8 +90,10 @@ class Recipe:
     def execute(self):
         self.begin()
 
-        for k, v in self.steps().items():
-            self._results[k] = v(self.workspace, self.destination)
+        for name, step in self.steps().items():
+            self._results[name] = step(
+                self.workspace, self.destination, self._results
+            )
 
         self.end()
 
