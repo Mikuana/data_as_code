@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code._misc import intermediary, _Ingredient
+from data_as_code.misc import intermediary, _Ingredient
 
 
 class Step:

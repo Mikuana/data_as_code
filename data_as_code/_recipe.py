@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+from collections import defaultdict
 from collections import namedtuple
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -28,7 +29,7 @@ class Recipe:
     _td: TemporaryDirectory
 
     def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None):
-        self.keep = keep or {}
+        self.keep = defaultdict(lambda: True, **(keep or {}))  # default to True for now
         self._results: Dict[str, Step] = {}
         self.destination = Path(destination)
         self._structure = {
@@ -57,7 +58,7 @@ class Recipe:
         self.begin()
 
         for name, step in self.steps().items():
-            if self.keep.get(step.role, False) is True:
+            if self.keep[step.role] is True:
                 step.keep = True
 
             self._results[name] = step(
