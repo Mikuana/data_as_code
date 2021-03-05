@@ -62,7 +62,7 @@ class Recipe:
                 step.keep = True
 
             self._results[name] = step(
-                self.workspace, self.destination, self._results
+                self.workspace.absolute(), self.destination.absolute(), self._results
             )
 
         self.end()
@@ -163,7 +163,8 @@ class Recipe:
         for result in self._results.values():
             if result.keep is True:
                 if result.metadata._relative_to:
-                    pp = Path(p, result.metadata.role, result.metadata._relative_to)
+                    r = Path(result.metadata._relative_to, 'data')
+                    pp = Path(p, result.metadata.path.relative_to(r))
                 else:
                     pp = Path(p, result.metadata.role, result.metadata._relative_path.name)
                 pp.parent.mkdir(parents=True, exist_ok=True)
