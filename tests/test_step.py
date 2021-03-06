@@ -70,8 +70,5 @@ def test_error_on_default_output_product(tmpdir):
     class X(Step):
         keep = True
 
-        def instructions(self):
-            pass
-
     with pytest.raises(ex.StepUndefinedOutput):
-        X(tmpdir, tmpdir, {}).instructions()
+        X(tmpdir, tmpdir, {})
