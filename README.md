@@ -1,49 +1,54 @@
 # Data as Code
 
 A python package which handles the transformation of data as a recipe which
-enables versioning, reproducibility, and portability of data. The example below
-will download a CSV file, read it line by line, and convert the delimiter to a
-star.
+enables versioning, reproducibility, and portability of data.
+
+The example below will download the HTML for the wikipedia page on Data, and
+replace all occurrences of the word 'Data' with 'Code'.
 
 ```python
-# star_convert_recipe.py
-import csv
 from pathlib import Path
 
-from data_as_code import Recipe, Step, ingredient, premade
+from data_as_code import Recipe, Step, ingredient, source_http, product
 
-with Recipe('data_package') as r:
-    s1 = premade.source_http(r, 'https://data-url.com/data.csv')
 
+class DataAsCode(Recipe):
+    wiki = source_http('https://en.wikipedia.org/wiki/Data', keep=True)
 
     class ChangeDelimiter(Step):
-        """ Read CSV and rewrite file with star(*) delimiter """
-        x = ingredient(s1)
-        output = Path('starred.csv')
+        """Change all instance of the word 'Data' to 'Code'"""
+        x = ingredient('wiki')
+        output = Path('code.html')
+        role = product
 
         def instructions(self):
-            with self.output.open('w', newline='') as new:
-                writer = csv.writer(new, delimiter='*')
-                with self.x.path.open(newline='') as orig:
-                    reader = csv.reader(orig)
-                    for row in reader:
-                        writer.writerow(row)
+            self.output.write_text(
+                self.x.read_text().replace('Data', 'Code')
+            )
 
 
-    ChangeDelimiter(r)
-```
-
-This produces a package in a directory of files.
+DataAsCode().execute()
 
 ```
-|-- data_package/
-    |-- env/
-        |-- requirements.txt
-    |-- metadata/
-        |-- data_starred.json
+
+Upon execution, the recipe will create a series of folders and files.
+
+```
+|-- my_data_package/
     |-- data/
-        |-- data_starred.csv
+        |-- source/
+            |-- Data
+        |-- product/
+            |-- code.html
+    |-- metadata/
+        |-- source/
+            |-- Data.json
+        |-- product/
+            |-- code.html.json
+    |-- requirements.txt
     |-- recipe.py
+    |-- my_data_package.tar.gz
+ 
 ```
 
 ## Why though?
