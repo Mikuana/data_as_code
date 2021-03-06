@@ -31,7 +31,11 @@ DataAsCode().execute()
 
 ```
 
-Upon execution, the recipe will create a series of folders and files.
+Upon execution, the recipe will create a series of folders and files based upon
+the instructions in the recipe. Note the mirrored structure between the `data/`
+folder and the `metadata/` folder; every file output by the recipe is created
+with a corresponding JSON file that fully describes the history of that file,
+based upon the recipe.
 
 ```
 |-- my_data_package/
@@ -50,6 +54,36 @@ Upon execution, the recipe will create a series of folders and files.
     |-- my_data_package.tar.gz
  
 ```
+
+If we look at the metadata for the `code.html` product, we can see quite a bit
+of detail about how that file was created. We can see a path to the file which
+contains the actual data (relative to the project folder), a description of what
+transformations were performed in the final step, an MD5 checksum (to verify
+the referenced file is correct, and the contents match those expected). We can
+also so the lineage of the file, referencing the `Data` source HTML that was
+downloaded from Wikipedia.
+
+```json5
+// metadata/product/code.html.json
+{
+  "path": "data/product/code.html",
+  "step_description": "Change all instance of the word 'Data' to 'Code'",
+  "role": "product",
+  "checksum": {"algorithm": "md5",  "value": "9b8767c67aba0bbdbb074639be47e664"},
+  "fingerprint": "fc9d3bc6f95a927993085b0e0b6f4083",
+  "lineage": [
+    {
+      "path": "data/source/Data",
+      "step_description": "Retrieve file from URL via HTTP.",
+      "role": "source",
+      "checksum": {"algorithm": "md5", "value": "f44a941b9492de289cf9f8478acac47c"},
+      "fingerprint": "ff2811f4b54d2a3a721e31bf5d12f555",
+      "url": "https://en.wikipedia.org/wiki/Data"
+    }
+  ]
+}
+```
+
 
 ## Why though?
 
