@@ -1,0 +1,40 @@
+{
+  "path": "data/product/myproduct.txt",
+  "role": "product",
+  "checksum": {
+    "algorithm": "md5",
+    "value": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "fingerprint": "17d68ef029f4430d7dfd0edcf6013cfd",
+  "lineage": [
+    {
+      "path": "data/product/art.txt",
+      "role": "product",
+      "checksum": {
+        "algorithm": "md5",
+        "value": "d16fb36f0911f878998c136191af705e"
+      },
+      "fingerprint": "af84de7a4c8e615025884315c0b3fc6c",
+      "lineage": [
+        {
+          "path": "data/source/thatfile.txt",
+          "step_description": "Source file from available file system.",
+          "role": "source",
+          "checksum": {
+            "algorithm": "md5",
+            "value": "d41d8cd98f00b204e9800998ecf8427e"
+          },
+          "fingerprint": "d4adce2659416a96c7c25c01c6867cf3"
+        }
+      ],
+      "timing": {
+        "started": "2021-03-06 05:46:32.358284",
+        "completed": "2021-03-06 05:46:32.359188"
+      }
+    }
+  ],
+  "timing": {
+    "started": "2021-03-06 06:41:00.275205",
+    "completed": "2021-03-06 06:41:00.275639"
+  }
+}

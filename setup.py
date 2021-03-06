@@ -26,14 +26,14 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent"
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.6",
     install_requires=[
-      'pandas>=1.1',
       'pyarrow',
       'requests',
       'tqdm'
     ],
     extras_require={
+        'Lineage': ['networkx', 'plotly'],
         'Testing': ['pytest', 'pytest-mock', 'pytest-cov']
     },
     packages=setuptools.find_packages()

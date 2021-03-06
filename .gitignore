@@ -1,3 +1,6 @@
+# doc stuff
+docs/make_html.sh
+
 # data
 data/
 
@@ -150,8 +153,5 @@ cython_debug/
 # Jetbrains
 .idea/
 
-
 # Scratch files
 scritch.py
-# data
-data/
