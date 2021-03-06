@@ -1,16 +1,10 @@
 {
-  "path": "case/two/file.txt",
+  "path": "data/source/thatfile.txt",
+  "step_description": "Source file from available file system.",
+  "role": "source",
   "checksum": {
-    "algorithm": "sha256",
-    "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    "algorithm": "md5",
+    "value": "d41d8cd98f00b204e9800998ecf8427e"
   },
-  "lineage": [
-    {
-      "path": "case/one/file.txt",
-      "checksum": {
-        "algorithm": "sha256",
-        "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-      }
-    }
-  ]
+  "fingerprint": "d4adce2659416a96c7c25c01c6867cf3"
 }

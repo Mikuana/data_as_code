@@ -1,7 +1,15 @@
 {
-  "path": "case/one/file.txt",
+  "path": "data/source/Data",
+  "step_description": "Retrieve file from URL via HTTP.",
+  "role": "source",
   "checksum": {
-    "algorithm": "sha256",
-    "value": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-  }
+    "algorithm": "md5",
+    "value": "f44a941b9492de289cf9f8478acac47c"
+  },
+  "fingerprint": "ff2811f4b54d2a3a721e31bf5d12f555",
+  "timing": {
+    "started": "2021-03-06 05:46:32.178008",
+    "completed": "2021-03-06 05:46:32.358269"
+  },
+  "url": "https://en.wikipedia.org/wiki/Data"
 }
