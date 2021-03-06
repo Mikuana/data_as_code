@@ -130,7 +130,7 @@ class Step:
         If fingerprint in the metadata matches the mocked fingerprint, use the
         existing metadata without executing instructions.
         """
-        mp = Path('metadata', self.role, f'{self.output}.json')
+        mp = Path(self._destination, 'metadata', self.role, f'{self.output}.json')
         if mp.is_file():
             meta = from_dictionary(
                 **json.loads(mp.read_text()),
