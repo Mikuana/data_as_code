@@ -2,7 +2,6 @@ import gzip
 import inspect
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tarfile
@@ -54,7 +53,7 @@ class Recipe:
                 step.keep = True
 
             self._results[name] = step(
-                self.workspace.absolute(), self.destination.absolute(), self._results
+                self.workspace.absolute(), self.destination, self._results
             )
 
         self._end()
@@ -134,9 +133,6 @@ class Recipe:
             with gzip.open(d.gzip, 'wb') as f_out:
                 f_out.write(d.archive.read_bytes())
             d.archive.unlink()
-
-        if self.keep.get('destination', True) is False:
-            shutil.rmtree(self.destination)
 
     @staticmethod
     def _recipe_file():
