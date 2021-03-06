@@ -2,84 +2,76 @@ from pathlib import Path
 
 import pytest
 
-from data_as_code import exceptions as ex, ingredient
+from data_as_code import exceptions as ex
+from data_as_code._recipe import Recipe
 from data_as_code._step import Step
-from data_as_code.misc import _Ingredient
-from data_as_code.premade import source_local
-from data_as_code._metadata import Metadata
+from data_as_code.misc import ingredient, source, product
 
 
-class SafeTestStep(Step):
-    """ Customize step class to be safe for testing small parts """
+def test_step_content_pass(tmpdir):
+    """Content can be handed successfully from one step to another"""
 
-    def _make_metadata(self):
-        return Metadata(Path(__file__), 'xyz', 'abc', list())
-
-
-def test_ingredient_handling(default_recipe, csv_file_a):
-    """
-    Check appropriate handling of ingredients
-
-    Step ingredients should be added to a step as a Step class, then
-    converted to a Metadata class after initialization.
-    """
-    with default_recipe as r:
-        s1 = source_local(r, __file__)
-
-        class Pre(SafeTestStep):
-            x = ingredient(s1)
+    class R(Recipe):
+        class S1(Step):
+            role = source
+            keep = False
 
             def instructions(self):
-                self.output.write_text('x')
+                self.output.write_text('abc')
 
-        post = Pre(r)
-        assert isinstance(Pre.x, _Ingredient)
-        assert isinstance(post.x, Metadata)
+        class S2(Step):
+            output = Path('product.txt')
+            role = product
+            x = ingredient('S1')
+
+            def instructions(self):
+                self.output.write_text(self.x.read_text().upper())
+
+    R(tmpdir).execute()
+    assert Path(tmpdir, 'data', product, 'product.txt').read_text() == 'ABC'
 
 
-def test_error_on_return(default_recipe):
+def test_error_on_return(tmpdir):
     """
     Check for no return from instructions
 
     All output should be handled in side-effect by writing results to the step
-    output files. This helps prevent *other* side-effects from sneaking in if the
+    output file. This helps prevent *other* side-effects from sneaking in if the
     instructions are allowed to communicate back using anything but the output.
     """
-    with default_recipe as r:
-        class X(Step):
-            def instructions(self):
-                return 1
 
-        with pytest.raises(ex.StepNoReturnAllowed):
-            X(r).instructions()
+    class X(Step):
+        def instructions(self):
+            return 1
+
+    with pytest.raises(ex.StepNoReturnAllowed):
+        X(tmpdir, tmpdir, {}).instructions()
 
 
-def test_error_on_missing_output(default_recipe):
+def test_error_on_missing_output(tmpdir):
     """
     Output must get populated
 
     Steps should automatically check output after instructions are executed to
     ensure output has been populated.
     """
-    with default_recipe as r:
-        class X(Step):
-            def instructions(self):
-                pass
 
-        with pytest.raises(ex.StepOutputMustExist):
-            X(r)
+    class X(Step):
+        def instructions(self):
+            pass
+
+    with pytest.raises(ex.StepOutputMustExist):
+        X(tmpdir, tmpdir, {}).instructions()
 
 
-def test_error_on_default_output_product(default_recipe):
-    """
-    A product step must define output name
-    """
-    with default_recipe as r:
-        class X(Step):
-            product = True
+def test_error_on_default_output_product(tmpdir):
+    """A product step must define output name"""
 
-            def instructions(self):
-                pass
+    class X(Step):
+        keep = True
 
-        with pytest.raises(ex.StepUndefinedOutput):
-            X(r)
+        def instructions(self):
+            pass
+
+    with pytest.raises(ex.StepUndefinedOutput):
+        X(tmpdir, tmpdir, {}).instructions()

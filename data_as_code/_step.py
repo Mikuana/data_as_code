@@ -20,7 +20,7 @@ class Step:
 
     output: Union[Path, str] = None
     role: str = intermediary
-    keep: bool = False
+    keep: bool = None
     _other_meta: Dict[str, str] = {}
 
     def __init__(self, workspace: Path, destination: Path, antecedents: Dict[str, 'Step']):

@@ -49,7 +49,7 @@ class Recipe:
         self._begin()
 
         for name, step in self.steps().items():
-            if self.keep[step.role] is True:
+            if step.keep is None and self.keep[step.role] is True:
                 step.keep = True
 
             self._results[name] = step(
