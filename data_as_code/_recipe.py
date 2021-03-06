@@ -29,9 +29,10 @@ class Recipe:
     _td: TemporaryDirectory
 
     def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None):
+        self.destination = Path(destination).absolute()
         self.keep = defaultdict(lambda: True, **(keep or {}))  # default to True for now
+
         self._results: Dict[str, Step] = {}
-        self.destination = Path(destination)
         self._structure = {
             'metadata/': self._prep_metadata,
             self._recipe_file(): self._prep_recipe,
@@ -45,17 +46,8 @@ class Recipe:
             if (isinstance(v, type) and issubclass(v, Step))
         }
 
-    @staticmethod
-    def _recipe_file():
-        """
-        Inspect stack to find filename of calling recipe script
-
-        This is likely to break in a lot of situations
-        """
-        return Path(inspect.stack()[-1].filename).name
-
     def execute(self):
-        self.begin()
+        self._begin()
 
         for name, step in self.steps().items():
             if self.keep[step.role] is True:
@@ -65,9 +57,9 @@ class Recipe:
                 self.workspace.absolute(), self.destination.absolute(), self._results
             )
 
-        self.end()
+        self._end()
 
-    def begin(self):
+    def _begin(self):
         """
         Begin Recipe
 
@@ -78,13 +70,10 @@ class Recipe:
         """
         self.destination.mkdir(exist_ok=True)
         self._destination_check()
-        if self.keep.get('workspace', False) is False:
-            self._td = TemporaryDirectory()
-            self.workspace = Path(self._td.name)
-        else:
-            self.workspace = self.destination
+        self._td = TemporaryDirectory()
+        self.workspace = Path(self._td.name)
 
-    def end(self):
+    def _end(self):
         """
         End Recipe
 
@@ -104,8 +93,8 @@ class Recipe:
     def _destinations(self):
         x = namedtuple('Destinations', ['archive', 'gzip'])
         return x(
-            Path(self.destination.absolute().name + '.tar'),
-            Path(self.destination.absolute().name + '.tar.gz')
+            Path(self.destination, self.destination.name + '.tar'),
+            Path(self.destination, self.destination.name + '.tar.gz')
         )
 
     def _destination_check(self):
@@ -148,6 +137,15 @@ class Recipe:
 
         if self.keep.get('destination', True) is False:
             shutil.rmtree(self.destination)
+
+    @staticmethod
+    def _recipe_file():
+        """
+        Inspect stack to find filename of calling recipe script
+
+        This is likely to break in a lot of situations
+        """
+        return Path(inspect.stack()[-1].filename).name
 
     def _prep_requirements(self, target: str):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
