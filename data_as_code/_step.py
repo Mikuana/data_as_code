@@ -59,7 +59,7 @@ class Step:
 
     def _execute(self) -> Metadata:
         cached = self._check_cache()
-        if cached:
+        if cached and self.trust_cache is True:
             self._data_from_cache = True
             print(f"Using cache for {self.role} '{self.output}'")
             return cached
