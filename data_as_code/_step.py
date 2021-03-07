@@ -21,7 +21,10 @@ class Step:
     output: Union[Path, str] = None
     role: str = intermediary
     keep: bool = None
+    trust_cache: bool = True
+
     _other_meta: Dict[str, str] = {}
+    _data_from_cache: bool
 
     def __init__(self, workspace: Path, destination: Path, antecedents: Dict[str, 'Step']):
 
@@ -57,8 +60,11 @@ class Step:
     def _execute(self) -> Metadata:
         cached = self._check_cache()
         if cached:
+            self._data_from_cache = True
+            print(f"Using cache for {self.role} '{self.output}'")
             return cached
         else:
+            self._data_from_cache = False
             original_wd = os.getcwd()
             try:
                 self._workspace.mkdir(exist_ok=True)
@@ -136,15 +142,11 @@ class Step:
                 **json.loads(mp.read_text()),
                 relative_to=self._destination.as_posix()
             )
-            dp = meta._relative_path
+            dp = meta.path
             if dp.is_file():
                 try:
                     assert meta.fingerprint == self._mock_fingerprint(dp)
                     assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
-                    print(
-                        f"Using cached file for {self.role.title().ljust(13)}"
-                        f"'{self.output}'"
-                    )
                     return meta
                 except AssertionError:
                     return

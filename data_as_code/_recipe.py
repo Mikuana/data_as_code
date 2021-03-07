@@ -22,7 +22,6 @@ class Recipe:
     generation of a data product. It's primarily responsible for setting up
     temporary directories, and moving artifacts to the appropriate location to
     package the results.
-
     """
     workspace: Union[str, Path]
     _td: TemporaryDirectory
