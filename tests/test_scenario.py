@@ -22,6 +22,6 @@ def test_use_cached(tmpdir, p_keep, p_trust, expected_from_cache):
                 self.output.write_text('top')
 
     r = R(tmpdir)
-    r.execute()
-    r.execute()
+    r.execute()  # execute first time to establish cache
+    r.execute()  # execute second to see if data are loaded from cache
     assert r._results['S']._data_from_cache is expected_from_cache
