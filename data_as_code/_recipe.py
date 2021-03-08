@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
 from data_as_code._step import Step
+from data_as_code.misc import source, intermediary, product
 
 
 class Recipe:
@@ -24,11 +25,15 @@ class Recipe:
     package the results.
     """
     workspace: Union[str, Path]
+    keep: Dict[str, bool] = {product: True}
+    trust_cache = True
+
     _td: TemporaryDirectory
 
-    def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None):
+    def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None, trust_cache: bool = None):
         self.destination = Path(destination).absolute()
-        self.keep = defaultdict(lambda: True, **(keep or {}))  # default to True for now
+        self.keep = keep or self.keep
+        self.trust_cache = trust_cache or self.trust_cache
 
         self._results: Dict[str, Step] = {}
         self._structure = {
@@ -48,8 +53,10 @@ class Recipe:
         self._begin()
 
         for name, step in self.steps().items():
-            if step.keep is None and self.keep[step.role] is True:
-                step.keep = True
+            if step.keep is None:
+                step.keep = self.keep.get(step.role, False)
+            if step.trust_cache is None:
+                step.trust_cache = self.trust_cache
 
             self._results[name] = step(
                 self.workspace.absolute(), self.destination, self._results

@@ -21,7 +21,7 @@ class Step:
     output: Union[Path, str] = None
     role: str = intermediary
     keep: bool = None
-    trust_cache: bool = True
+    trust_cache: bool = None
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
