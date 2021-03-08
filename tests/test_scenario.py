@@ -25,3 +25,28 @@ def test_use_cached(tmpdir, p_keep, p_trust, expected_from_cache):
     r.execute()  # execute first time to establish cache
     r.execute()  # execute second to see if data are loaded from cache
     assert r._results['S']._data_from_cache is expected_from_cache
+
+
+def test_one_step(tmpdir):
+    class R(Recipe):
+        class Trusted(Step):
+            output = Path('zzz')
+            keep = True
+            trust_cache = True
+
+            def instructions(self):
+                self.output.write_text('top')
+
+        class Untrusted(Step):
+            output = Path('aaa')
+            keep = True
+            trust_cache = False
+
+            def instructions(self):
+                self.output.write_text('bottom')
+
+    r = R(tmpdir)
+    r.execute()  # execute first time to establish cache
+    r.execute()  # execute second to see if data are loaded from cache
+    assert r._results['Trusted']._data_from_cache is True
+    assert r._results['Untrusted']._data_from_cache is False
