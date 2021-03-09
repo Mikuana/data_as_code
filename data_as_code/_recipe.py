@@ -37,18 +37,11 @@ class Recipe:
 
         self._target = self._get_targets()
 
-    @classmethod
-    def steps(cls) -> Dict[str, Type[Step]]:
-        return {
-            k: v for k, v in cls.__dict__.items()
-            if (isinstance(v, type) and issubclass(v, Step))
-        }
-
     def execute(self):
         self._begin()
 
         self._results = {}
-        for name, step in self.steps().items():
+        for name, step in self._steps().items():
             if step.keep is None:
                 step.keep = self.keep.get(step.role, False)
             if step.trust_cache is None:
@@ -101,6 +94,13 @@ class Recipe:
         finally:
             os.chdir(cwd)
 
+    @classmethod
+    def _steps(cls) -> Dict[str, Type[Step]]:
+        return {
+            k: v for k, v in cls.__dict__.items()
+            if (isinstance(v, type) and issubclass(v, Step))
+        }
+
     def _get_targets(self):
         fold = self.destination.absolute()
 
@@ -150,7 +150,10 @@ class Recipe:
                     r = Path(result.metadata._relative_to, 'data')
                     pp = Path(self._target.metadata, result.metadata.path.relative_to(r))
                 else:
-                    pp = Path(self._target.metadata, result.metadata.role, result.metadata._relative_path.name)
+                    pp = Path(
+                        self._target.metadata, result.metadata.role,
+                        result.metadata._relative_path.name
+                    )
                 pp.parent.mkdir(parents=True, exist_ok=True)
 
                 d = result.metadata.to_dict()
