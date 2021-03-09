@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code.misc import intermediary, _Ingredient
+from data_as_code._misc import INTERMEDIARY, _Ingredient
 
 
 class Step:
@@ -19,7 +19,10 @@ class Step:
     """
 
     output: Union[Path, str] = None
-    role: str = intermediary
+    """The output
+    """
+
+    role: str = INTERMEDIARY
     keep: bool = None
     trust_cache: bool = None
 
@@ -58,6 +61,7 @@ class Step:
         return None
 
     def _execute(self) -> Metadata:
+        """Do the work"""
         cached = self._check_cache()
         if cached and self.trust_cache is True:
             self._data_from_cache = True

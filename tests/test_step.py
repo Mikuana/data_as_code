@@ -5,7 +5,7 @@ import pytest
 from data_as_code import exceptions as ex
 from data_as_code._recipe import Recipe
 from data_as_code._step import Step
-from data_as_code.misc import ingredient, source, product
+from data_as_code._misc import ingredient, SOURCE, PRODUCT
 
 
 def test_step_content_pass(tmpdir):
@@ -13,7 +13,7 @@ def test_step_content_pass(tmpdir):
 
     class R(Recipe):
         class S1(Step):
-            role = source
+            role = SOURCE
             keep = False
 
             def instructions(self):
@@ -21,14 +21,14 @@ def test_step_content_pass(tmpdir):
 
         class S2(Step):
             output = Path('product.txt')
-            role = product
+            role = PRODUCT
             x = ingredient('S1')
 
             def instructions(self):
                 self.output.write_text(self.x.read_text().upper())
 
     R(tmpdir).execute()
-    assert Path(tmpdir, 'data', product, 'product.txt').read_text() == 'ABC'
+    assert Path(tmpdir, 'data', PRODUCT, 'product.txt').read_text() == 'ABC'
 
 
 def test_error_on_return(tmpdir):

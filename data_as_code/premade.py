@@ -1,3 +1,13 @@
+"""
+Functions to generate premade steps
+
+This submodule contains a set of functions with limited parameters, which are
+used to generate pre-made Step classes. These are intended to handle
+"undifferentiated heavy lifting", where the same basic tasks are repeated over
+and over again, but to handle it in a way which brings the advantages of the
+data-as-code framework, including the tracking of metadata, and caching of
+artifacts.
+"""
 import inspect
 import shutil
 from hashlib import md5
@@ -7,11 +17,26 @@ from typing import Union, Type
 import requests
 from tqdm import tqdm
 
-from data_as_code import Step
 from data_as_code._metadata import Metadata
+from data_as_code._step import Step
+
+__all__ = [
+    'source_local', 'source_http'
+]
 
 
 def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
+    """
+    Source file from local system
+
+    Read a file directly from the path specified on the local file system.
+
+    :param path: a pathlib.Path or path-like string that can be resolved at
+        execution.
+    :param keep: a control of whether to copy the referenced file to the
+        destination specified by the recipe.
+    :return: a Step class which will mange the reading of a local file
+    """
     v_path = Path(path)
     v_keep = keep
 
@@ -53,6 +78,17 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
 
 
 def source_http(url: str, keep=False) -> Type[Step]:
+    """
+    Source file from HTTP download
+
+    Download a file from the specified URL.
+
+    :param url: a URL which can be accessed directly via GET at execution, with
+        the need for authentication
+    :param keep: a control of whether to cache the downloaded file to the
+        Recipe destination.
+    :return: a Step class which will mange the download of a file
+    """
     v_url = url
     v_keep = keep
 

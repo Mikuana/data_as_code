@@ -59,3 +59,7 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
 autodoc_member_order = 'bysource'
+
+# If true, the current module name will be prepended to all description
+# unit titles (such as .. function::).
+add_module_names = False

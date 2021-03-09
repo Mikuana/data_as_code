@@ -10,33 +10,50 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
+from data_as_code._misc import PRODUCT, INTERMEDIARY, SOURCE
 from data_as_code._step import Step
-from data_as_code.misc import product
+
+__all__ = ['Recipe']
 
 
 class Recipe:
     """
-    Recipe Class
+    Recipe
 
-    This class is responsible for managing the session details involved in
-    generation of a data product. It's primarily responsible for setting up
-    temporary directories, and moving artifacts to the appropriate location to
-    package the results.
+    Responsible for managing the session details involved in a series of Steps
+    that generate data artifacts. This Recipe acts both as a container of
+    individual steps, and an orchestrator to ensure appropriate conditions are
+    met. Recipe initially creates all artifacts in temporary directories,
+    then moves the artifacts to the destination, according to the various
+    settings that control the retention of artifacts.
 
     :param destination: the path to the project folder where any artifacts that
-        should be retained by the recipe will be output. Defaults to the "current"
-        directory on initialization.
-    :param keep: a dictionary of boolean values which controls whether to keep
-        source, intermediate, and final product artifacts. Values set here are
-        overwritten by those set in individual Step settings.
-    :param trust_cache: a boolean control of whether to trust the artifacts which
+        should be retained by the recipe will be output. Defaults to the
+        "current" directory on initialization.
+    :param keep: (optional) controls whether to keep source, intermediate, and
+        final product artifacts. Values set here are overwritten by those set in
+        individual Step settings.
+    :param trust_cache: (optional) controls whether to trust the artifacts which
         may already exist in the destination folder. If set to `true` and the
         anticipated fingerprint of the metadata matches the Step, then the Step
         will skip execution and return the cached data and metadata instead.
-        Values set here are overwritten by those set in individual Step settings.
+        Values set here are overwritten by those set in individual Step
+        settings.
     """
-    keep: Dict[str, bool] = {product: True}
+    keep: Dict[str, bool] = {PRODUCT: True, INTERMEDIARY: False, SOURCE: False}
+    """Controls whether to keep source, intermediate, and final product
+    artifacts. Values set here can be overwritten by the `keep`
+    parameter during construction, or by those set in individual Step settings. 
+    """
+
     trust_cache = True
+    """Controls whether to trust the artifacts which may already exist in the
+    destination folder. If set to `true` and the anticipated fingerprint of the
+    metadata matches the Step, then the Step will skip execution and return the
+    cached data and metadata instead. Values set here can be overwritten by the
+    `trust_cache` parameter during construction, or by those set in individual
+    Step settings.
+    """
 
     _workspace: Union[str, Path]
     _td: TemporaryDirectory
@@ -163,7 +180,10 @@ class Recipe:
             if result.keep is True:
                 if result.metadata._relative_to:
                     r = Path(result.metadata._relative_to, 'data')
-                    pp = Path(self._target.metadata, result.metadata.path.relative_to(r))
+                    pp = Path(
+                        self._target.metadata,
+                        result.metadata.path.relative_to(r)
+                    )
                 else:
                     pp = Path(
                         self._target.metadata, result.metadata.role,

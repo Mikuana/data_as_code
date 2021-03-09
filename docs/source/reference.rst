@@ -1,5 +1,18 @@
 Reference
 #########
 
-.. automodule:: data_as_code
+.. autoclass:: data_as_code._recipe.Recipe
+    :members:
+
+.. autoclass:: data_as_code._step.Step
+    :members:
+
+.. automodule:: data_as_code._misc
+    :members:
+
+
+Premade
+-------
+
+.. automodule:: data_as_code.premade
     :members:

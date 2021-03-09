@@ -4,7 +4,7 @@ import pytest
 
 from data_as_code._recipe import Recipe
 from data_as_code._step import Step
-from data_as_code.misc import source
+from data_as_code._misc import SOURCE
 
 
 @pytest.mark.parametrize('p_keep, p_trust, expected_from_cache', [
@@ -74,7 +74,7 @@ def test_global_trust(tmpdir, recipe, step, expected_from_cache):
 
             keep = True
             output = Path('zzz')
-            role = source
+            role = SOURCE
 
             def instructions(self):
                 self.output.write_text('top')

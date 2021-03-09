@@ -6,7 +6,7 @@ import pytest
 
 from data_as_code._recipe import Recipe
 from data_as_code._step import Step
-from data_as_code.misc import source
+from data_as_code._misc import SOURCE
 
 
 def test_destination_explicit(tmpdir):
@@ -63,14 +63,14 @@ def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
     class T(Recipe):
         class S(Step):
             output = Path('subfolder', 'file.txt')
-            role = source
+            role = SOURCE
             keep = True
 
             def instructions(self):
                 self.output.touch()
 
     T(tmpdir).execute()
-    assert Path(tmpdir, 'data', source, 'subfolder', 'file.txt').is_file()
+    assert Path(tmpdir, 'data', SOURCE, 'subfolder', 'file.txt').is_file()
 
 
 def test_step_execution(tmpdir):
@@ -78,7 +78,7 @@ def test_step_execution(tmpdir):
     timing = {}
 
     class S(Step):
-        role = source
+        role = SOURCE
 
         def instructions(self):
             timing[self.__class__.__name__] = time.time_ns()
