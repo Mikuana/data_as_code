@@ -1,6 +1,9 @@
 Reference
 #########
 
+Components
+----------
+
 .. autoclass:: data_as_code._recipe.Recipe
     :members:
 
@@ -12,8 +15,8 @@ Reference
     :members:
 
 
-Premade
--------
+Premade Steps
+-------------
 
 .. automodule:: data_as_code.premade
     :members:

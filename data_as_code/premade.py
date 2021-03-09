@@ -35,7 +35,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         execution.
     :param keep: a control of whether to copy the referenced file to the
         destination specified by the recipe.
-    :return: a Step class which will mange the reading of a local file
+    :return: a :class:`data_as_code.Step` class which will mange the reading of a local file
     """
     v_path = Path(path)
     v_keep = keep
@@ -87,7 +87,8 @@ def source_http(url: str, keep=False) -> Type[Step]:
         the need for authentication
     :param keep: a control of whether to cache the downloaded file to the
         Recipe destination.
-    :return: a Step class which will mange the download of a file
+    :return: a :class:`data_as_code.Step` class which will mange the download of
+        a file via HTTP
     """
     v_url = url
     v_keep = keep
