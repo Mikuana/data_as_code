@@ -15,7 +15,7 @@ def test_destination_explicit(tmpdir):
 
 
 def test_destination_absolute(tmpdir):
-    assert Recipe().destination.is_absolute(), \
+    assert Recipe()._target.folder.is_absolute(), \
         'destination attribute is not an absolute path'
 
 
@@ -23,7 +23,7 @@ def test_destination_default(tmpdir):
     cwd = os.getcwd()
     try:
         os.chdir(tmpdir)
-        assert Recipe().destination == tmpdir, \
+        assert Recipe()._target.folder == tmpdir, \
             'default destination does not match working directory'
     finally:
         os.chdir(cwd)

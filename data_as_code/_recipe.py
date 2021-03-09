@@ -5,14 +5,13 @@ import os
 import subprocess
 import sys
 import tarfile
-from collections import defaultdict
-from collections import namedtuple
+import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
 from data_as_code._step import Step
-from data_as_code.misc import source, intermediary, product
+from data_as_code.misc import product
 
 
 class Recipe:
@@ -29,18 +28,14 @@ class Recipe:
 
     _workspace: Union[str, Path]
     _td: TemporaryDirectory
+    _results: Dict[str, Step]
 
     def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None, trust_cache: bool = None):
-        self.destination = Path(destination).absolute()
+        self.destination = Path(destination)
         self.keep = keep or self.keep
         self.trust_cache = trust_cache or self.trust_cache
 
-        self._results: Dict[str, Step] = {}
-        self._structure = {
-            'metadata/': self._prep_metadata,
-            self._recipe_file(): self._prep_recipe,
-            'requirements.txt': self._prep_requirements
-        }
+        self._target = self._get_targets()
 
     @classmethod
     def steps(cls) -> Dict[str, Type[Step]]:
@@ -52,6 +47,7 @@ class Recipe:
     def execute(self):
         self._begin()
 
+        self._results = {}
         for name, step in self.steps().items():
             if step.keep is None:
                 step.keep = self.keep.get(step.role, False)
@@ -59,8 +55,12 @@ class Recipe:
                 step.trust_cache = self.trust_cache
 
             self._results[name] = step(
-                self._workspace.absolute(), self.destination, self._results
+                self._workspace.absolute(), self._target.folder, self._results
             )
+
+        self._freeze_recipe()
+        self._freeze_requirements()
+        self._export_metadata()
 
         self._end()
 
@@ -73,8 +73,14 @@ class Recipe:
         to be stored. The workspace is a temporary directory, which does not
         exist until this method is call.
         """
-        self.destination.mkdir(exist_ok=True)
-        self._destination_check()
+        for k, v in self._target.manifest():
+            if v.exists() and self.keep.get('existing', False) is True:
+                raise FileExistsError(
+                    f"{k} '{v.as_posix()}' exists and `keep.existing == True`."
+                    "\nChange the keep.existing setting to False to overwrite."
+                )
+
+        self._target.folder.mkdir(exist_ok=True)
         self._td = TemporaryDirectory()
         self._workspace = Path(self._td.name)
 
@@ -88,85 +94,63 @@ class Recipe:
         """
         cwd = os.getcwd()
         try:
-            os.chdir(self.destination)
-            self._prepare()
+            os.chdir(self._target.folder)
+            self._package()
             if self.keep.get('workspace', False) is False:
                 self._td.cleanup()
         finally:
             os.chdir(cwd)
 
-    def _destinations(self):
-        x = namedtuple('Destinations', ['archive', 'gzip'])
-        return x(
-            Path(self.destination, self.destination.name + '.tar'),
-            Path(self.destination, self.destination.name + '.tar.gz')
-        )
+    def _get_targets(self):
+        fold = self.destination.absolute()
 
-    def _destination_check(self):
-        """
-        Destination path checks
+        class Target:
+            folder = fold
+            data = Path(fold, 'data')
+            metadata = Path(fold, 'metadata')
+            reqs = Path(fold, 'requirements.txt')
+            recipe = Path(fold, 'recipe.py')  # TODO: this won't work long-term
 
-        Ensure that all non-temporary paths which will be used by the recipe can
-        be formed as paths, and that they do not exist (unless allowed by the
-        keep settings).
-        """
-        for v in self._destinations():
-            if v.exists() and self.keep.get('existing', False) is True:
-                raise FileExistsError(
-                    f"{v.as_posix()} exists and `keep.existing == True`."
-                    "\nChange the keep.existing setting to False to overwrite."
-                )
+            archive = Path(fold, fold.name + '.tar')
+            gzip = Path(fold, fold.name + '.tar.gz')
 
-    def _prepare(self):
-        for k, v in self._structure.items():
-            # noinspection PyArgumentList
-            v(k)
+            @classmethod
+            def manifest(cls):
+                return inspect.getmembers(Target, lambda x: isinstance(x, Path))
 
-        self._package()
+        return Target
 
     def _package(self):
-        d = self._destinations()
         if self.keep.get('archive', True) is True:
-            with tarfile.open(d.archive, "w") as tar:
-                for x in self._structure:
-                    p = Path(self.destination, x)
-                    if p.is_file():
-                        tar.add(p, p.relative_to(self.destination))
+            with tarfile.open(self._target.archive, "w") as tar:
+                for k, v in self._target.manifest():
+                    if v.is_file():
+                        tar.add(v, v.relative_to(self._target.folder))
                     else:
-                        for file in p.rglob('*'):
-                            tar.add(file, file.relative_to(self.destination))
+                        for file in v.rglob('*'):
+                            tar.add(file, file.relative_to(self._target.folder))
 
-            with gzip.open(d.gzip, 'wb') as f_out:
-                f_out.write(d.archive.read_bytes())
-            d.archive.unlink()
+            with gzip.open(self._target.gzip, 'wb') as f_out:
+                f_out.write(self._target.archive.read_bytes())
+            self._target.archive.unlink()
 
-    @staticmethod
-    def _recipe_file():
-        """
-        Inspect stack to find filename of calling recipe script
-
-        This is likely to break in a lot of situations
-        """
-        return Path(inspect.stack()[-1].filename).name
-
-    def _prep_requirements(self, target: str):
+    def _freeze_requirements(self):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
-        p = Path(self.destination, target)
-        p.write_bytes(reqs)
+        self._target.reqs.write_bytes(reqs)
 
-    def _prep_recipe(self, target: str):
-        # TODO: nothing to see here yet
+    # noinspection PyMethodMayBeStatic
+    def _freeze_recipe(self):  # TODO: should do this
+        warnings.warn('Recipe freeze does not do anything yet')
         pass
 
-    def _prep_metadata(self, target: str):
-        p = Path(self.destination, target)
+    def _export_metadata(self):
         for result in self._results.values():
             if result.keep is True:
                 if result.metadata._relative_to:
                     r = Path(result.metadata._relative_to, 'data')
-                    pp = Path(p, result.metadata.path.relative_to(r))
+                    pp = Path(self._target.metadata, result.metadata.path.relative_to(r))
                 else:
-                    pp = Path(p, result.metadata.role, result.metadata._relative_path.name)
+                    pp = Path(self._target.metadata, result.metadata.role, result.metadata._relative_path.name)
                 pp.parent.mkdir(parents=True, exist_ok=True)
 
                 d = result.metadata.to_dict()
