@@ -24,10 +24,10 @@ class Recipe:
     temporary directories, and moving artifacts to the appropriate location to
     package the results.
     """
-    workspace: Union[str, Path]
     keep: Dict[str, bool] = {product: True}
     trust_cache = True
 
+    _workspace: Union[str, Path]
     _td: TemporaryDirectory
 
     def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None, trust_cache: bool = None):
@@ -59,7 +59,7 @@ class Recipe:
                 step.trust_cache = self.trust_cache
 
             self._results[name] = step(
-                self.workspace.absolute(), self.destination, self._results
+                self._workspace.absolute(), self.destination, self._results
             )
 
         self._end()
@@ -76,7 +76,7 @@ class Recipe:
         self.destination.mkdir(exist_ok=True)
         self._destination_check()
         self._td = TemporaryDirectory()
-        self.workspace = Path(self._td.name)
+        self._workspace = Path(self._td.name)
 
     def _end(self):
         """

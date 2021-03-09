@@ -38,14 +38,14 @@ def test_makes_destination(tmpdir):
 def test_makes_workspace(tmpdir):
     r = Recipe(tmpdir)
     r._begin()
-    assert r.workspace.is_dir()
+    assert r._workspace.is_dir()
 
 
 def test_cleanup_workspace(tmpdir):
     r = Recipe(tmpdir)
     r._begin()
     r._end()
-    assert r.workspace.exists() is False
+    assert r._workspace.exists() is False
 
 
 def test_existing_keep_error(tmpdir):
