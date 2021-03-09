@@ -1,7 +1,8 @@
-import time
-import pytest
-from pathlib import Path
 import os
+import time
+from pathlib import Path
+
+import pytest
 
 from data_as_code._recipe import Recipe
 from data_as_code._step import Step
@@ -59,6 +60,7 @@ def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
         class S(Step):
             output = Path('subfolder', 'file.txt')
             role = source
+            keep = True
 
             def instructions(self):
                 self.output.touch()
@@ -69,26 +71,25 @@ def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
 
 def test_step_execution(tmpdir):
     """Check timestamps of step output to ensure correct execution order"""
-    s1, s2, s3 = Path('s1'), Path('s2'), Path('s3')
+    timing = {}
 
     class S(Step):
         role = source
 
         def instructions(self):
-            time.sleep(0.01)
+            timing[self.__class__.__name__] = time.time_ns()
             self.output.touch()
 
     class T(Recipe):
         class S1(S):
-            output = s1
+            pass
 
         class S2(S):
-            output = s2
+            pass
 
         class S3(S):
-            output = s3
+            pass
 
-    T(tmpdir).execute()
-    p = Path(tmpdir, 'data', source)
-    p1, p2, p3 = Path(p, s1), Path(p, s2), Path(p, s3)
-    assert p1.stat().st_mtime_ns < p2.stat().st_mtime_ns < p3.stat().st_mtime_ns
+    t = T(tmpdir)
+    t.execute()
+    assert timing['S1'] < timing['S2'] < timing['S3']
