@@ -22,6 +22,18 @@ class Recipe:
     generation of a data product. It's primarily responsible for setting up
     temporary directories, and moving artifacts to the appropriate location to
     package the results.
+
+    :param destination: the path to the project folder where any artifacts that
+        should be retained by the recipe will be output. Defaults to the "current"
+        directory on initialization.
+    :param keep: a dictionary of boolean values which controls whether to keep
+        source, intermediate, and final product artifacts. Values set here are
+        overwritten by those set in individual Step settings.
+    :param trust_cache: a boolean control of whether to trust the artifacts which
+        may already exist in the destination folder. If set to `true` and the
+        anticipated fingerprint of the metadata matches the Step, then the Step
+        will skip execution and return the cached data and metadata instead.
+        Values set here are overwritten by those set in individual Step settings.
     """
     keep: Dict[str, bool] = {product: True}
     trust_cache = True
@@ -30,12 +42,13 @@ class Recipe:
     _td: TemporaryDirectory
     _results: Dict[str, Step]
 
-    def __init__(self, destination: Union[str, Path] = '.', keep: Dict[str, bool] = None, trust_cache: bool = None):
+    def __init__(
+            self, destination: Union[str, Path] = '.',
+            keep: Dict[str, bool] = None, trust_cache: bool = None
+    ):
         self.destination = Path(destination)
         self.keep = keep or self.keep
         self.trust_cache = trust_cache or self.trust_cache
-
-        self._target = self._get_targets()
 
     def execute(self):
         self._begin()
@@ -66,6 +79,8 @@ class Recipe:
         to be stored. The workspace is a temporary directory, which does not
         exist until this method is call.
         """
+        self._target = self._get_targets()
+
         for k, v in self._target.manifest():
             if v.exists() and self.keep.get('existing', False) is True:
                 raise FileExistsError(
