@@ -15,7 +15,7 @@ def test_destination_explicit(tmpdir):
 
 
 def test_destination_absolute(tmpdir):
-    r = Recipe()
+    r = Recipe(tmpdir)
     r.execute()
     assert r._target.folder.is_absolute(), \
         'destination attribute is not an absolute path'
