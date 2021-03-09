@@ -14,28 +14,65 @@ from data_as_code._misc import INTERMEDIARY, _Ingredient
 
 class Step:
     """
-    A process which takes one or more artifacts in a recipe, and transforms it
-    into another artifact.
+    Base Step Class
+
+    A class which provides a scaffolding to specify a step in the process of
+    creating a data product. This class must be declared as part of a Recipe
+    class to work correctly, and is not meant to be initialized by the user
+    (hence the lack of parameter documentation). Instead, the user is meant to
+    provide values for the documented attributes::
+
+        from data_as_code import Step, ingredient, PRODUCT
+
+        class MyStep(Step):
+            output = 'my.csv'
+            x = ingredient('their_csv')
+            role = PRODUCT
+
+            def instructions(self):
+                 self.output.write_text(self.x.read_text())
     """
 
     output: Union[Path, str] = None
-    """The output
+    """The relative path of the output artifact of the step. Optional, unless
+    `keep` is set to True. This path must be relative, because the ultimate
+    destination of the artifact is controlled by the
+    :class:`data_as_code.Recipe`. 
     """
 
     role: str = INTERMEDIARY
+    """The type of role that this step plays in the :class:`data_as_code.Recipe`.
+    This influences a number of different processes, such as keep settings,
+    name requirements, and pathing of retained artifacts. Should be set using
+    one of the constant values: :const:`data_as_code.SOURCE`,
+    :const:`data_as_code.INTERMEDIARY`, :const:`data_as_code.PRODUCT`
+    """
+
     keep: bool = None
+    """Controls whether to keep the artifact produced by this step in the cache.
+    If set to `None`, then this step will use the settings that are passed to it
+    from the :class:`data_as_code.Recipe`.
+    """
+
     trust_cache: bool = None
+    """Controls whether to trust the artifacts which may already exist in the
+    cache. If set to `None`, then this step will use the settings that are
+    passed to it from the :class:`data_as_code.Recipe`.
+    """
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
 
-    def __init__(self, workspace: Path, destination: Path, antecedents: Dict[str, 'Step']):
+    def __init__(
+            self, _workspace: Path, _destination: Path,
+            _antecedents: Dict[str, 'Step']
+    ):
 
         self._timing = {'started': datetime.utcnow()}
         self._guid = uuid4()
-        self._workspace = Path(workspace, self._guid.hex)
-        self._destination = destination
-        self._antecedents = antecedents
+        self._workspace = Path(_workspace, self._guid.hex)
+        self._destination = _destination
+        self._antecedents = _antecedents
 
         self._ingredients = self._get_ingredients()
 
