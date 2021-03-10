@@ -5,8 +5,7 @@ from data_as_code import premade
 
 __all__ = [
     'Recipe', 'Step', 'ingredient',
-    'SOURCE', 'INTERMEDIARY', 'PRODUCT',
-    'premade'
+    'SOURCE', 'INTERMEDIARY', 'PRODUCT'
 ]
 
 __version__ = '0.0.0'

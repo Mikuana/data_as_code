@@ -5,24 +5,40 @@ Examples
 
 jkfd::
 
-    with Recipe('data_package') as r:
-        s1 = premade.source_http(r, 'https://data-url.com/data.csv')
+    import csv
+    import itertools
 
-        class ChangeDelimiter(Step):
-            """ Read CSV and rewrite file with star(*) delimiter """
-            x = ingredient(s1)
-            output = Path('starred.csv')
+    from data_as_code._step import Step
+    from data_as_code import Recipe, ingredient, PRODUCT
+
+
+    class MyRecipe(Recipe):
+        class Abc(Step):
+            def instructions(self):
+                self.output.write_text(','.join(['a', 'b', 'c']))
+
+        class OneTwoThree(Step):
+            def instructions(self):
+                self.output.write_text(','.join(['1', '2', '3']))
+
+        class YouAndMe(Step):
+            role = PRODUCT
+            output = 'cartesian.csv'
+            x = ingredient('Abc')
+            y = ingredient('OneTwoThree')
 
             def instructions(self):
-                with self.output.open('w', newline='') as new:
-                    writer = csv.writer(new, delimiter='*')
-                    with self.x.path.open(newline='') as orig:
-                        reader = csv.reader(orig)
-                        for row in reader:
-                            writer.writerow(row)
+                x = self.x.read_text().split(',')
+                y = self.y.read_text().split(',')
 
+                with self.output.open('w', newline='') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['letter', 'number'])
+                    for row in itertools.product(x, y):
+                        writer.writerow([row])
 
-        ChangeDelimiter(r)
+    MyRecipe().execute()
+
 
 Indices and tables
 ==================

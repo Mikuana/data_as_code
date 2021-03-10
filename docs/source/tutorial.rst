@@ -1,3 +1,5 @@
+.. module:: data_as_code
+
 Tutorial
 ========
 
@@ -15,7 +17,7 @@ Recipe
 ------
 
 Every time you use this package, you will begin and end with a
-:py:class:`~data_as_code.recipe.Recipe`. The recipe acts as a container, which
+:class:`Recipe`. The recipe acts as a container, which
 isolates the package from your regular file-system, and isolates each step from
 each other. This is accomplished through liberal use of temporary directories.
 The isolation allows the recipe to handle the artifacts involved in each step in
@@ -26,13 +28,13 @@ an object-oriented fashion, improving reproducibility of the recipe.
     will be discarded at the end, unless otherwise indicated by the user in the
     ``keep`` parameter of the Recipe.
 
-The :py:class:`~data_as_code.recipe.Recipe` can be managed with a context handler:
+The :class:`Recipe` can be managed with a context handler:
 
 .. code-block:: python
 
     from data_as_code import Recipe, premade
 
-    with Recipe('data_package') as r:
+    class MyRecipe(Recipe):
         pass
 
 or with an equivalent call to begin/end:
@@ -58,7 +60,7 @@ Step
 
 Once you've started your recipe, you need to include some steps to generate a
 data product for the package. Every step requires a
-:py:class:`~data_as_code.recipe.Recipe` as an input, and must write a file to the
+:class:`Recipe` as an input, and must write a file to the
 path specified in the ``output`` attribute for the step.
 
 Steps can be broken into two main types:
@@ -71,7 +73,7 @@ Steps can be broken into two main types:
     complete control over the instructions that are executed
 
 We'll start with a pre-made step which downloads a file. The premade
-:py:meth:`~data_as_code.premade.source_http` uses the URL we provide to download
+:meth:`premade.source_http` uses the URL we provide to download
 the html page, storing it inside a temporary working directory that was
 established by our recipe.
 
@@ -87,20 +89,20 @@ established by our recipe.
 
 
 Next, we'll make some modifications to the file we downloaded. This time we'll
-need to use a custom :py:class:`~data_as_code._step.Step`. We're going to modify
+need to use a custom :class:`Step`. We're going to modify
 the text of our downloaded file, replacing all instances of the word "Data"
 with "Code".
 
 To create a custom step, we need to create a
 `subclass <https://docs.python.org/3/tutorial/classes.html#inheritance>`_
-of a :py:class:`~data_as_code._step.Step`. At the least, we will need to overwrite
-the :py:meth:`~data_as_code._step.Step.instructions` method. These instructions
+of a :class:`Step`. At the least, we will need to overwrite
+the :meth:`Step.instructions` method. These instructions
 execute when your custom step is initialized.
 
 For our instructions to work, we need **input** and **output**.
 We need to provide the results of our first step as an ingredient for the second.
 This is accomplished by defining ``x`` as a class attribute using the
-:py:meth:`~data_as_code._step.ingredient` method: ``x = ingredient(data)``.
+:meth:`ingredient` method: ``x = ingredient(data)``.
 This allows us to call the results of the first step as class attribute ``x``
 inside of the instructions, even if the file that is being referenced doesn't
 exist yet. Second, we need to write our final results to the path mapped to the
