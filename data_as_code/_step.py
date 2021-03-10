@@ -9,7 +9,7 @@ from uuid import uuid4
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
-from data_as_code._misc import INTERMEDIARY, _Ingredient
+from data_as_code.misc import INTERMEDIARY
 
 
 class Step:
@@ -44,8 +44,8 @@ class Step:
     """The type of role that this step plays in the :class:`data_as_code.Recipe`.
     This influences a number of different processes, such as keep settings,
     name requirements, and pathing of retained artifacts. Should be set using
-    one of the constant values: :const:`data_as_code.SOURCE`,
-    :const:`data_as_code.INTERMEDIARY`, :const:`data_as_code.PRODUCT`
+    one of the constant values: :const:`data_as_code.misc.SOURCE`,
+    :const:`data_as_code.misc.INTERMEDIARY`, :const:`data_as_code.misc.PRODUCT`
     """
 
     keep: bool = None
@@ -204,3 +204,29 @@ class Step:
             other=self._other_meta
         )
         return m.fingerprint
+
+
+def ingredient(step: str) -> Path:
+    """
+    Prepare step ingredient
+
+    Use the metadata from a previously executed step as an ingredient for
+    another step. This function is a wrapper to allowing passing the results of
+    a previous step directly to the next, while still allowing context hints to
+    function appropriately.
+
+    The typehint says that the return is a :class:`pathlib.Path` object, but
+    that is a lie; the return is actually a semi-private Ingredient class. This
+    mismatch is done intentionally to allow all ingredients in a step to be
+    identified without first knowing the names of the attributes that they will
+    be assigned to. Once the ingredients are captured, the attribute is
+    reassigned to the path attribute for the ingredient, allowing the path to
+    be called directly from inside the :class:`Step.instructions`
+    """
+    # noinspection PyTypeChecker
+    return _Ingredient(step)
+
+
+class _Ingredient:
+    def __init__(self, step_name: str):
+        self.step_name = step_name

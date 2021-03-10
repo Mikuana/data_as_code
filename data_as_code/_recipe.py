@@ -10,7 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
-from data_as_code._misc import PRODUCT, INTERMEDIARY, SOURCE
+from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 from data_as_code._step import Step
 
 __all__ = ['Recipe']
