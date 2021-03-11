@@ -16,6 +16,37 @@ class _Ingredient:
         self.step_name = step_name
 
 
+def ingredient(step: str) -> Path:
+    """
+    Prepare step ingredient
+
+    Use the metadata from a previously executed step as an ingredient for
+    another step. This function is a wrapper to allowing passing the results of
+    a previous step directly to the next, while still allowing context hints to
+    function appropriately.
+
+    The typehint says that the return is a :class:`pathlib.Path` object, but
+    that is a lie; the return is actually a semi-private Ingredient class. This
+    mismatch is done intentionally to allow all ingredients in a step to be
+    identified without first knowing the names of the attributes that they will
+    be assigned to. Once the ingredients are captured, the attribute is
+    reassigned to the path attribute for the ingredient, allowing the path to
+    be called directly from inside the :class:`Step.instructions`
+    """
+    # noinspection PyTypeChecker
+    return _Ingredient(step)
+
+
+class _Result:
+    def __init__(self, path: Union[str, Path]):
+        self.path = Path(path)
+
+
+def result(path: Union[str, Path]) -> Path:
+    # noinspection PyTypeChecker
+    return _Result(path)
+
+
 class Step:
     """
     Base Step Class
@@ -79,7 +110,9 @@ class Step:
         self._antecedents = _antecedents
 
         self._ingredients = self._set_ingredients()
+        self._results = self._set_results()
 
+        # TODO: figure out how to handle this with flexible results
         if self.output is None and self.keep is True:
             raise ex.StepUndefinedOutput(
                 "To keep an artifact you must define the output path"
@@ -150,6 +183,18 @@ class Step:
     def _get_ingredients(cls) -> List[Tuple[str, _Ingredient]]:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
 
+    def _set_results(self):
+        """Set Outputs"""
+        results = {}
+        for k, v in self._get_results():
+            results[k] = v
+            self.__setattr__(k, v.path)
+        return results
+
+    @classmethod
+    def _get_results(cls) -> List[Tuple[str, _Result]]:
+        return inspect.getmembers(cls, lambda x: isinstance(x, _Result))
+
     def _make_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
         """
         Set Output Metadata
@@ -214,24 +259,3 @@ class Step:
             other=self._other_meta
         )
         return m.fingerprint
-
-
-def ingredient(step: str) -> Path:
-    """
-    Prepare step ingredient
-
-    Use the metadata from a previously executed step as an ingredient for
-    another step. This function is a wrapper to allowing passing the results of
-    a previous step directly to the next, while still allowing context hints to
-    function appropriately.
-
-    The typehint says that the return is a :class:`pathlib.Path` object, but
-    that is a lie; the return is actually a semi-private Ingredient class. This
-    mismatch is done intentionally to allow all ingredients in a step to be
-    identified without first knowing the names of the attributes that they will
-    be assigned to. Once the ingredients are captured, the attribute is
-    reassigned to the path attribute for the ingredient, allowing the path to
-    be called directly from inside the :class:`Step.instructions`
-    """
-    # noinspection PyTypeChecker
-    return _Ingredient(step)
