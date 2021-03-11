@@ -199,6 +199,9 @@ class Recipe:
 
             @classmethod
             def manifest(cls):
+                # TODO: get complete list of output data and metadata files
+                # from steps so that manifest can be explicit instead of forcing
+                # the package step to use rglob.
                 return inspect.getmembers(Target, lambda x: isinstance(x, Path))
 
         return Target
