@@ -87,6 +87,8 @@ class Step:
             )
         elif self.output:
             self.output = Path(self.output)
+            if self.keep is None:  # assume keep if output assigned
+                self.keep = True
         else:
             self.output = Path(self._guid.hex)
 

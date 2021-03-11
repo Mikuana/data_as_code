@@ -40,7 +40,7 @@ class Recipe:
         Values set here are overwritten by those set in individual Step
         settings.
     """
-    keep: Dict[str, bool] = {PRODUCT: True, INTERMEDIARY: False, SOURCE: False}
+    keep: Dict[str, bool] = {PRODUCT: True}
     """Controls whether to keep source, intermediate, and final product
     artifacts. Values set here can be overwritten by the `keep`
     parameter during construction, or by those set in individual Step settings. 
@@ -76,7 +76,7 @@ class Recipe:
         self._results = {}
         for name, step in self._steps().items():
             if step.keep is None:
-                step.keep = self.keep.get(step._role, False)
+                step.keep = self.keep.get(step._role)
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
