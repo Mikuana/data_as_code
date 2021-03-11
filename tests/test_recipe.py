@@ -63,7 +63,7 @@ def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
     class T(Recipe):
         class S(Step):
             output = Path('subfolder', 'file.txt')
-            role = SOURCE
+            _role = SOURCE
             keep = True
 
             def instructions(self):
@@ -78,7 +78,7 @@ def test_step_execution(tmpdir):
     timing = {}
 
     class S(Step):
-        role = SOURCE
+        _role = SOURCE
 
         def instructions(self):
             timing[self.__class__.__name__] = time.time_ns()

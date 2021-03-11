@@ -10,8 +10,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type
 
-from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 from data_as_code._step import Step
+from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
 __all__ = ['Recipe']
 
@@ -67,13 +67,15 @@ class Recipe:
         self.keep = keep or self.keep
         self.trust_cache = trust_cache or self.trust_cache
 
+        self._step_check()
+
     def execute(self):
         self._begin()
 
         self._results = {}
         for name, step in self._steps().items():
             if step.keep is None:
-                step.keep = self.keep.get(step.role, False)
+                step.keep = self.keep.get(step._role, False)
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
@@ -133,6 +135,20 @@ class Recipe:
             if (isinstance(v, type) and issubclass(v, Step))
         }
 
+    @classmethod
+    def _step_check(cls):
+        steps = cls._steps()
+        for ix, (k, step) in enumerate(steps.items()):
+            priors = list(steps.keys())[:ix]
+            for ingredient in step._get_ingredients():
+                ingredient_name = ingredient[1].step_name
+                msg = (
+                    f"Step '{k}' references ingredient '{ingredient_name}', but"
+                    f" there is no preceding Step with that name in the recipe."
+                    f" Valid values are: \n {priors}"
+                )
+                assert ingredient_name in priors, msg
+
     def _get_targets(self):
         fold = self.destination.absolute()
 
@@ -186,7 +202,7 @@ class Recipe:
                     )
                 else:
                     pp = Path(
-                        self._target.metadata, result.metadata.role,
+                        self._target.metadata, result.metadata._role,
                         result.metadata._relative_path.name
                     )
                 pp.parent.mkdir(parents=True, exist_ok=True)

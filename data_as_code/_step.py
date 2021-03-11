@@ -4,12 +4,17 @@ import os
 from datetime import datetime
 from hashlib import md5
 from pathlib import Path
-from typing import Union, Dict
+from typing import Union, Dict, List, Tuple
 from uuid import uuid4
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, from_dictionary
 from data_as_code.misc import INTERMEDIARY
+
+
+class _Ingredient:
+    def __init__(self, step_name: str):
+        self.step_name = step_name
 
 
 class Step:
@@ -40,14 +45,6 @@ class Step:
     :class:`data_as_code.Recipe`. 
     """
 
-    role: str = INTERMEDIARY
-    """The type of role that this step plays in the :class:`data_as_code.Recipe`.
-    This influences a number of different processes, such as keep settings,
-    name requirements, and pathing of retained artifacts. Should be set using
-    one of the constant values: :const:`data_as_code.misc.SOURCE`,
-    :const:`data_as_code.misc.INTERMEDIARY`, :const:`data_as_code.misc.PRODUCT`
-    """
-
     keep: bool = None
     """Controls whether to keep the artifact produced by this step in the cache.
     If set to `None`, then this step will use the settings that are passed to it
@@ -58,6 +55,14 @@ class Step:
     """Controls whether to trust the artifacts which may already exist in the
     cache. If set to `None`, then this step will use the settings that are
     passed to it from the :class:`data_as_code.Recipe`.
+    """
+
+    _role: str = INTERMEDIARY
+    """The type of role that this step plays in the :class:`data_as_code.Recipe`.
+    This influences a number of different processes, such as keep settings,
+    name requirements, and pathing of retained artifacts. Should be set using
+    one of the constant values: :const:`data_as_code.misc.SOURCE`,
+    :const:`data_as_code.misc.INTERMEDIARY`, :const:`data_as_code.misc.PRODUCT`
     """
 
     _other_meta: Dict[str, str] = {}
@@ -74,7 +79,7 @@ class Step:
         self._destination = _destination
         self._antecedents = _antecedents
 
-        self._ingredients = self._get_ingredients()
+        self._ingredients = self._set_ingredients()
 
         if self.output is None and self.keep is True:
             raise ex.StepUndefinedOutput(
@@ -102,7 +107,7 @@ class Step:
         cached = self._check_cache()
         if cached and self.trust_cache is True:
             self._data_from_cache = True
-            print(f"Using cache for {self.role} '{self.output}'")
+            print(f"Using cache for {self._role} '{self.output}'")
             return cached
         else:
             self._data_from_cache = False
@@ -123,7 +128,7 @@ class Step:
             finally:
                 os.chdir(original_wd)
 
-    def _get_ingredients(self):
+    def _set_ingredients(self):
         """
         Set Input Metadata
 
@@ -135,10 +140,14 @@ class Step:
         This method must modify self, due to the dynamic naming of attributes.
         """
         ingredients = []
-        for k, v in inspect.getmembers(self, lambda x: isinstance(x, _Ingredient)):
+        for k, v in self._get_ingredients():
             ingredients.append(self._antecedents[v.step_name].metadata)
             self.__setattr__(k, self._antecedents[v.step_name].metadata.path)
         return ingredients
+
+    @classmethod
+    def _get_ingredients(cls) -> List[Tuple[str, _Ingredient]]:
+        return inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
 
     def _make_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
         """
@@ -156,7 +165,7 @@ class Step:
         if self.output.name == self._guid.hex:
             ap = p
         elif self.keep is True:
-            rp = Path('data', self.role, self.output)
+            rp = Path('data', self._role, self.output)
             ap = Path(self._destination, rp).absolute()
             ap.parent.mkdir(parents=True, exist_ok=True)
             p.rename(ap)
@@ -165,7 +174,7 @@ class Step:
             absolute_path=ap, relative_path=rp,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=[x for x in self._ingredients],
-            role=self.role, relative_to=self._destination.absolute(),
+            role=self._role, relative_to=self._destination.absolute(),
             other=self._other_meta, step_description=self.__class__.__doc__,
             step_instruction=inspect.getsource(self.instructions),
             timing=self._timing
@@ -177,7 +186,7 @@ class Step:
         If fingerprint in the metadata matches the mocked fingerprint, use the
         existing metadata without executing instructions.
         """
-        mp = Path(self._destination, 'metadata', self.role, f'{self.output}.json')
+        mp = Path(self._destination, 'metadata', self._role, f'{self.output}.json')
         if mp.is_file():
             meta = from_dictionary(
                 **json.loads(mp.read_text()),
@@ -199,7 +208,7 @@ class Step:
         m = Metadata(
             absolute_path=None, relative_path=candidate,
             checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, role=self.role, step_description=self.__doc__,
+            lineage=lineage, role=self._role, step_description=self.__doc__,
             step_instruction=inspect.getsource(self.instructions),
             other=self._other_meta
         )
@@ -225,8 +234,3 @@ def ingredient(step: str) -> Path:
     """
     # noinspection PyTypeChecker
     return _Ingredient(step)
-
-
-class _Ingredient:
-    def __init__(self, step_name: str):
-        self.step_name = step_name

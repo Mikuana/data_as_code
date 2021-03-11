@@ -74,7 +74,7 @@ def test_global_trust(tmpdir, recipe, step, expected_from_cache):
 
             keep = True
             output = Path('zzz')
-            role = SOURCE
+            _role = SOURCE
 
             def instructions(self):
                 self.output.write_text('top')

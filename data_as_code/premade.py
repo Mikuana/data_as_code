@@ -44,7 +44,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         """Source file from available file system."""
         output = v_path
         keep = v_keep
-        role = 'source'
+        _role = 'source'
 
         def instructions(self):
             pass
@@ -97,7 +97,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
         """Retrieve file from URL via HTTP."""
         output = Path(Path(v_url).name)
         keep = v_keep
-        role = 'source'
+        _role = 'source'
 
         _url = v_url
         _other_meta = dict(url=v_url)

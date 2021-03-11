@@ -13,7 +13,7 @@ def test_step_content_pass(tmpdir):
 
     class R(Recipe):
         class S1(Step):
-            role = SOURCE
+            _role = SOURCE
             keep = False
 
             def instructions(self):
@@ -21,7 +21,7 @@ def test_step_content_pass(tmpdir):
 
         class S2(Step):
             output = Path('product.txt')
-            role = PRODUCT
+            _role = PRODUCT
             x = ingredient('S1')
 
             def instructions(self):
