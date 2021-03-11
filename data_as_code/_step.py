@@ -57,7 +57,7 @@ class Step:
     passed to it from the :class:`data_as_code.Recipe`.
     """
 
-    _role: str = INTERMEDIARY
+    _role: str
     """The type of role that this step plays in the :class:`data_as_code.Recipe`.
     This influences a number of different processes, such as keep settings,
     name requirements, and pathing of retained artifacts. Should be set using

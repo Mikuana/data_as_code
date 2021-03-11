@@ -68,6 +68,7 @@ class Recipe:
         self.trust_cache = trust_cache or self.trust_cache
 
         self._step_check()
+        self._assign_roles()
 
     def execute(self):
         self._begin()
@@ -149,34 +150,35 @@ class Recipe:
                 )
                 assert ingredient_name in priors, msg
 
-    @classmethod
-    def _role_dealer(cls) -> Dict[str, str]:
+    def _assign_roles(self):
         """
         Role assigner
 
         Determines the role that a Step result plays by looking at the links to
-        other steps. The logic breaks down this way:
+        other steps, then assigning that role.
+
+        The logic breaks down this way:
          - if a Step has no ingredients, it is a source
          - if a Step is not an ingredient for any other step, then it is a
             product (overwriting previous Source assignment if applicable)
          - if a Step is neither a source or product, then it is an intermediary
         """
-        roles = {}
-        steps = cls._steps()
+        steps = self._steps()
         ingredient_list = set(
             ingredient[1].step_name for sublist in steps.values()
             for ingredient in sublist._get_ingredients()
         )
 
         for k, step in steps.items():
+            role = None
             if not step._get_ingredients():
-                roles[k] = SOURCE
+                role = SOURCE
             if k not in ingredient_list:
-                roles[k] = PRODUCT
-            if not roles.get(k):
-                roles[k] = INTERMEDIARY
+                role = PRODUCT
+            if role is None:
+                role = INTERMEDIARY
 
-        return roles
+            setattr(getattr(self, k), '_role', role)
 
     def _get_targets(self):
         fold = self.destination.absolute()
