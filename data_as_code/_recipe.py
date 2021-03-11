@@ -149,6 +149,35 @@ class Recipe:
                 )
                 assert ingredient_name in priors, msg
 
+    @classmethod
+    def _role_dealer(cls) -> Dict[str, str]:
+        """
+        Role assigner
+
+        Determines the role that a Step result plays by looking at the links to
+        other steps. The logic breaks down this way:
+         - if a Step has no ingredients, it is a source
+         - if a Step is not an ingredient for any other step, then it is a
+            product (overwriting previous Source assignment if applicable)
+         - if a Step is neither a source or product, then it is an intermediary
+        """
+        roles = {}
+        steps = cls._steps()
+        ingredient_list = set(
+            ingredient[1].step_name for sublist in steps.values()
+            for ingredient in sublist._get_ingredients()
+        )
+
+        for k, step in steps.items():
+            if not step._get_ingredients():
+                roles[k] = SOURCE
+            if k not in ingredient_list:
+                roles[k] = PRODUCT
+            if not roles.get(k):
+                roles[k] = INTERMEDIARY
+
+        return roles
+
     def _get_targets(self):
         fold = self.destination.absolute()
 
