@@ -8,7 +8,7 @@ import tarfile
 import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Dict, Type
+from typing import Union, Dict, Type, Tuple
 
 from data_as_code._step import Step
 from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
@@ -40,10 +40,11 @@ class Recipe:
         Values set here are overwritten by those set in individual Step
         settings.
     """
-    keep: Dict[str, bool] = {PRODUCT: True}
+    keep: Dict[str, bool] = (PRODUCT,)
     """Controls whether to keep source, intermediate, and final product
     artifacts. Values set here can be overwritten by the `keep`
-    parameter during construction, or by those set in individual Step settings. 
+    parameter during construction, or by those set in individual Step settings.
+    Defaults to retaining all products. 
     """
 
     trust_cache = True
@@ -61,10 +62,10 @@ class Recipe:
 
     def __init__(
             self, destination: Union[str, Path] = '.',
-            keep: Dict[str, bool] = None, trust_cache: bool = None
+            keep: Union[str, Tuple[str]] = None, trust_cache: bool = None
     ):
         self.destination = Path(destination)
-        self.keep = keep or self.keep
+        self.keep = (keep if isinstance(keep, tuple) else (keep,)) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
 
         self._step_check()
@@ -76,7 +77,7 @@ class Recipe:
         self._results = {}
         for name, step in self._steps().items():
             if step.keep is None:
-                step.keep = self.keep.get(step._role)
+                step.keep = step._role in self.keep
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
@@ -101,12 +102,13 @@ class Recipe:
         """
         self._target = self._get_targets()
 
-        for k, v in self._target.manifest():
-            if v.exists() and self.keep.get('existing', False) is True:
-                raise FileExistsError(
-                    f"{k} '{v.as_posix()}' exists and `keep.existing == True`."
-                    "\nChange the keep.existing setting to False to overwrite."
-                )
+        # TODO: re-enable this, but not using the keep param
+        # for k, v in self._target.manifest():
+        #     if v.exists() and self.keep.get('existing', False) is True:
+        #         raise FileExistsError(
+        #             f"{k} '{v.as_posix()}' exists and `keep.existing == True`."
+        #             "\nChange the keep.existing setting to False to overwrite."
+        #         )
 
         self._target.folder.mkdir(exist_ok=True)
         self._td = TemporaryDirectory()
@@ -123,9 +125,11 @@ class Recipe:
         cwd = os.getcwd()
         try:
             os.chdir(self._target.folder)
-            self._package()
-            if self.keep.get('workspace', False) is False:
-                self._td.cleanup()
+            # TODO: re-enable when I figure out why this runs so slowly
+            # self._package()
+            # TODO: re-enable using something other than the keep param
+            # if self.keep.get('workspace', False) is False:
+            self._td.cleanup()
         finally:
             os.chdir(cwd)
 
@@ -200,18 +204,19 @@ class Recipe:
         return Target
 
     def _package(self):
-        if self.keep.get('archive', True) is True:
-            with tarfile.open(self._target.archive, "w") as tar:
-                for k, v in self._target.manifest():
-                    if v.is_file():
-                        tar.add(v, v.relative_to(self._target.folder))
-                    else:
-                        for file in v.rglob('*'):
-                            tar.add(file, file.relative_to(self._target.folder))
+        # TODO: re-enable using something other than the keep param
+        # if self.keep.get('archive', True) is True:
+        with tarfile.open(self._target.archive, "w") as tar:
+            for k, v in self._target.manifest():
+                if v.is_file():
+                    tar.add(v, v.relative_to(self._target.folder))
+                else:
+                    for file in v.rglob('*'):
+                        tar.add(file, file.relative_to(self._target.folder))
 
-            with gzip.open(self._target.gzip, 'wb') as f_out:
-                f_out.write(self._target.archive.read_bytes())
-            self._target.archive.unlink()
+        with gzip.open(self._target.gzip, 'wb') as f_out:
+            f_out.write(self._target.archive.read_bytes())
+        self._target.archive.unlink()
 
     def _freeze_requirements(self):
         reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
