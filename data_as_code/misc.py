@@ -17,3 +17,8 @@ PRODUCT = 'product'
 
 def _pip_freeze() -> bytes:
     return subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+
+
+def _pipenv_init():
+    reqs = ['requests', 'tqdm']
+    subprocess.check_output([sys.executable, '-m', 'pipenv', 'install'] + reqs)
