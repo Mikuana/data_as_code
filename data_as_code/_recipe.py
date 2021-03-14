@@ -2,16 +2,13 @@ import gzip
 import inspect
 import json
 import os
-import subprocess
-import sys
 import tarfile
-import warnings
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, Tuple
 
 from data_as_code._step import Step
-from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
+from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE, _pip_freeze
 
 __all__ = ['Recipe']
 
@@ -222,13 +219,7 @@ class Recipe:
         self._target.archive.unlink()
 
     def _freeze_requirements(self):
-        reqs = subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
-        self._target.reqs.write_bytes(reqs)
-
-    # noinspection PyMethodMayBeStatic
-    def _freeze_recipe(self):  # TODO: should do this
-        warnings.warn('Recipe freeze does not do anything yet')
-        pass
+        self._target.reqs.write_bytes(_pip_freeze())
 
     def _export_metadata(self):
         for result in self._results.values():
