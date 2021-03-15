@@ -1,4 +1,3 @@
-import sys
 import argparse
 import os
 import venv
@@ -15,7 +14,7 @@ def menu(args=None):
 
 def _parse_args(args: list = None):
     parser = argparse.ArgumentParser(
-        prog='data_as_code',
+        prog='data-as-code',
         description="Data-as-Code command line actions"
     )
     subparsers = parser.add_subparsers(

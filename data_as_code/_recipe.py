@@ -82,7 +82,6 @@ class Recipe:
                 self._workspace.absolute(), self._target.folder, self._results
             )
 
-        self._freeze_recipe()
         self._freeze_requirements()
         self._export_metadata()
 
