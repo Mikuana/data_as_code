@@ -1,3 +1,5 @@
+import sys
+import argparse
 import os
 import venv
 from pathlib import Path
@@ -6,16 +8,46 @@ from typing import Union
 from data_as_code.misc import _pipenv_init
 
 
-def initialize_folder(path: Union[Path, str] = '.', exist_ok=False):
-    _InitializeFolder(path, exist_ok)
+def menu(args=None):
+    args = _parse_args(args)
+    args.func(args)
+
+
+def _parse_args(args: list = None):
+    parser = argparse.ArgumentParser(
+        prog='data_as_code',
+        description="Data-as-Code command line actions"
+    )
+    subparsers = parser.add_subparsers(
+        title='commands', description="", required=True, metavar=''
+    )
+
+    parser_init = subparsers.add_parser(
+        'init', help='initialize a project folder'
+    )
+    parser_init.add_argument(
+        '-d', type=str,
+        help='the path to the directory that should be initialized'
+    )
+    parser_init.add_argument(
+        '--git', action='store_true',
+        help='include git artifacts in folder'
+    )
+    parser_init.set_defaults(func=initialize_folder)
+
+    return parser.parse_args(args)
+
+
+def initialize_folder(arg: argparse.Namespace):
+    _InitializeFolder(path=arg.d)
 
 
 class _InitializeFolder:
-    def __init__(self, path: Union[Path, str] = '.', exist_ok=False):
-        self.wd = Path(path).absolute()
+    def __init__(self, path: Union[Path, str] = None, exist_ok=False):
+        self.wd = Path(path or '.').absolute()
         self.exist_ok = exist_ok
 
-        # self.make_folder('.')  # create project folder
+        self.wd.mkdir(exist_ok=True)
         self.make_folder('data/')
         self.make_folder('metadata/')
         self.make_recipe('recipe.py')
@@ -56,13 +88,3 @@ class _InitializeFolder:
         ]
         txt = '\n'.join(patterns)
         self._make_file(file, txt)
-
-
-if __name__ == '__main__':
-    import shutil
-
-    p = Path(Path.home(), "Downloads", 'yyz')
-    if p.is_dir():
-        shutil.rmtree(p)
-
-    initialize_folder(p)

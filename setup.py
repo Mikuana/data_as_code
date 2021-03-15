@@ -39,7 +39,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     entry_points={
         'console_scripts': [
-            'data-as-code=data_as_code._commands:initialize_folder'
+            'data-as-code=data_as_code._commands:menu'
         ],
     }
 )
