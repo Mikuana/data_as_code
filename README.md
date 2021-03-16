@@ -9,7 +9,7 @@ replace all occurrences of the word 'Data' with 'Code'.
 ```python
 from pathlib import Path
 
-from data_as_code import Recipe, Step, ingredient, source_http, product
+from data_as_code import Recipe, Step, ingredient, source_http, PRODUCT
 
 
 class DataAsCode(Recipe):
@@ -19,7 +19,7 @@ class DataAsCode(Recipe):
         """Change all instance of the word 'Data' to 'Code'"""
         x = ingredient('wiki')
         output = Path('code.html')
-        role = product
+        _role = PRODUCT
 
         def instructions(self):
             self.output.write_text(

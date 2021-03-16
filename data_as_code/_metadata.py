@@ -43,12 +43,9 @@ class Metadata:
     def calculate_fingerprint(self) -> str:
         d = dict(
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage]),
+            lineage=sorted([x.fingerprint for x in self.lineage]), role=self.role,
             step_description=self.step_description, step_instruction=self._step_instruction
         )
-        if self._relative_path:
-            d['path'] = self._relative_path.as_posix()
-
         d = {
             **d,
             **{k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}

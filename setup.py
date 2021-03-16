@@ -28,13 +28,19 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-      'pyarrow',
-      'requests',
-      'tqdm'
+        'requests',
+        'tqdm',
+        'pipenv'
     ],
     extras_require={
         'Lineage': ['networkx', 'plotly'],
         'Testing': ['pytest', 'pytest-mock', 'pytest-cov']
     },
-    packages=setuptools.find_packages()
+    packages=setuptools.find_packages(),
+    entry_points={
+        'console_scripts': [
+            'data-as-code=data_as_code._commands:menu',
+            'dac=data_as_code._commands:menu'
+        ],
+    }
 )

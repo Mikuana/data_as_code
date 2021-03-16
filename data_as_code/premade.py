@@ -1,3 +1,13 @@
+"""
+Functions to generate premade steps
+
+This submodule contains a set of functions with limited parameters, which are
+used to generate pre-made Step classes. These are intended to handle
+"undifferentiated heavy lifting", where the same basic tasks are repeated over
+and over again, but to handle it in a way which brings the advantages of the
+data-as-code framework, including the tracking of metadata, and caching of
+artifacts.
+"""
 import inspect
 import shutil
 from hashlib import md5
@@ -7,11 +17,26 @@ from typing import Union, Type
 import requests
 from tqdm import tqdm
 
-from data_as_code import Step
 from data_as_code._metadata import Metadata
+from data_as_code._step import Step
+
+__all__ = [
+    'source_local', 'source_http'
+]
 
 
 def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
+    """
+    Source file from local system
+
+    Read a file directly from the path specified on the local file system.
+
+    :param path: a pathlib.Path or path-like string that can be resolved at
+        execution.
+    :param keep: a control of whether to copy the referenced file to the
+        destination specified by the recipe.
+    :return: a :class:`data_as_code.Step` class which will mange the reading of a local file
+    """
     v_path = Path(path)
     v_keep = keep
 
@@ -19,7 +44,6 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         """Source file from available file system."""
         output = v_path
         keep = v_keep
-        role = 'source'
 
         def instructions(self):
             pass
@@ -32,7 +56,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 return self._make_metadata()
 
         def _make_metadata(self) -> Metadata:
-            rp = Path('data', self.role, self.output.name)
+            rp = Path('data', self._role, self.output.name)
             if self.keep is True:
                 ap = Path(self._destination, rp)
                 ap.parent.mkdir(parents=True, exist_ok=True)
@@ -45,7 +69,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 checksum_value=md5(self.output.read_bytes()).hexdigest(),
                 checksum_algorithm='md5',
                 lineage=[x for x in self._ingredients],
-                role=self.role, step_description=self.__doc__,
+                role=self._role, step_description=self.__doc__,
                 step_instruction=inspect.getsource(self.instructions)
             )
 
@@ -53,6 +77,18 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
 
 
 def source_http(url: str, keep=False) -> Type[Step]:
+    """
+    Source file from HTTP download
+
+    Download a file from the specified URL.
+
+    :param url: a URL which can be accessed directly via GET at execution, with
+        the need for authentication
+    :param keep: a control of whether to cache the downloaded file to the
+        Recipe destination.
+    :return: a :class:`data_as_code.Step` class which will mange the download of
+        a file via HTTP
+    """
     v_url = url
     v_keep = keep
 
@@ -60,7 +96,6 @@ def source_http(url: str, keep=False) -> Type[Step]:
         """Retrieve file from URL via HTTP."""
         output = Path(Path(v_url).name)
         keep = v_keep
-        role = 'source'
 
         _url = v_url
         _other_meta = dict(url=v_url)
