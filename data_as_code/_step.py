@@ -138,7 +138,6 @@ class Step:
     def _execute(self) -> Dict[str, Metadata]:
         """Do the work"""
         cached = self._check_cache()
-        print(f"{[x for x in self._results.values()]}")
         if cached and self.trust_cache is True:
             self._data_from_cache = True
             return cached
@@ -219,14 +218,14 @@ class Step:
 
             hxd = md5(p.read_bytes()).hexdigest()
 
-            ap, rp = None, None
-            if self._targeted is False:
-                rp = p
+            ap = p
             if self.keep is True:
                 rp = Path('data', self._role, self.output)
                 ap = Path(self._destination, rp).absolute()
                 ap.parent.mkdir(parents=True, exist_ok=True)
                 p.rename(ap)
+            else:
+                rp = None
 
             meta_dict[k] = Metadata(
                 absolute_path=ap, relative_path=rp,
