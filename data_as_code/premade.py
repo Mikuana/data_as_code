@@ -94,7 +94,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
 
     class PremadeSourceHTTP(Step):
         """Retrieve file from URL via HTTP."""
-        # output = result(Path(v_url).name)
+        output = result(Path(v_url).name)
         keep = v_keep
 
         _url = v_url
