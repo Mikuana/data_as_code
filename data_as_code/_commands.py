@@ -1,9 +1,11 @@
 import argparse
 import os
+import sys
 import venv
 from pathlib import Path
 from typing import Union
 
+from data_as_code import __version__
 from data_as_code.misc import _pipenv_init
 
 
@@ -13,32 +15,45 @@ def menu(args=None):
 
 
 def _parse_args(args: list = None):
+    program = 'data-as-code'
     parser = argparse.ArgumentParser(
-        prog='data-as-code',
-        description="Data-as-Code command line actions"
+        prog=program,
+        description="data-as-code utilities"
     )
-    subparsers = parser.add_subparsers(
-        title='commands', description="", required=True, metavar=''
+    parser.add_argument(
+        '--version', action='version',
+        version=f'{program} version {__version__}'
     )
 
-    parser_init = subparsers.add_parser(
+    commands = parser.add_subparsers(metavar='')
+
+    # init submodule
+    cmd_init = commands.add_parser(
         'init', help='initialize a project folder'
     )
-    parser_init.add_argument(
-        '-d', type=str,
-        help='the path to the directory that should be initialized'
+    cmd_init.set_defaults(func=initialize_folder)
+    cmd_init.add_argument(
+        '-d', type=str, default='.',
+        help='path to project folder. Defaults to current directory'
     )
-    parser_init.add_argument(
-        '--git', action='store_true',
+    cmd_init.add_argument(
+        '-x', action='store_true', default=False,
+        help='ignore error if folder or objects already exist'
+    )
+    cmd_init.add_argument(
+        '--git', action='store_true', default=False,
         help='include git artifacts in folder'
     )
-    parser_init.set_defaults(func=initialize_folder)
 
-    return parser.parse_args(args)
+    if not len(sys.argv) > 1:  # if no args, print help to stderr
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+    else:
+        return parser.parse_args(args)
 
 
 def initialize_folder(arg: argparse.Namespace):
-    _InitializeFolder(path=arg.d)
+    _InitializeFolder(path=arg.d, exist_ok=arg.x)
 
 
 class _InitializeFolder:
@@ -61,7 +76,7 @@ class _InitializeFolder:
 
     def _make_file(self, x: str, txt: str):
         p = Path(self.wd, x)
-        if p.exists():
+        if p.exists() and self.exist_ok is False:
             raise FileExistsError(f"{x} already exists in {self.wd}")
         else:
             if isinstance(txt, bytes):
