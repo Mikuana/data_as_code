@@ -98,7 +98,6 @@ class Step:
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
-    _targeted = True  # TODO: ew
 
     def __init__(
             self, _workspace: Path, _destination: Path,
@@ -114,7 +113,6 @@ class Step:
         self._ingredients = self._set_ingredients()
         self._results = self._set_results()
         if not self._results:
-            self._targeted = False
             if self.keep is True:
                 raise ex.StepUndefinedOutput(
                     "To keep an artifact you must define the output path"
