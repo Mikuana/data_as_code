@@ -68,7 +68,7 @@ class Step:
                  self.output.write_text(self.x.read_text())
     """
 
-    output: Union[Path, str] = None
+    output: _Result = None
     """The relative path of the output artifact of the step. Optional, unless
     `keep` is set to True. This path must be relative, because the ultimate
     destination of the artifact is controlled by the
@@ -111,18 +111,14 @@ class Step:
 
         self._ingredients = self._set_ingredients()
         self._results = self._set_results()
-
-        # TODO: figure out how to handle this with flexible results
-        if self.output is None and self.keep is True:
-            raise ex.StepUndefinedOutput(
-                "To keep an artifact you must define the output path"
-            )
-        elif self.output:
-            self.output = Path(self.output)
-            if self.keep is None:  # assume keep if output assigned
-                self.keep = True
-        else:
-            self.output = Path(self._guid.hex)
+        if not self._results:
+            if self.keep is True:
+                raise ex.StepUndefinedOutput(
+                    "To keep an artifact you must define the output path"
+                )
+            else:
+                self.output = Path(self._guid.hex)
+                self._results['output'] = self.output
 
         self.metadata = self._execute()
         self._timing['completed'] = datetime.utcnow()
@@ -136,7 +132,7 @@ class Step:
         """
         return None
 
-    def _execute(self) -> Metadata:
+    def _execute(self) -> Union[Metadata, Dict[str, Metadata]]:
         """Do the work"""
         cached = self._check_cache()
         if cached and self.trust_cache is True:
@@ -226,26 +222,29 @@ class Step:
             timing=self._timing
         )
 
-    def _check_cache(self) -> Union[Metadata, None]:
+    def _check_cache(self) -> Union[Dict[str, Metadata], None]:
         """
         Check project data folder for existing file before attempting to recreate.
         If fingerprint in the metadata matches the mocked fingerprint, use the
         existing metadata without executing instructions.
         """
-        mp = Path(self._destination, 'metadata', self._role, f'{self.output}.json')
-        if mp.is_file():
-            meta = from_dictionary(
-                **json.loads(mp.read_text()),
-                relative_to=self._destination.as_posix()
-            )
-            dp = meta.path
-            if dp.is_file():
-                try:
-                    assert meta.fingerprint == self._mock_fingerprint(dp)
-                    assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
-                    return meta
-                except AssertionError:
-                    return
+        cache = {}
+        for k, v in self._results.items():
+            mp = Path(self._destination, 'metadata', self._role, f'{k}.json')
+            if mp.is_file():
+                meta = from_dictionary(
+                    **json.loads(mp.read_text()),
+                    relative_to=self._destination.as_posix()
+                )
+                dp = meta.path
+                if dp.is_file():
+                    try:
+                        assert meta.fingerprint == self._mock_fingerprint(dp)
+                        assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
+                        cache[k] = meta
+                    except AssertionError:
+                        return
+        return cache
 
     def _mock_fingerprint(self, candidate: Path) -> str:
         """ Generate a mock metadata fingerprint """

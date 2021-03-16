@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, Tuple
 
-from data_as_code._step import Step
+from data_as_code._step import Step, _Result
 from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE, _pip_freeze
 
 __all__ = ['Recipe']
@@ -195,10 +195,7 @@ class Recipe:
 
             @classmethod
             def manifest(cls):
-                # TODO: get complete list of output data and metadata files
-                # from steps so that manifest can be explicit instead of forcing
-                # the package step to use rglob.
-                return inspect.getmembers(Target, lambda x: isinstance(x, Path))
+                return inspect.getmembers(Target, lambda x: isinstance(x, _Result))
 
         return Target
 
