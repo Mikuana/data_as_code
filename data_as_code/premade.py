@@ -18,7 +18,7 @@ import requests
 from tqdm import tqdm
 
 from data_as_code._metadata import Metadata
-from data_as_code._step import Step
+from data_as_code._step import Step, result
 
 __all__ = [
     'source_local', 'source_http'
@@ -94,7 +94,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
 
     class PremadeSourceHTTP(Step):
         """Retrieve file from URL via HTTP."""
-        output = Path(Path(v_url).name)
+        # output = result(Path(v_url).name)
         keep = v_keep
 
         _url = v_url
