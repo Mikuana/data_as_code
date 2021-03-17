@@ -195,7 +195,16 @@ class Recipe:
 
             @classmethod
             def manifest(cls):
-                return inspect.getmembers(Target, lambda x: isinstance(x, _Result))
+                # TODO: this gets all the results, but not with relative pathing
+                i = [
+                    item.path for sublist in
+                    [
+                        [z[1] for z in x._get_results()]
+                        for x in self._steps().values()
+                    ]
+                    for item in sublist
+                ]
+                return i
 
         return Target
 
