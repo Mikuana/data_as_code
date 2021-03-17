@@ -220,19 +220,17 @@ class Recipe:
     def _export_metadata(self):
         for result in self._results.values():
             if result.keep is True:
-                if result.metadata._relative_to:
-                    r = Path(result.metadata._relative_to, 'data')
-                    pp = Path(
-                        self._target.metadata,
-                        result.metadata.path.relative_to(r)
-                    )
-                else:
-                    pp = Path(
-                        self._target.metadata, result.metadata._role,
-                        result.metadata._relative_path.name
-                    )
-                pp.parent.mkdir(parents=True, exist_ok=True)
+                for k, v in result.metadata.items():
+                    if v._relative_to:
+                        r = Path(v._relative_to, 'data')
+                        pp = Path(self._target.metadata, v.path.relative_to(r))
+                    else:
+                        pp = Path(
+                            self._target.metadata, v._role,
+                            v._relative_path.name
+                        )
+                    pp.parent.mkdir(parents=True, exist_ok=True)
 
-                d = result.metadata.to_dict()
-                j = json.dumps(d, indent=2)
-                Path(pp.as_posix() + '.json').write_text(j)
+                    d = v.to_dict()
+                    j = json.dumps(d, indent=2)
+                    Path(pp.as_posix() + '.json').write_text(j)

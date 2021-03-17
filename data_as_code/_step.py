@@ -212,13 +212,13 @@ class Step:
         """
         meta_dict = {}
         for k, v in self._results.items():
-            p = Path(self._workspace, self.output)
+            p = Path(self._workspace, v)
 
             hxd = md5(p.read_bytes()).hexdigest()
 
             ap = p
             if self.keep is True:
-                rp = Path('data', self._role, self.output)
+                rp = Path('data', self._role, v)
                 ap = Path(self._destination, rp).absolute()
                 ap.parent.mkdir(parents=True, exist_ok=True)
                 p.rename(ap)
