@@ -119,6 +119,7 @@ class Step:
                 )
             else:
                 self.output = Path(self._guid.hex)
+                # noinspection PyTypeChecker
                 self._results['output'] = self.output
 
         self.metadata = self._execute()
