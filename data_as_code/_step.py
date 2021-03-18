@@ -206,11 +206,15 @@ class Step:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Result))
 
     @classmethod
-    def _make_relative_path(cls, p) -> Path:
-        return Path('data', cls._role, p)
+    def _make_relative_path(cls, p, metadata=False) -> Path:
+        if metadata is True:
+            return Path('metadata', cls._role, p.with_suffix(p.suffix + '.json'))
+        else:
+            return Path('data', cls._role, p)
 
-    def _make_absolute_path(self, p) -> Path:
-        return Path(self._destination, self._make_relative_path(p)).absolute()
+    def _make_absolute_path(self, p, metadata=False) -> Path:
+        p = Path(self._destination, self._make_relative_path(p, metadata))
+        return p.absolute()
 
     def _make_metadata(self) -> Dict[str, Metadata]:
         """
@@ -255,7 +259,7 @@ class Step:
         """
         cache = {}
         for k, v in self._results.items():
-            mp = Path(self._destination, 'metadata', self._role, f'{k}.json')
+            mp = self._make_absolute_path(v, metadata=True)
             if mp.is_file():
                 meta = from_dictionary(
                     **json.loads(mp.read_text()),

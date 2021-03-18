@@ -96,13 +96,12 @@ class Recipe:
         """
         self._target = self._get_targets()
 
-        # TODO: re-enable this, but not using the keep param
-        # for k, v in self._target.manifest():
-        #     if v.exists() and self.keep.get('existing', False) is True:
-        #         raise FileExistsError(
-        #             f"{k} '{v.as_posix()}' exists and `keep.existing == True`."
-        #             "\nChange the keep.existing setting to False to overwrite."
-        #         )
+        for v in self._target.results():
+            if v.exists() and False is True:  # TODO: make a control for this
+                raise FileExistsError(
+                    f"{v.as_posix()} exists and `keep.existing == True`."
+                    "\nChange the keep.existing setting to False to overwrite."
+                )
 
         self._target.folder.mkdir(exist_ok=True)
         self._td = TemporaryDirectory()
@@ -121,9 +120,15 @@ class Recipe:
             os.chdir(self._target.folder)
             # TODO: re-enable when I figure out why this runs so slowly
             # self._package()
-            # TODO: re-enable using something other than the keep param
-            # if self.keep.get('workspace', False) is False:
             self._td.cleanup()
+
+            # TODO: add a parameter to optionally control removal of unexpected files
+            expect = self._target.results() + self._target.results(metadata=True)
+            for folder in [self._target.data, self._target.metadata]:
+                for file in [x for x in folder.rglob('*') if x.is_file()]:
+                    if file not in expect:
+                        print(f"Removing unexpected file {file}")
+                        file.unlink()
         finally:
             os.chdir(cwd)
 
@@ -191,12 +196,12 @@ class Recipe:
             gzip = Path(fold, fold.name + '.tar.gz')
 
             @classmethod
-            def results(cls):
+            def results(cls, metadata=False):
                 lol = [
-                    [x._make_relative_path(z[1].path) for z in x._get_results()]
-                    for x in self._steps().values()
+                    [x._make_relative_path(z[1].path, metadata) for z in x._get_results()]
+                    for x in self._steps().values() if x.keep is True
                 ]
-                return [item for sublist in lol for item in sublist]
+                return [Path(fold, item) for sublist in lol for item in sublist]
 
         return Target
 
