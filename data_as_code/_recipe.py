@@ -1,5 +1,4 @@
 import gzip
-import inspect
 import json
 import os
 import tarfile
@@ -8,7 +7,7 @@ from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, Tuple
 
 from data_as_code._step import Step
-from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE, _pip_freeze
+from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
 __all__ = ['Recipe']
 
@@ -82,7 +81,6 @@ class Recipe:
                 self._workspace.absolute(), self._target.folder, self._results
             )
 
-        self._freeze_requirements()
         self._export_metadata()
 
         self._end()
@@ -98,13 +96,12 @@ class Recipe:
         """
         self._target = self._get_targets()
 
-        # TODO: re-enable this, but not using the keep param
-        # for k, v in self._target.manifest():
-        #     if v.exists() and self.keep.get('existing', False) is True:
-        #         raise FileExistsError(
-        #             f"{k} '{v.as_posix()}' exists and `keep.existing == True`."
-        #             "\nChange the keep.existing setting to False to overwrite."
-        #         )
+        for v in self._target.results():
+            if v.exists() and False is True:  # TODO: make a control for this
+                raise FileExistsError(
+                    f"{v.as_posix()} exists and `keep.existing == True`."
+                    "\nChange the keep.existing setting to False to overwrite."
+                )
 
         self._target.folder.mkdir(exist_ok=True)
         self._td = TemporaryDirectory()
@@ -123,9 +120,15 @@ class Recipe:
             os.chdir(self._target.folder)
             # TODO: re-enable when I figure out why this runs so slowly
             # self._package()
-            # TODO: re-enable using something other than the keep param
-            # if self.keep.get('workspace', False) is False:
             self._td.cleanup()
+
+            # TODO: add a parameter to optionally control removal of unexpected files
+            expect = self._target.results() + self._target.results(metadata=True)
+            for folder in [self._target.data, self._target.metadata]:
+                for file in [x for x in folder.rglob('*') if x.is_file()]:
+                    if file not in expect:
+                        print(f"Removing unexpected file {file}")
+                        file.unlink()
         finally:
             os.chdir(cwd)
 
@@ -187,18 +190,18 @@ class Recipe:
             folder = fold
             data = Path(fold, 'data')
             metadata = Path(fold, 'metadata')
-            reqs = Path(fold, 'requirements.txt')
-            recipe = Path(fold, 'recipe.py')  # TODO: this won't work long-term
+            recipe = Path(fold, 'recipe.py')
 
             archive = Path(fold, fold.name + '.tar')
             gzip = Path(fold, fold.name + '.tar.gz')
 
             @classmethod
-            def manifest(cls):
-                # TODO: get complete list of output data and metadata files
-                # from steps so that manifest can be explicit instead of forcing
-                # the package step to use rglob.
-                return inspect.getmembers(Target, lambda x: isinstance(x, Path))
+            def results(cls, metadata=False):
+                lol = [
+                    [x._make_relative_path(z[1].path, metadata) for z in x._get_results()]
+                    for x in self._steps().values() if x.keep is True
+                ]
+                return [Path(fold, item) for sublist in lol for item in sublist]
 
         return Target
 
@@ -206,7 +209,7 @@ class Recipe:
         # TODO: re-enable using something other than the keep param
         # if self.keep.get('archive', True) is True:
         with tarfile.open(self._target.archive, "w") as tar:
-            for k, v in self._target.manifest():
+            for k, v in self._target.results():
                 if v.is_file():
                     tar.add(v, v.relative_to(self._target.folder))
                 else:
@@ -217,25 +220,20 @@ class Recipe:
             f_out.write(self._target.archive.read_bytes())
         self._target.archive.unlink()
 
-    def _freeze_requirements(self):
-        self._target.reqs.write_bytes(_pip_freeze())
-
     def _export_metadata(self):
         for result in self._results.values():
             if result.keep is True:
-                if result.metadata._relative_to:
-                    r = Path(result.metadata._relative_to, 'data')
-                    pp = Path(
-                        self._target.metadata,
-                        result.metadata.path.relative_to(r)
-                    )
-                else:
-                    pp = Path(
-                        self._target.metadata, result.metadata._role,
-                        result.metadata._relative_path.name
-                    )
-                pp.parent.mkdir(parents=True, exist_ok=True)
+                for k, v in result.metadata.items():
+                    if v._relative_to:
+                        r = Path(v._relative_to, 'data')
+                        pp = Path(self._target.metadata, v.path.relative_to(r))
+                    else:
+                        pp = Path(
+                            self._target.metadata, v._role,
+                            v._relative_path.name
+                        )
+                    pp.parent.mkdir(parents=True, exist_ok=True)
 
-                d = result.metadata.to_dict()
-                j = json.dumps(d, indent=2)
-                Path(pp.as_posix() + '.json').write_text(j)
+                    d = v.to_dict()
+                    j = json.dumps(d, indent=2)
+                    Path(pp.as_posix() + '.json').write_text(j)

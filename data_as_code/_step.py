@@ -12,11 +12,12 @@ from data_as_code._metadata import Metadata, from_dictionary
 
 
 class _Ingredient:
-    def __init__(self, step_name: str):
+    def __init__(self, step_name: str, result_name: str = None):
         self.step_name = step_name
+        self.result_name = result_name
 
 
-def ingredient(step: str) -> Path:
+def ingredient(step: str, result_name: str = None) -> Path:
     """
     Prepare step ingredient
 
@@ -34,7 +35,7 @@ def ingredient(step: str) -> Path:
     be called directly from inside the :class:`Step.instructions`
     """
     # noinspection PyTypeChecker
-    return _Ingredient(step)
+    return _Ingredient(step, result_name)
 
 
 class _Result:
@@ -68,7 +69,7 @@ class Step:
                  self.output.write_text(self.x.read_text())
     """
 
-    output: Union[Path, str] = None
+    output: _Result = None
     """The relative path of the output artifact of the step. Optional, unless
     `keep` is set to True. This path must be relative, because the ultimate
     destination of the artifact is controlled by the
@@ -97,6 +98,7 @@ class Step:
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
+    _implied_result: bool = False
 
     def __init__(
             self, _workspace: Path, _destination: Path,
@@ -111,18 +113,16 @@ class Step:
 
         self._ingredients = self._set_ingredients()
         self._results = self._set_results()
-
-        # TODO: figure out how to handle this with flexible results
-        if self.output is None and self.keep is True:
-            raise ex.StepUndefinedOutput(
-                "To keep an artifact you must define the output path"
-            )
-        elif self.output:
-            self.output = Path(self.output)
-            if self.keep is None:  # assume keep if output assigned
-                self.keep = True
-        else:
-            self.output = Path(self._guid.hex)
+        if not self._results:
+            self._implied_result = True
+            if self.keep is True:
+                raise ex.StepUndefinedOutput(
+                    "To keep an artifact you must define the output path"
+                )
+            else:
+                self.output = Path(self._guid.hex)
+                # noinspection PyTypeChecker
+                self._results['output'] = self.output
 
         self.metadata = self._execute()
         self._timing['completed'] = datetime.utcnow()
@@ -136,12 +136,11 @@ class Step:
         """
         return None
 
-    def _execute(self) -> Metadata:
+    def _execute(self) -> Dict[str, Metadata]:
         """Do the work"""
         cached = self._check_cache()
         if cached and self.trust_cache is True:
             self._data_from_cache = True
-            print(f"Using cache for {self._role} '{self.output}'")
             return cached
         else:
             self._data_from_cache = False
@@ -149,14 +148,17 @@ class Step:
             try:
                 self._workspace.mkdir(exist_ok=True)
                 os.chdir(self._workspace)
-                if not self.output.parent.as_posix() == '.':
-                    self.output.parent.mkdir(parents=True)
 
-                if self.instructions():
+                for k, v in self._results.items():
+                    if not v.parent.as_posix() == '.':
+                        v.parent.mkdir(parents=True)
+
+                if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
-                if not self.output.exists():
-                    raise ex.StepOutputMustExist()
+                for k, v in self._results.items():
+                    if not v.is_file():
+                        raise ex.StepOutputMustExist()
 
                 return self._make_metadata()
             finally:
@@ -175,19 +177,27 @@ class Step:
         """
         ingredients = []
         for k, v in self._get_ingredients():
-            ingredients.append(self._antecedents[v.step_name].metadata)
-            self.__setattr__(k, self._antecedents[v.step_name].metadata.path)
+            ante = self._antecedents[v.step_name]
+            if v.result_name is None:
+                if len(ante.metadata) == 1:
+                    m = list(ante.metadata.values())[0]
+                else:
+                    raise Exception
+            else:
+                m = ante.metadata[v.result_name]
+            ingredients.append(m)
+            setattr(self, k, m.path)
         return ingredients
 
     @classmethod
     def _get_ingredients(cls) -> List[Tuple[str, _Ingredient]]:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
 
-    def _set_results(self):
+    def _set_results(self) -> Dict[str, Path]:
         """Set Outputs"""
         results = {}
         for k, v in self._get_results():
-            results[k] = v
+            results[k] = v.path
             self.__setattr__(k, v.path)
         return results
 
@@ -195,7 +205,18 @@ class Step:
     def _get_results(cls) -> List[Tuple[str, _Result]]:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Result))
 
-    def _make_metadata(self) -> Union[Metadata, Dict[str, Metadata]]:
+    @classmethod
+    def _make_relative_path(cls, p, metadata=False) -> Path:
+        if metadata is True:
+            return Path('metadata', cls._role, p.with_suffix(p.suffix + '.json'))
+        else:
+            return Path('data', cls._role, p)
+
+    def _make_absolute_path(self, p, metadata=False) -> Path:
+        p = Path(self._destination, self._make_relative_path(p, metadata))
+        return p.absolute()
+
+    def _make_metadata(self) -> Dict[str, Metadata]:
         """
         Set Output Metadata
 
@@ -203,49 +224,56 @@ class Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        p = Path(self._workspace, self.output)
+        meta_dict = {}
+        for k, v in self._results.items():
+            p = Path(self._workspace, v)
+            hxd = md5(p.read_bytes()).hexdigest()
 
-        hxd = md5(p.read_bytes()).hexdigest()
+            if self.keep is True:
+                rp = self._make_relative_path(v)
+                ap = self._make_absolute_path(v)
+                ap.parent.mkdir(parents=True, exist_ok=True)
+                p.rename(ap)
+            else:
+                ap = p
+                rp = None
 
-        ap, rp = None, None
-        if self.output.name == self._guid.hex:
-            ap = p
-        elif self.keep is True:
-            rp = Path('data', self._role, self.output)
-            ap = Path(self._destination, rp).absolute()
-            ap.parent.mkdir(parents=True, exist_ok=True)
-            p.rename(ap)
+            meta_dict[k] = Metadata(
+                absolute_path=ap, relative_path=rp,
+                checksum_value=hxd, checksum_algorithm='md5',
+                lineage=[x for x in self._ingredients],
+                role=self._role, relative_to=self._destination.absolute(),
+                other=self._other_meta, step_description=self.__class__.__doc__,
+                step_instruction=inspect.getsource(self.instructions),
+                timing=self._timing
+            )
+        for k, v in meta_dict.items():
+            setattr(self, k, v)
+        return meta_dict
 
-        return Metadata(
-            absolute_path=ap, relative_path=rp,
-            checksum_value=hxd, checksum_algorithm='md5',
-            lineage=[x for x in self._ingredients],
-            role=self._role, relative_to=self._destination.absolute(),
-            other=self._other_meta, step_description=self.__class__.__doc__,
-            step_instruction=inspect.getsource(self.instructions),
-            timing=self._timing
-        )
-
-    def _check_cache(self) -> Union[Metadata, None]:
+    def _check_cache(self) -> Union[Dict[str, Metadata], None]:
         """
         Check project data folder for existing file before attempting to recreate.
         If fingerprint in the metadata matches the mocked fingerprint, use the
         existing metadata without executing instructions.
         """
-        mp = Path(self._destination, 'metadata', self._role, f'{self.output}.json')
-        if mp.is_file():
-            meta = from_dictionary(
-                **json.loads(mp.read_text()),
-                relative_to=self._destination.as_posix()
-            )
-            dp = meta.path
-            if dp.is_file():
-                try:
-                    assert meta.fingerprint == self._mock_fingerprint(dp)
-                    assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
-                    return meta
-                except AssertionError:
-                    return
+        cache = {}
+        for k, v in self._results.items():
+            mp = self._make_absolute_path(v, metadata=True)
+            if mp.is_file():
+                meta = from_dictionary(
+                    **json.loads(mp.read_text()),
+                    relative_to=self._destination.as_posix()
+                )
+                dp = meta.path
+                if dp.is_file():
+                    try:
+                        assert meta.fingerprint == self._mock_fingerprint(dp)
+                        assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
+                        cache[k] = meta
+                    except AssertionError:
+                        return
+        return cache
 
     def _mock_fingerprint(self, candidate: Path) -> str:
         """ Generate a mock metadata fingerprint """
