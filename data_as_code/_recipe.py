@@ -1,3 +1,5 @@
+import sys
+import difflib
 import gzip
 import json
 import os
@@ -84,6 +86,60 @@ class Recipe:
         self._export_metadata()
 
         self._end()
+
+    def verify(self):
+        """
+        Verify package contents
+
+        Execute the recipe in a separate workspace to verify that identical
+        contents can be produced.
+
+         - check metadata against all files to verify checksums
+           - data without metadata warns
+           - data with mismatched checksum warns
+         - check metadata against verified files
+           - destination metadata without verification match warns
+           - verification metadata without destination match warns
+           - diff in contents between matching metadata warns
+
+         - optional switch to verify only what exists (from point of last
+           available)?
+
+        :return:
+        """
+        with TemporaryDirectory() as container:
+            orig = self.destination
+            r = self.__class__(container)
+            r.execute()
+
+            new_meta = {
+                x.relative_to(container): x.read_text()
+                for x in r._target.results(metadata=True)
+            }
+            orig_meta = {
+                x.relative_to(orig): x.read_text()
+                for x in Path(self.destination, 'metadata').rglob('*')
+                if x.is_file()
+            }
+
+            new_diff = set(new_meta.keys()).difference(set(orig_meta.keys()))
+            if new_diff:
+                print(f"Verification contained new file(s):\n")
+                for x in new_diff:
+                    print(' - ' + x.as_posix())
+
+            orig_diff = set(orig_meta.keys()).difference(set(new_meta.keys()))
+            if orig_diff:
+                print(f"Project folder contains unexpected file(s):")
+                for x in orig_diff:
+                    print(' - ' + x.as_posix())
+
+            print("Comparing metadata contents")
+            for meta in set(orig_meta.keys()).intersection(new_meta.keys()):
+                s1, s2 = orig_meta[meta], new_meta[meta]
+                sys.stdout.writelines(
+                    difflib.unified_diff(s1, s2, meta.as_posix(), 'verification')
+                )
 
     def _begin(self):
         """
