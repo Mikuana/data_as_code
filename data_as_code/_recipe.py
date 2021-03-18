@@ -1,5 +1,4 @@
 import gzip
-import inspect
 import json
 import os
 import tarfile
@@ -7,8 +6,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, Tuple
 
-from data_as_code._step import Step, _Result
-from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE, _pip_freeze
+from data_as_code._step import Step
+from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
 __all__ = ['Recipe']
 
@@ -82,7 +81,6 @@ class Recipe:
                 self._workspace.absolute(), self._target.folder, self._results
             )
 
-        self._freeze_requirements()
         self._export_metadata()
 
         self._end()
@@ -187,24 +185,18 @@ class Recipe:
             folder = fold
             data = Path(fold, 'data')
             metadata = Path(fold, 'metadata')
-            reqs = Path(fold, 'requirements.txt')
-            recipe = Path(fold, 'recipe.py')  # TODO: this won't work long-term
+            recipe = Path(fold, 'recipe.py')
 
             archive = Path(fold, fold.name + '.tar')
             gzip = Path(fold, fold.name + '.tar.gz')
 
             @classmethod
-            def manifest(cls):
-                # TODO: this gets all the results, but not with relative pathing
-                i = [
-                    item.path for sublist in
-                    [
-                        [z[1] for z in x._get_results()]
-                        for x in self._steps().values()
-                    ]
-                    for item in sublist
+            def results(cls):
+                lol = [
+                    [x._make_relative_path(z[1].path) for z in x._get_results()]
+                    for x in self._steps().values()
                 ]
-                return i
+                return [item for sublist in lol for item in sublist]
 
         return Target
 
@@ -212,7 +204,7 @@ class Recipe:
         # TODO: re-enable using something other than the keep param
         # if self.keep.get('archive', True) is True:
         with tarfile.open(self._target.archive, "w") as tar:
-            for k, v in self._target.manifest():
+            for k, v in self._target.results():
                 if v.is_file():
                     tar.add(v, v.relative_to(self._target.folder))
                 else:
@@ -222,9 +214,6 @@ class Recipe:
         with gzip.open(self._target.gzip, 'wb') as f_out:
             f_out.write(self._target.archive.read_bytes())
         self._target.archive.unlink()
-
-    def _freeze_requirements(self):
-        self._target.reqs.write_bytes(_pip_freeze())
 
     def _export_metadata(self):
         for result in self._results.values():

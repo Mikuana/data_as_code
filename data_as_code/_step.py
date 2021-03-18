@@ -98,6 +98,7 @@ class Step:
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
+    _implied_result: bool = False
 
     def __init__(
             self, _workspace: Path, _destination: Path,
@@ -113,6 +114,7 @@ class Step:
         self._ingredients = self._set_ingredients()
         self._results = self._set_results()
         if not self._results:
+            self._implied_result = True
             if self.keep is True:
                 raise ex.StepUndefinedOutput(
                     "To keep an artifact you must define the output path"
@@ -203,6 +205,13 @@ class Step:
     def _get_results(cls) -> List[Tuple[str, _Result]]:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Result))
 
+    @classmethod
+    def _make_relative_path(cls, p) -> Path:
+        return Path('data', cls._role, p)
+
+    def _make_absolute_path(self, p) -> Path:
+        return Path(self._destination, self._make_relative_path(p)).absolute()
+
     def _make_metadata(self) -> Dict[str, Metadata]:
         """
         Set Output Metadata
@@ -214,16 +223,15 @@ class Step:
         meta_dict = {}
         for k, v in self._results.items():
             p = Path(self._workspace, v)
-
             hxd = md5(p.read_bytes()).hexdigest()
 
-            ap = p
             if self.keep is True:
-                rp = Path('data', self._role, v)
-                ap = Path(self._destination, rp).absolute()
+                rp = self._make_relative_path(v)
+                ap = self._make_absolute_path(v)
                 ap.parent.mkdir(parents=True, exist_ok=True)
                 p.rename(ap)
             else:
+                ap = p
                 rp = None
 
             meta_dict[k] = Metadata(
