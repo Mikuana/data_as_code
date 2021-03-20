@@ -1,3 +1,5 @@
+import sys
+import difflib
 import gzip
 import json
 import os
@@ -66,6 +68,7 @@ class Recipe:
 
         self._step_check()
         self._assign_roles()
+        self._target = self._get_targets()
 
     def execute(self):
         self._begin()
@@ -85,6 +88,69 @@ class Recipe:
 
         self._end()
 
+    def verify(self):
+        """
+        Verify package contents
+
+        Execute the recipe in a separate workspace to verify that identical
+        contents can be produced.
+
+         - check metadata against all files to verify checksums
+           - data without metadata warns
+           - data with mismatched checksum warns
+         - check metadata against verified files
+           - destination metadata without verification match warns
+           - verification metadata without destination match warns
+           - diff in contents between matching metadata warns
+
+         - optional switch to verify only what exists (from point of last
+           available)?
+
+        :return:
+        """
+        with TemporaryDirectory() as container:
+            r = self.__class__(container)
+            r.execute()
+            self.compare(container)
+
+    def compare(self, compare_to: Path):
+        """
+        Compare the contents of two separate folders to verify that they match.
+        """
+        compare_to = Path(compare_to)
+        meta_a = {
+            x.relative_to(self.destination): x.read_text()
+            for x in Path(self.destination, 'metadata').rglob('*')
+            if x.is_file()
+        }
+
+        meta_b = {
+            x.relative_to(compare_to): x.read_text()
+            for x in Path(compare_to, 'metadata').rglob('*')
+            if x.is_file()
+        }
+
+        only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
+        if only_in_b:
+            print(f"Comparison contains files(s) not in this package:\n")
+            for x in only_in_b:
+                print(' - ' + x.as_posix())
+
+        only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
+        if only_in_a:
+            print(f"Package contains file(s) not in the comparison:\n")
+            for x in only_in_a:
+                print(' - ' + x.as_posix())
+
+        # difference in intersecting metadata
+        for meta in set(meta_a.keys()).intersection(meta_b.keys()):
+            print(meta.as_posix())
+            sys.stdout.writelines(
+                difflib.unified_diff(
+                    meta_a[meta], meta_b[meta], 'Package', 'Comparison'
+                )
+            )
+
     def _begin(self):
         """
         Begin Recipe
@@ -94,8 +160,6 @@ class Recipe:
         to be stored. The workspace is a temporary directory, which does not
         exist until this method is call.
         """
-        self._target = self._get_targets()
-
         for v in self._target.results():
             if v.exists() and False is True:  # TODO: make a control for this
                 raise FileExistsError(
