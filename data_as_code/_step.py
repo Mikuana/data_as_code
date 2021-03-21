@@ -99,6 +99,8 @@ class Step:
     _data_from_cache: bool
     _implied_result: bool = False
 
+    metadata: Dict[str, Metadata]
+
     def __init__(
             self, _workspace: Path, _destination: Path,
             _antecedents: Dict[str, 'Step']
@@ -122,8 +124,6 @@ class Step:
                 # noinspection PyTypeChecker
                 self._results['output'] = self.output
 
-        self.metadata = self._execute()
-
     def instructions(self):
         """
         Step Instructions
@@ -133,12 +133,12 @@ class Step:
         """
         return None
 
-    def _execute(self) -> Dict[str, Metadata]:
+    def _execute(self):
         """Do the work"""
         cached = self._check_cache()
         if cached and self.trust_cache is True:
             self._data_from_cache = True
-            return cached
+            self.metadata = cached
         else:
             self._data_from_cache = False
             original_wd = os.getcwd()
@@ -157,9 +157,10 @@ class Step:
                     if not v.is_file():
                         raise ex.StepOutputMustExist()
 
-                return self._make_metadata()
+                self.metadata = self._make_metadata()
             finally:
                 os.chdir(original_wd)
+        return self
 
     def _set_ingredients(self):
         """

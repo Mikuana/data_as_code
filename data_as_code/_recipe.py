@@ -82,7 +82,7 @@ class Recipe:
 
             self._results[name] = step(
                 self._workspace.absolute(), self._target.folder, self._results
-            )
+            )._execute()
 
         self._export_metadata()
 
