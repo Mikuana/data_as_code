@@ -208,9 +208,9 @@ class Step:
     @classmethod
     def _make_relative_path(cls, p, metadata=False) -> Path:
         if metadata is True:
-            return Path('metadata', cls._role, p.with_suffix(p.suffix + '.json'))
+            return Path('metadata', p.with_suffix(p.suffix + '.json'))
         else:
-            return Path('data', cls._role, p)
+            return Path('data', p)
 
     def _make_absolute_path(self, p, metadata=False) -> Path:
         p = Path(self._destination, self._make_relative_path(p, metadata))
