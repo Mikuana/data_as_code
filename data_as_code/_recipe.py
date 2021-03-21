@@ -54,6 +54,11 @@ class Recipe:
     Step settings.
     """
 
+    pickup = False
+    """Controls behavior of execution to work backwards for each Product to
+    determine the latest cached Step in their ingredients. 
+    """
+
     _workspace: Union[str, Path]
     _td: TemporaryDirectory
     _results: Dict[str, Step]
@@ -69,10 +74,9 @@ class Recipe:
         self._step_check()
         self._target = self._get_targets()
 
-    def execute(self):
-        self._begin()
-
-        self._results = {}
+    def _stepper(self) -> Dict[str, Step]:
+        # TODO: figure out passing of antecedents without execution of step
+        steps = {}
         roles = self._determine_roles()
         for name, step in self._steps().items():
             if step.keep is None:
@@ -80,12 +84,20 @@ class Recipe:
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
-            self._results[name] = step(
-                self._workspace.absolute(), self._target.folder, self._results
-            )._execute()
+            steps[name] = step(
+                self._workspace.absolute(), self._target.folder, steps
+            )
+
+        return steps
+
+    def execute(self):
+        self._begin()
+        self._results = {}
+
+        for name, step in self._stepper().items():
+            self._results[name] = step._execute()
 
         self._export_metadata()
-
         self._end()
 
     def verify(self):
