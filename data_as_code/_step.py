@@ -124,6 +124,8 @@ class Step:
                 # noinspection PyTypeChecker
                 self._results['output'] = self.output
 
+        self._cache = self._check_cache()
+
     def instructions(self):
         """
         Step Instructions
@@ -135,10 +137,10 @@ class Step:
 
     def _execute(self):
         """Do the work"""
-        cached = self._check_cache()
-        if cached and self.trust_cache is True:
+        if self._cache and self.trust_cache is True:
             self._data_from_cache = True
-            self.metadata = cached
+            self.metadata = self._cache
+            return self
         else:
             self._data_from_cache = False
             original_wd = os.getcwd()
