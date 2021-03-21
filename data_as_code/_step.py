@@ -1,7 +1,6 @@
 import inspect
 import json
 import os
-from datetime import datetime
 from hashlib import md5
 from pathlib import Path
 from typing import Union, Dict, List, Tuple
@@ -105,7 +104,6 @@ class Step:
             _antecedents: Dict[str, 'Step']
     ):
 
-        self._timing = {'started': datetime.utcnow()}
         self._guid = uuid4()
         self._workspace = Path(_workspace, self._guid.hex)
         self._destination = _destination
@@ -125,7 +123,6 @@ class Step:
                 self._results['output'] = self.output
 
         self.metadata = self._execute()
-        self._timing['completed'] = datetime.utcnow()
 
     def instructions(self):
         """
@@ -245,7 +242,6 @@ class Step:
                 role=self._role, relative_to=self._destination.absolute(),
                 other=self._other_meta, step_description=self.__class__.__doc__,
                 step_instruction=inspect.getsource(self.instructions),
-                timing=self._timing
             )
         for k, v in meta_dict.items():
             setattr(self, k, v)
