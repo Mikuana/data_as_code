@@ -204,6 +204,15 @@ class Recipe:
         }
 
     @classmethod
+    def _products(cls) -> Dict[str, Type[Step]]:
+        # TODO: need to convert role assignment in Step to classmethod
+        return {
+            k: v for k, v in cls.__dict__.items()
+            if (isinstance(v, type) and issubclass(v, Step))
+            and v._role == PRODUCT
+        }
+
+    @classmethod
     def _step_check(cls):
         steps = cls._steps()
         for ix, (k, step) in enumerate(steps.items()):
