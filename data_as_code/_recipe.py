@@ -1,8 +1,8 @@
-import sys
 import difflib
 import gzip
 import json
 import os
+import sys
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -67,7 +67,6 @@ class Recipe:
         self.trust_cache = trust_cache or self.trust_cache
 
         self._step_check()
-        self._assign_roles()
         self._target = self._get_targets()
 
     def execute(self):
@@ -205,12 +204,8 @@ class Recipe:
 
     @classmethod
     def _products(cls) -> Dict[str, Type[Step]]:
-        # TODO: need to convert role assignment in Step to classmethod
-        return {
-            k: v for k, v in cls.__dict__.items()
-            if (isinstance(v, type) and issubclass(v, Step))
-            and v._role == PRODUCT
-        }
+        x = [k for k, v in cls._determine_roles().items() if v == PRODUCT]
+        return {k: v for k, v in cls._steps().items() if k in x}
 
     @classmethod
     def _step_check(cls):
@@ -226,7 +221,8 @@ class Recipe:
                 )
                 assert ingredient_name in priors, msg
 
-    def _assign_roles(self):
+    @classmethod
+    def _determine_roles(cls) -> Dict[str, str]:
         """
         Role assigner
 
@@ -239,22 +235,26 @@ class Recipe:
             product (overwriting previous Source assignment if applicable)
          - if a Step is neither a source or product, then it is an intermediary
         """
-        steps = self._steps()
+        steps = cls._steps()
         ingredient_list = set(
             ingredient[1].step_name for sublist in steps.values()
             for ingredient in sublist._get_ingredients()
         )
 
+        roles = {}
         for k, step in steps.items():
-            role = None
             if not step._get_ingredients():
-                role = SOURCE
+                roles[k] = SOURCE
             if k not in ingredient_list:
-                role = PRODUCT
-            if role is None:
-                role = INTERMEDIARY
+                roles[k] = PRODUCT
+            if roles.get(k) is None:
+                roles[k] = INTERMEDIARY
 
-            setattr(getattr(self, k), '_role', role)
+        return roles
+
+    # def _assign_roles(self):
+    #     for k, v in self._determine_roles().items():
+    #         setattr(getattr(self, k), '_role', v)
 
     def _get_targets(self):
         fold = self.destination.absolute()

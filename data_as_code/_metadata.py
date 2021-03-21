@@ -19,7 +19,7 @@ class Metadata:
     # TODO: path param must be required, or else use of self.path must account for None
     def __init__(self, absolute_path: Union[Path, None], relative_path: Union[Path, None],
                  checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
-                 lineage: list, role: str, relative_to: Path = None,
+                 lineage: list, relative_to: Path = None,
                  other: Dict[str, str] = None, fingerprint: str = None,
                  step_description: str = None, step_instruction: str = None,
                  timing: dict = None
@@ -34,7 +34,6 @@ class Metadata:
         self.checksum_algorithm = checksum_algorithm
         self.lineage = lineage
         self.other = other or {}
-        self.role = role
         self.step_description = step_description
         self._step_instruction = step_instruction
         self.timing = timing or {}
@@ -43,7 +42,7 @@ class Metadata:
     def calculate_fingerprint(self) -> str:
         d = dict(
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage]), role=self.role,
+            lineage=sorted([x.fingerprint for x in self.lineage]),
             step_description=self.step_description, step_instruction=self._step_instruction
         )
         d = {
@@ -84,7 +83,6 @@ class Metadata:
         base = {
             'path': self._relative_path.as_posix() if self._relative_path else None,
             'step_description': self.step_description,
-            'role': self.role,
             'checksum': cs,
             'fingerprint': self.fingerprint,
             'lineage': [x.to_dict() for x in self.lineage],
@@ -113,14 +111,14 @@ class Metadata:
 
 def from_dictionary(
         checksum: Dict[str, str], fingerprint: str,
-        role: str, lineage: List[dict] = None, path: str = None,
+        lineage: List[dict] = None, path: str = None,
         relative_to: str = None, step_description=None, timing: dict = None,
         **kwargs
 ):
     return Metadata(
         absolute_path=None, relative_path=Path(path) if path else None,
         checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
-        lineage=[from_dictionary(**x) for x in lineage or []], role=role,
+        lineage=[from_dictionary(**x) for x in lineage or []],
         fingerprint=fingerprint, relative_to=relative_to,
         step_description=step_description, timing=timing, other=kwargs
     )
@@ -136,7 +134,7 @@ class Reference(Metadata):
     """
 
     def __init__(self, lineage: list, other: Dict[str, str] = None):
-        super().__init__(None, None, None, None, lineage, 'reference', other=other)
+        super().__init__(None, None, None, None, lineage, other=other)
 
     def calculate_fingerprint(self) -> str:
         d = dict(

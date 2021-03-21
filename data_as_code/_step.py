@@ -285,7 +285,7 @@ class Step:
         m = Metadata(
             absolute_path=None, relative_path=candidate,
             checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, role=self._role, step_description=self.__doc__,
+            lineage=lineage, step_description=self.__doc__,
             step_instruction=inspect.getsource(self.instructions),
             other=self._other_meta
         )
