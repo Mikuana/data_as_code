@@ -73,9 +73,10 @@ class Recipe:
         self._begin()
 
         self._results = {}
+        roles = self._determine_roles()
         for name, step in self._steps().items():
             if step.keep is None:
-                step.keep = step._role in self.keep
+                step.keep = roles[name] in self.keep
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
