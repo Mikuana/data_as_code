@@ -62,7 +62,6 @@ class Step:
         class MyStep(Step):
             output = 'my.csv'
             x = ingredient('their_csv')
-            role = PRODUCT
 
             def instructions(self):
                  self.output.write_text(self.x.read_text())
@@ -85,14 +84,6 @@ class Step:
     """Controls whether to trust the artifacts which may already exist in the
     cache. If set to `None`, then this step will use the settings that are
     passed to it from the :class:`data_as_code.Recipe`.
-    """
-
-    _role: str
-    """The type of role that this step plays in the :class:`data_as_code.Recipe`.
-    This influences a number of different processes, such as keep settings,
-    name requirements, and pathing of retained artifacts. Should be set using
-    one of the constant values: :const:`data_as_code.misc.SOURCE`,
-    :const:`data_as_code.misc.INTERMEDIARY`, :const:`data_as_code.misc.PRODUCT`
     """
 
     _other_meta: Dict[str, str] = {}
@@ -246,7 +237,7 @@ class Step:
                 absolute_path=ap, relative_path=rp,
                 checksum_value=hxd, checksum_algorithm='md5',
                 lineage=[x for x in self._ingredients],
-                role=self._role, relative_to=self._destination.absolute(),
+                relative_to=self._destination.absolute(),
                 other=self._other_meta, step_description=self.__class__.__doc__,
                 step_instruction=inspect.getsource(self.instructions),
             )

@@ -252,10 +252,6 @@ class Recipe:
 
         return roles
 
-    # def _assign_roles(self):
-    #     for k, v in self._determine_roles().items():
-    #         setattr(getattr(self, k), '_role', v)
-
     def _get_targets(self):
         fold = self.destination.absolute()
 
@@ -302,8 +298,7 @@ class Recipe:
                         pp = Path(self._target.metadata, v.path.relative_to(r))
                     else:
                         pp = Path(
-                            self._target.metadata, v._role,
-                            v._relative_path.name
+                            self._target.metadata, v._relative_path.name
                         )
                     pp.parent.mkdir(parents=True, exist_ok=True)
 
