@@ -139,6 +139,10 @@ class Step:
         """Do the work"""
         if self._cache and self.trust_cache is True:
             self._data_from_cache = True
+            print(
+                f'Step {self.__class__.__name__} using cache for files\n',
+                '\n'.join([f" {x.path.absolute().as_posix()}" for x in self._cache.values()])
+            )
             self.metadata = self._cache
             return self
         else:
