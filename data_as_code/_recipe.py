@@ -225,14 +225,14 @@ class Recipe:
         steps = cls._steps()
         for ix, (k, step) in enumerate(steps.items()):
             priors = list(steps.keys())[:ix]
-            for ingredient in step._collect_ingredients():
-                ingredient_name = ingredient[1].step_name
+            for x in step._collect_ingredients().values():
+                ingredient = x[0]
                 msg = (
-                    f"Step '{k}' references ingredient '{ingredient_name}', but"
+                    f"Step '{k}' references ingredient '{ingredient}', but"
                     f" there is no preceding Step with that name in the recipe."
                     f" Valid values are: \n {priors}"
                 )
-                assert ingredient_name in priors, msg
+                assert ingredient in priors, msg
 
     @classmethod
     def _determine_roles(cls) -> Dict[str, str]:
@@ -250,8 +250,8 @@ class Recipe:
         """
         steps = cls._steps()
         ingredient_list = set(
-            ingredient[1].step_name for sublist in steps.values()
-            for ingredient in sublist._collect_ingredients()
+            v[0] for sublist in steps.values()
+            for k, v in sublist._collect_ingredients().items()
         )
 
         roles = {}

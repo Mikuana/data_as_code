@@ -129,6 +129,8 @@ class Step:
 
     def _execute(self):
         """Do the work"""
+        self._convert_ingredients()
+
         if self._cache and self.trust_cache is True:
             self._data_from_cache = True
             print(
@@ -178,15 +180,17 @@ class Step:
 
         This method must modify self, due to the dynamic naming of attributes.
         """
-        for k, v in self._collect_ingredients():
-            ante = self._antecedents[v.step_name]
-            if v.result_name is None:
+        for k, v in self._collect_ingredients().items():
+            ante = self._antecedents[v[0]]
+            if v[1] is None:
                 if len(ante.metadata) == 1:
                     m = list(ante.metadata.values())[0]
                 else:
                     raise Exception
             else:
-                m = ante.metadata[v.result_name]
+                m = ante.metadata[v[1]]
+
+            self._ingredients[k] = m
             setattr(self, k, m.path)
 
     def _set_results(self) -> Dict[str, Path]:
@@ -237,7 +241,7 @@ class Step:
             meta_dict[k] = Metadata(
                 absolute_path=ap, relative_path=rp,
                 checksum_value=hxd, checksum_algorithm='md5',
-                lineage=[x for x in self._ingredients],
+                lineage=[x for x in self._ingredients.values()],
                 relative_to=self._destination.absolute(),
                 other=self._other_meta, step_description=self.__class__.__doc__,
                 step_instruction=inspect.getsource(self.instructions),
