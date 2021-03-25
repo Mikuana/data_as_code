@@ -89,6 +89,7 @@ class Step:
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
     _implied_result: bool = False
+    _ingredients: Dict[str, Metadata] = {}
 
     metadata: Dict[str, Metadata]
 
@@ -102,7 +103,7 @@ class Step:
         self._destination = _destination
         self._antecedents = _antecedents
 
-        self._ingredients = self._set_ingredients()
+        # self._ingredients = self._set_ingredients()
         self._results = self._set_results()
         if not self._results:
             self._implied_result = True
@@ -159,7 +160,14 @@ class Step:
                 os.chdir(original_wd)
         return self
 
-    def _set_ingredients(self):
+    @classmethod
+    def _collect_ingredients(cls) -> Dict[str, Tuple[str, Union[str, None]]]:
+        return {
+            k: (v.step_name, v.result_name)
+            for k, v in inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
+        }
+
+    def _convert_ingredients(self):
         """
         Set Input Metadata
 
@@ -170,8 +178,7 @@ class Step:
 
         This method must modify self, due to the dynamic naming of attributes.
         """
-        ingredients = []
-        for k, v in self._get_ingredients():
+        for k, v in self._collect_ingredients():
             ante = self._antecedents[v.step_name]
             if v.result_name is None:
                 if len(ante.metadata) == 1:
@@ -180,13 +187,7 @@ class Step:
                     raise Exception
             else:
                 m = ante.metadata[v.result_name]
-            ingredients.append(m)
             setattr(self, k, m.path)
-        return ingredients
-
-    @classmethod
-    def _get_ingredients(cls) -> List[Tuple[str, _Ingredient]]:
-        return inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
 
     def _set_results(self) -> Dict[str, Path]:
         """Set Outputs"""

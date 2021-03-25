@@ -56,7 +56,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 return self._make_metadata()
 
         def _make_metadata(self) -> Metadata:
-            rp = Path('data', self._role, self.output.name)
+            rp = Path('data', self.output.name)
             if self.keep is True:
                 ap = Path(self._destination, rp)
                 ap.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +69,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 checksum_value=md5(self.output.read_bytes()).hexdigest(),
                 checksum_algorithm='md5',
                 lineage=[x for x in self._ingredients],
-                role=self._role, step_description=self.__doc__,
+                step_description=self.__doc__,
                 step_instruction=inspect.getsource(self.instructions)
             )
 

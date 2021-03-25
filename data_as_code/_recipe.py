@@ -225,7 +225,7 @@ class Recipe:
         steps = cls._steps()
         for ix, (k, step) in enumerate(steps.items()):
             priors = list(steps.keys())[:ix]
-            for ingredient in step._get_ingredients():
+            for ingredient in step._collect_ingredients():
                 ingredient_name = ingredient[1].step_name
                 msg = (
                     f"Step '{k}' references ingredient '{ingredient_name}', but"
@@ -251,12 +251,12 @@ class Recipe:
         steps = cls._steps()
         ingredient_list = set(
             ingredient[1].step_name for sublist in steps.values()
-            for ingredient in sublist._get_ingredients()
+            for ingredient in sublist._collect_ingredients()
         )
 
         roles = {}
         for k, step in steps.items():
-            if not step._get_ingredients():
+            if not step._collect_ingredients():
                 roles[k] = SOURCE
             if k not in ingredient_list:
                 roles[k] = PRODUCT
