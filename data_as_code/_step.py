@@ -93,13 +93,9 @@ class Step:
 
     metadata: Dict[str, Metadata]
 
-    def __init__(
-            self, _workspace: Path, _destination: Path,
-            _antecedents: Dict[str, 'Step']
-    ):
+    def __init__(self, _destination: Path, _antecedents: Dict[str, 'Step']):
 
         self._guid = uuid4()
-        self._workspace = Path(_workspace, self._guid.hex)
         self._destination = _destination
         self._antecedents = _antecedents
 
@@ -127,8 +123,9 @@ class Step:
         """
         return None
 
-    def _execute(self):
+    def _execute(self, _workspace: Path):
         """Do the work"""
+        self._workspace = Path(_workspace, self._guid.hex)
         self._convert_ingredients()
 
         if self._cache and self.trust_cache is True:

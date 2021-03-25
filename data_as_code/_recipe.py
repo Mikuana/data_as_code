@@ -75,7 +75,6 @@ class Recipe:
         self._target = self._get_targets()
 
     def _stepper(self) -> Dict[str, Step]:
-        # TODO: figure out passing of antecedents without execution of step
         steps = {}
         roles = self._determine_roles()
         for name, step in self._steps().items():
@@ -84,9 +83,7 @@ class Recipe:
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
-            steps[name] = step(
-                self._workspace.absolute(), self._target.folder, steps
-            )
+            steps[name] = step(self._target.folder, steps.copy())
 
         return steps
 
@@ -95,7 +92,7 @@ class Recipe:
         self._results = {}
 
         for name, step in self._stepper().items():
-            self._results[name] = step._execute()
+            self._results[name] = step._execute(self._workspace)
 
         self._export_metadata()
         self._end()
