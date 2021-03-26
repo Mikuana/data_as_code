@@ -74,6 +74,11 @@ class Recipe:
         self._step_check()
         self._target = self._get_targets()
 
+    def _pickup_step(self):
+        """Start from latest available step in chain"""
+        for prod in self._products():
+            pass
+
     def _stepper(self) -> Dict[str, Step]:
         steps = {}
         roles = self._determine_roles()
