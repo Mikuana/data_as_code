@@ -88,7 +88,6 @@ class Step:
 
     _other_meta: Dict[str, str] = {}
     _data_from_cache: bool
-    _implied_result: bool = False
     _ingredients: Dict[str, Metadata] = {}
 
     metadata: Dict[str, Metadata]
@@ -99,10 +98,8 @@ class Step:
         self._destination = _destination
         self._antecedents = _antecedents
 
-        # self._ingredients = self._set_ingredients()
         self._results = self._set_results()
         if not self._results:
-            self._implied_result = True
             if self.keep is True:
                 raise ex.StepUndefinedOutput(
                     "To keep an artifact you must define the output path"
@@ -273,7 +270,7 @@ class Step:
 
     def _mock_fingerprint(self, candidate: Path) -> str:
         """ Generate a mock metadata fingerprint """
-        lineage = [x for x in self._ingredients]
+        lineage = [x for x in self._ingredients.values()]
         hxd = md5(candidate.read_bytes()).hexdigest()
         m = Metadata(
             absolute_path=None, relative_path=candidate,

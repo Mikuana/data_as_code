@@ -6,7 +6,7 @@ import sys
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Dict, Type, Tuple
+from typing import Union, Dict, Type, List
 
 from data_as_code._step import Step
 from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
@@ -38,7 +38,7 @@ class Recipe:
         Values set here are overwritten by those set in individual Step
         settings.
     """
-    keep: Dict[str, bool] = (PRODUCT,)
+    keep: List[str] = [PRODUCT]
     """Controls whether to keep source, intermediate, and final product
     artifacts. Values set here can be overwritten by the `keep`
     parameter during construction, or by those set in individual Step settings.
@@ -65,10 +65,12 @@ class Recipe:
 
     def __init__(
             self, destination: Union[str, Path] = '.',
-            keep: Union[str, Tuple[str]] = None, trust_cache: bool = None
+            keep: Union[str, List[str]] = None,
+            trust_cache: bool = None
     ):
         self.destination = Path(destination)
-        self.keep = (keep if isinstance(keep, tuple) else (keep,)) or self.keep
+
+        self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
 
         self._step_check()
