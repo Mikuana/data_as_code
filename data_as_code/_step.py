@@ -111,6 +111,17 @@ class Step:
 
         self._cache = self._check_cache()
 
+    def _mock_metadata(self):
+        lineage = [x for x in self._ingredients.values()]
+        hxd = md5(candidate.read_bytes()).hexdigest()
+        m = Metadata(
+            absolute_path=None, relative_path=rel_path,
+            checksum_value=hxd, checksum_algorithm='md5',
+            lineage=lineage, step_description=self.__doc__,
+            step_instruction=inspect.getsource(self.instructions),
+            other=self._other_meta
+        )
+
     def instructions(self):
         """
         Step Instructions
@@ -258,22 +269,22 @@ class Step:
                     **json.loads(mp.read_text()),
                     relative_to=self._destination.as_posix()
                 )
-                dp = meta.path
+                dp = meta.path.absolute()
                 if dp.is_file():
                     try:
-                        assert meta.fingerprint == self._mock_fingerprint(dp)
+                        assert meta.fingerprint == self._mock_fingerprint(dp, meta._relative_path)
                         assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
                         cache[k] = meta
                     except AssertionError:
                         return
         return cache
 
-    def _mock_fingerprint(self, candidate: Path) -> str:
+    def _mock_fingerprint(self, candidate: Path, rel_path: Path) -> str:
         """ Generate a mock metadata fingerprint """
         lineage = [x for x in self._ingredients.values()]
         hxd = md5(candidate.read_bytes()).hexdigest()
         m = Metadata(
-            absolute_path=None, relative_path=candidate,
+            absolute_path=None, relative_path=rel_path,
             checksum_value=hxd, checksum_algorithm='md5',
             lineage=lineage, step_description=self.__doc__,
             step_instruction=inspect.getsource(self.instructions),

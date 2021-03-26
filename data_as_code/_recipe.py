@@ -78,8 +78,11 @@ class Recipe:
 
     def _pickup_step(self):
         """Start from latest available step in chain"""
-        for prod in self._products():
-            pass
+        steps = self._stepper()
+        prods = {k: v for k, v in steps.items() if k in self._products()}
+
+        for k, v in prods.items():
+            print(k, v._cache)
 
     def _stepper(self) -> Dict[str, Step]:
         steps = {}
