@@ -111,16 +111,16 @@ class Step:
 
         self._cache = self._check_cache()
 
-    def _mock_metadata(self):
-        lineage = [x for x in self._ingredients.values()]
-        hxd = md5(candidate.read_bytes()).hexdigest()
-        m = Metadata(
-            absolute_path=None, relative_path=rel_path,
-            checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, step_description=self.__doc__,
-            step_instruction=inspect.getsource(self.instructions),
-            other=self._other_meta
-        )
+    # def _mock_metadata(self):
+    #     lineage = [x for x in self._ingredients.values()]
+    #     hxd = md5(candidate.read_bytes()).hexdigest()
+    #     m = Metadata(
+    #         absolute_path=None, relative_path=rel_path,
+    #         checksum_value=hxd, checksum_algorithm='md5',
+    #         lineage=lineage, step_description=self.__doc__,
+    #         step_instruction=inspect.getsource(self.instructions),
+    #         other=self._other_meta
+    #     )
 
     def instructions(self):
         """
