@@ -138,3 +138,71 @@ class Reference(Metadata):
             lineage=sorted([x.fingerprint for x in self.lineage])
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
+
+
+class _Meta:
+    @classmethod
+    def prep(cls, d: dict) -> dict:
+        d['fingerprint'] = md5(json.dumps(d).encode('utf8')).hexdigest()
+        return d
+
+
+class Codified(_Meta):
+    def __init__(
+            self, path: Union[Path, None], description: str = None, instruction: str = None
+    ):
+        self.path = path
+        self.description = description
+        self.instruction = instruction
+
+    def to_dict(self) -> dict:
+        d = {}
+        if self.path:
+            d['path'] = self.path.as_posix()
+        if self.description:
+            d['description'] = self.description
+        if self.instruction:
+            d['instruction'] = self.instruction
+
+        return self.prep(d)
+
+
+class Derived(_Meta):
+    def __init__(self, checksum: Union[str, None], algorithm: Union[str, None]):
+        self.checksum = checksum
+        self.algorithm = algorithm
+
+    def to_dict(self) -> dict:
+        d = {}
+        if self.checksum and self.algorithm:
+            d['checksum'] = self.checksum
+            d['algorithm'] = self.algorithm
+        elif self.checksum or self.algorithm:
+            raise Exception("must provide both checksum and algorithm, or neither")
+
+        return self.prep(d)
+
+
+class Incidental(_Meta):
+    def __init__(self, path: Union[Path, None], directory: [Path, None], **kwargs):
+        self.path = path
+        self.directory = directory
+        self.other = kwargs
+
+    def to_dict(self) -> dict:
+        d = {k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}
+
+        return self.prep(d)
+
+
+class Lineage(_Meta):
+    def __init__(self, lineage: list):
+        pass
+
+
+if __name__ == '__main__':
+    c = Codified(Path(), 'xyz')
+    print(c.to_dict())
+
+    i = Incidental(None, None, misty='water')
+    print(i.to_dict())
