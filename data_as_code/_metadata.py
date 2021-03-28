@@ -40,7 +40,7 @@ class Metadata:
     def calculate_fingerprint(self) -> str:
         d = dict(
             checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage]),
+            lineage=sorted([x.prep_fingerprint for x in self.lineage]),
             step_description=self.step_description, step_instruction=self._step_instruction
         )
         d = {
@@ -135,23 +135,24 @@ class Reference(Metadata):
 
     def calculate_fingerprint(self) -> str:
         d = dict(
-            lineage=sorted([x.fingerprint for x in self.lineage])
+            lineage=sorted([x.prep_fingerprint for x in self.lineage])
         )
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
 
 class _Meta:
-    @classmethod
-    def prep(cls, d: dict) -> dict:
-        d['fingerprint'] = md5(json.dumps(d).encode('utf8')).hexdigest()
-        return d
+    @staticmethod
+    def prep_fingerprint(d: dict) -> str:
+        return md5(json.dumps(d).encode('utf8')).hexdigest()
 
 
 class Codified(_Meta):
     def __init__(
-            self, path: Union[Path, None], description: str = None, instruction: str = None
+            self, path: Path = None, lineage: List['Codified'] = None,
+            description: str = None, instruction: str = None,
     ):
         self.path = path
+        self.lineage = lineage
         self.description = description
         self.instruction = instruction
 
@@ -163,14 +164,30 @@ class Codified(_Meta):
             d['description'] = self.description
         if self.instruction:
             d['instruction'] = self.instruction
+        if self.lineage:
+            d['lineage'] = self.prep_lineage()
 
-        return self.prep(d)
+        d['fingerprint'] = self.prep_fingerprint(d)
+        return d
+
+    def prep_lineage(self) -> Dict[str, dict]:
+        ld = [x.to_dict() for x in self.lineage]
+        return {
+            x['fingerprint']: x
+            for x in sorted(ld, key=lambda item: item['fingerprint'])
+        }
 
 
 class Derived(_Meta):
-    def __init__(self, checksum: Union[str, None], algorithm: Union[str, None]):
+    def __init__(
+            self, identifier: str,
+            checksum: Union[str, None], algorithm: Union[str, None],
+            lineage: List['Derived'] = None,
+    ):
+        self.identifier = identifier
         self.checksum = checksum
         self.algorithm = algorithm
+        self.lineage = lineage
 
     def to_dict(self) -> dict:
         d = {}
@@ -179,30 +196,45 @@ class Derived(_Meta):
             d['algorithm'] = self.algorithm
         elif self.checksum or self.algorithm:
             raise Exception("must provide both checksum and algorithm, or neither")
+        if self.lineage:
+            d['lineage'] = self.prep_lineage()
 
-        return self.prep(d)
+        d['fingerprint'] = self.prep_fingerprint(d)
+        return d
+
+    def prep_lineage(self) -> Dict[str, dict]:
+        return {
+            x.identifier: x.to_dict()
+            for x in sorted(self.lineage, key=lambda item: item.identifier)
+        }
 
 
 class Incidental(_Meta):
-    def __init__(self, path: Union[Path, None], directory: [Path, None], **kwargs):
+    def __init__(
+            self, identifier: str,
+            path: Union = None, directory: Path = None, **kwargs
+    ):
+        self.identifier = identifier
         self.path = path
         self.directory = directory
         self.other = kwargs
 
     def to_dict(self) -> dict:
-        d = {k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}
-
-        return self.prep(d)
-
-
-class Lineage(_Meta):
-    def __init__(self, lineage: list):
-        pass
+        d = {
+            k: v for k, v in
+            sorted(self.other.items(), key=lambda item: item[1], reverse=True)
+        }
+        d['fingerprint'] = self.prep_fingerprint(d)
+        return d
 
 
 if __name__ == '__main__':
-    c = Codified(Path(), 'xyz')
-    print(c.to_dict())
+    c1 = Codified(Path(), description='xyz')
+    c2 = Codified(Path(), description='abc')
+    c3 = Codified(Path(), description='zzz', lineage=[c1, c2])
+    print(c3.to_dict())
 
-    i = Incidental(None, None, misty='water')
-    print(i.to_dict())
+    d1 = Derived('157a35fa887733e8a9d29577868553a0', 'abc1', 'md5')
+    d2 = Derived('1f92255965e052ad2f4fbbbf3b118e17', 'abc2', 'md5')
+    d3 = Derived('0830d648d5c6634a47dbdc7517db7b23', 'abc3', 'md5', lineage=[d1, d2])
+    print(d3.to_dict())

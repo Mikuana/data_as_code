@@ -272,7 +272,7 @@ class Step:
                 dp = meta.path.absolute()
                 if dp.is_file():
                     try:
-                        assert meta.fingerprint == self._mock_fingerprint(dp, meta._relative_path)
+                        assert meta.prep_fingerprint == self._mock_fingerprint(dp, meta._relative_path)
                         assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
                         cache[k] = meta
                     except AssertionError:
