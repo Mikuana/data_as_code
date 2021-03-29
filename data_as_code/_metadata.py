@@ -8,13 +8,18 @@ class _Meta:
     lineage: List['_Meta'] = None
 
     def __init__(self, fingerprint: str = None):
-        self.fingerprint = fingerprint
+        self.fingerprint = fingerprint or self.calculate_fingerprint()
 
-    def prep_fingerprint(self, d: Union[dict, list]) -> str:
-        return self.fingerprint or md5(json.dumps(d).encode('utf8')).hexdigest()
+    def calculate_fingerprint(self) -> str:
+        return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
+
+    def _meta_dict(self) -> dict:
+        return {}  # method stub for subclasses
 
     def to_dict(self) -> dict:
-        return {}
+        d = self._meta_dict()
+        d['fingerprint'] = self.fingerprint or self.calculate_fingerprint()
+        return d
 
     def prep_lineage(self) -> List[str]:
         return sorted([x.to_dict()['fingerprint'] for x in self.lineage])
@@ -37,7 +42,7 @@ class Codified(_Meta):
                 x.codified if isinstance(x, Metadata) else x for x in lineage
             ]
 
-    def to_dict(self) -> dict:
+    def _meta_dict(self) -> dict:
         d = {}
         if self.path:
             d['path'] = self.path.as_posix()
@@ -47,8 +52,6 @@ class Codified(_Meta):
             d['instruction'] = self.instruction
         if self.lineage:
             d['lineage'] = self.prep_lineage()
-
-        d['fingerprint'] = self.prep_fingerprint(d)
         return d
 
 
@@ -56,28 +59,21 @@ class Derived(_Meta):
     def __init__(
             self,
             checksum: str = None,
-            algorithm: str = None,
             lineage: Union[List['Metadata'], List['Derived']] = None,
             **kwargs
     ):
         self.checksum = checksum
-        self.algorithm = algorithm
         super().__init__(**kwargs)
 
         if lineage:
             self.lineage = [x.derived if isinstance(x, Metadata) else x for x in lineage]
 
-    def to_dict(self) -> dict:
+    def _meta_dict(self) -> dict:
         d = {}
-        if self.checksum and self.algorithm:
+        if self.checksum:
             d['checksum'] = self.checksum
-            d['algorithm'] = self.algorithm
-        elif self.checksum or self.algorithm:
-            raise Exception("must provide both checksum and algorithm, or neither")
         if self.lineage:
             d['lineage'] = self.prep_lineage()
-
-        d['fingerprint'] = self.prep_fingerprint(d)
         return d
 
 
@@ -98,7 +94,6 @@ class Incidental(_Meta):
             k: v for k, v in
             sorted(self.other.items(), key=lambda item: item[1], reverse=True)
         }
-        d['fingerprint'] = self.prep_fingerprint(d)
         return d
 
 
@@ -117,7 +112,7 @@ class Metadata(_Meta):
         self.lineage = lineage
         super().__init__(**kwargs)
 
-    def to_dict(self) -> dict:
+    def _meta_dict(self) -> dict:
         d = {}
         f = []
         if self.codified:
@@ -137,8 +132,6 @@ class Metadata(_Meta):
                 key=lambda x: x['fingerprint']
             )
             f.append([x['fingerprint'] for x in d['lineage']])
-
-        d['fingerprint'] = self.prep_fingerprint(f)
         return d
 
     @classmethod
