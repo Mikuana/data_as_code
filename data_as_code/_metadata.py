@@ -8,7 +8,7 @@ class _Meta:
     lineage: List['_Meta'] = None
 
     @staticmethod
-    def prep_fingerprint(d: dict) -> str:
+    def prep_fingerprint(d: Union[dict, list]) -> str:
         return md5(json.dumps(d).encode('utf8')).hexdigest()
 
     def to_dict(self) -> dict:
@@ -108,13 +108,23 @@ class Metadata(_Meta):
 
     def to_dict(self) -> dict:
         d = {}
+        f = []
         if self.codified:
             d['codified'] = self.codified.to_dict()
+            f.append(d['codified']['fingerprint'])
         if self.derived:
             d['derived'] = self.derived.to_dict()
+            f.append(d['derived']['fingerprint'])
         if self.incidental:
             d['incidental'] = self.incidental.to_dict()
-        if self.lineage:
-            d['lineage'] = [x.to_dict() for x in self.lineage]
+            f.append(d['incidental']['fingerprint'])
 
+        if self.lineage:
+            d['lineage'] = sorted(
+                [y.to_dict() for y in self.lineage],
+                key=lambda x: x['fingerprint']
+            )
+            f.append([x['fingerprint'] for x in d['lineage']])
+
+        d['fingerprint'] = self.prep_fingerprint(f)
         return d
