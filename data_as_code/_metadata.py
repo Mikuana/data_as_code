@@ -52,13 +52,13 @@ class Derived(_Meta):
     def __init__(
             self,
             checksum: Union[str, None], algorithm: Union[str, None],
-            lineage: List['Derived'] = None,
+            lineage: Union[List['Metadata'], List['Derived']] = None,
     ):
         self.checksum = checksum
         self.algorithm = algorithm
 
         if lineage:
-            self.lineage = [x.codified if isinstance(x, Metadata) else x for x in lineage]
+            self.lineage = [x.derived if isinstance(x, Metadata) else x for x in lineage]
 
     def to_dict(self) -> dict:
         d = {}
@@ -112,12 +112,13 @@ class Metadata(_Meta):
         if self.codified:
             d['codified'] = self.codified.to_dict()
             f.append(d['codified']['fingerprint'])
+
         if self.derived:
             d['derived'] = self.derived.to_dict()
             f.append(d['derived']['fingerprint'])
+
         if self.incidental:
             d['incidental'] = self.incidental.to_dict()
-            f.append(d['incidental']['fingerprint'])
 
         if self.lineage:
             d['lineage'] = sorted(
