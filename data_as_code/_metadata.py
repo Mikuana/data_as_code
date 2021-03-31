@@ -153,3 +153,23 @@ class Metadata(_Meta):
     def _replace(x: dict, **kwargs) -> dict:
         """Wrapper to merge dictionaries and overwrite where necessary"""
         return {**x, **kwargs}
+
+
+if __name__ == '__main__':
+    c1 = Codified(Path(), description='xyz')
+    c2 = Codified(Path(), description='abc')
+    c3 = Codified(Path(), description='zzz', lineage=[c1, c2])
+    # print(c3.to_dict())
+
+    d1 = Derived('abc1')
+    d2 = Derived('abc2')
+    d3 = Derived('abc3', lineage=[d1, d2])
+    # print(d3.to_dict())
+
+    m1 = Metadata(c1, d1)
+    m3 = Metadata(c3, d3)
+    m2 = Metadata(c2, d2, lineage=[m1, m3])
+
+    mf = Metadata.from_dict(m2.to_dict()).to_dict()
+    p = Path('/home/chris/.config/JetBrains/PyCharm2020.3/scratches/scratch_1.json')
+    p.write_text(json.dumps(mf, indent=2))

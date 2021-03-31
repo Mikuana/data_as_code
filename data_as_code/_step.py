@@ -111,17 +111,6 @@ class Step:
 
         self._cache = self._check_cache()
 
-    # def _mock_metadata(self):
-    #     lineage = [x for x in self._ingredients.values()]
-    #     hxd = md5(candidate.read_bytes()).hexdigest()
-    #     m = Metadata(
-    #         absolute_path=None, relative_path=rel_path,
-    #         checksum_value=hxd, checksum_algorithm='md5',
-    #         lineage=lineage, step_description=self.__doc__,
-    #         step_instruction=inspect.getsource(self.instructions),
-    #         other=self._other_meta
-    #     )
-
     def instructions(self):
         """
         Step Instructions
@@ -265,29 +254,14 @@ class Step:
         for k, v in self._results.items():
             mp = self._make_absolute_path(v, metadata=True)
             if mp.is_file():
-                meta = from_dictionary(
-                    **json.loads(mp.read_text()),
-                    relative_to=self._destination.as_posix()
-                )
-                dp = meta.path.absolute()
+                meta = Metadata.from_dict(**json.loads(mp.read_text()))
+                dp = Path(self._destination, meta.codified.path)
                 if dp.is_file():
                     try:
-                        assert meta.prep_fingerprint == self._mock_fingerprint(dp, meta._relative_path)
-                        assert meta.checksum_value == md5(dp.read_bytes()).hexdigest()
+                        assert meta.codified.fingerprint is False  # TODO: add codified metadata
+                        # this assumes the algorithm is md5
+                        assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest()
                         cache[k] = meta
                     except AssertionError:
                         return
         return cache
-
-    def _mock_fingerprint(self, candidate: Path, rel_path: Path) -> str:
-        """ Generate a mock metadata fingerprint """
-        lineage = [x for x in self._ingredients.values()]
-        hxd = md5(candidate.read_bytes()).hexdigest()
-        m = Metadata(
-            absolute_path=None, relative_path=rel_path,
-            checksum_value=hxd, checksum_algorithm='md5',
-            lineage=lineage, step_description=self.__doc__,
-            step_instruction=inspect.getsource(self.instructions),
-            other=self._other_meta
-        )
-        return m.fingerprint
