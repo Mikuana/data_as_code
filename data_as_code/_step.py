@@ -7,7 +7,7 @@ from typing import Union, Dict, List, Tuple
 from uuid import uuid4
 
 from data_as_code import exceptions as ex
-from data_as_code._metadata import Metadata
+from data_as_code._metadata import Metadata, Codified
 
 
 class _Ingredient:
@@ -92,14 +92,12 @@ class Step:
 
     metadata: Dict[str, Metadata]
 
-    def __init__(self, _destination: Path, _antecedents: Dict[str, 'Step']):
-
+    def __init__(self, destination: Path, antecedents: Dict[str, Dict[str, Metadata]]):
         self._guid = uuid4()
-        self._destination = _destination
-        self._antecedents = _antecedents
+        self.destination = destination
 
-        self._results = self._set_results()
-        if not self._results:
+        self.results = self.set_results()
+        if not self.results:
             if self.keep is True:
                 raise ex.StepUndefinedOutput(
                     "To keep an artifact you must define the output path"
@@ -107,9 +105,42 @@ class Step:
             else:
                 self.output = Path(self._guid.hex)
                 # noinspection PyTypeChecker
-                self._results['output'] = self.output
+                self.results['output'] = self.output
 
-        self._cache = self._check_cache()
+        self.metadata = self.codified_metadata(antecedents)
+
+    def codified_metadata(self, antecedents) -> Dict[str, Metadata]:
+        lineage = []
+        for v in self._collect_ingredients().values():
+            m = antecedents[v[0]]  # TODO: if antecedent is empty raise exception
+            if v[1] is None:
+                if len(m) == 1:
+                    lineage.append(next(iter(m.values())))
+                else:
+                    raise Exception(
+                        f"No specified result_name for Step Metadata '{v[0]}', "
+                        f"and there are multiple results to choose from. You "
+                        f"must provide a result_name in order to use this step "
+                        f"as an ingredient."
+                    )
+            else:
+                try:
+                    lineage.append(m[v[1]])
+                except KeyError:
+                    raise KeyError(
+                        f"ingredient specified result_name '{v[1]}' for Step "
+                        f"Metadata '{v[0]}', but it does not exist."
+                    )
+
+        metadata = {}
+        for k, v in self.results.items():
+            metadata[k] = Metadata(
+                codified=Codified(
+                    path=v, description=self.__doc__, instruction='yyz'
+                ),
+                lineage=lineage
+            )
+        return metadata
 
     def instructions(self):
         """
@@ -140,14 +171,14 @@ class Step:
                 self._workspace.mkdir(exist_ok=True)
                 os.chdir(self._workspace)
 
-                for k, v in self._results.items():
+                for k, v in self.results.items():
                     if not v.parent.as_posix() == '.':
                         v.parent.mkdir(parents=True)
 
                 if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
-                for k, v in self._results.items():
+                for k, v in self.results.items():
                     if not v.is_file():
                         raise ex.StepOutputMustExist()
 
@@ -158,6 +189,13 @@ class Step:
 
     @classmethod
     def _collect_ingredients(cls) -> Dict[str, Tuple[str, Union[str, None]]]:
+        """
+        Collect Step Ingredients
+
+        Identify all ingredients used by the step by examining their class, then
+        return a dictionary of the results, identifying the previous step by
+        name, as well as the sub-result (if applicable).
+        """
         return {
             k: (v.step_name, v.result_name)
             for k, v in inspect.getmembers(cls, lambda x: isinstance(x, _Ingredient))
@@ -187,7 +225,7 @@ class Step:
             self._ingredients[k] = m
             setattr(self, k, m.path)
 
-    def _set_results(self) -> Dict[str, Path]:
+    def set_results(self) -> Dict[str, Path]:
         """Set Outputs"""
         results = {}
         for k, v in self._get_results():
@@ -207,7 +245,7 @@ class Step:
             return Path('data', p)
 
     def _make_absolute_path(self, p, metadata=False) -> Path:
-        p = Path(self._destination, self._make_relative_path(p, metadata))
+        p = Path(self.destination, self._make_relative_path(p, metadata))
         return p.absolute()
 
     def _make_metadata(self) -> Dict[str, Metadata]:
@@ -219,7 +257,7 @@ class Step:
         artifacts
         """
         meta_dict = {}
-        for k, v in self._results.items():
+        for k, v in self.results.items():
             p = Path(self._workspace, v)
             hxd = md5(p.read_bytes()).hexdigest()
 
@@ -236,7 +274,7 @@ class Step:
                 absolute_path=ap, relative_path=rp,
                 checksum_value=hxd, checksum_algorithm='md5',
                 lineage=[x for x in self._ingredients.values()],
-                relative_to=self._destination.absolute(),
+                relative_to=self.destination.absolute(),
                 other=self._other_meta, step_description=self.__class__.__doc__,
                 step_instruction=inspect.getsource(self.instructions),
             )
@@ -251,11 +289,11 @@ class Step:
         existing metadata without executing instructions.
         """
         cache = {}
-        for k, v in self._results.items():
+        for k, v in self.results.items():
             mp = self._make_absolute_path(v, metadata=True)
             if mp.is_file():
                 meta = Metadata.from_dict(**json.loads(mp.read_text()))
-                dp = Path(self._destination, meta.codified.path)
+                dp = Path(self.destination, meta.codified.path)
                 if dp.is_file():
                     try:
                         assert meta.codified.fingerprint is False  # TODO: add codified metadata

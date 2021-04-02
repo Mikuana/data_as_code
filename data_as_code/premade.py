@@ -58,7 +58,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         def _make_metadata(self) -> Metadata:
             rp = Path('data', self.output.name)
             if self.keep is True:
-                ap = Path(self._destination, rp)
+                ap = Path(self.destination, rp)
                 ap.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(self.output.absolute(), ap)
             else:
