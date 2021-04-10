@@ -7,11 +7,10 @@ from data_as_code.exceptions import InvalidMetadata
 
 
 class _Meta:
-    def __init__(self, fingerprint: str = None, lineage: List['_Meta'] = None):
+    def __init__(self, lineage: List['_Meta'] = None):
         self.lineage = lineage
-        self.fingerprint = fingerprint or self.calculate_fingerprint()
 
-    def calculate_fingerprint(self) -> str:
+    def fingerprint(self) -> str:
         return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
 
     def _meta_dict(self) -> dict:
@@ -19,11 +18,11 @@ class _Meta:
 
     def to_dict(self) -> dict:
         d = self._meta_dict()
-        d['fingerprint'] = self.fingerprint
+        d['fingerprint'] = self.fingerprint()
         return d
 
     def prep_lineage(self) -> List[str]:
-        return sorted([x.to_dict()['fingerprint'] for x in self.lineage])
+        return sorted([x.fingerprint() for x in self.lineage])
 
 
 class Codified(_Meta):
@@ -36,12 +35,12 @@ class Codified(_Meta):
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
         self.instruction = instruction
-        super().__init__(**kwargs)
-
         if lineage:
             self.lineage = [
                 x.codified if isinstance(x, Metadata) else x for x in lineage
             ]
+
+        super().__init__(**kwargs)
 
     def _meta_dict(self) -> dict:
         d = {}

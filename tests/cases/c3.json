@@ -1,0 +1,9 @@
+{
+  "codified": {
+    "path": "/home/run/safe.csv",
+    "description": "safe data",
+    "lineage": ["00000001", "00000002"],
+    "fingerprint": "abcd1234"
+  },
+  "fingerprint": "99914b93"
+}

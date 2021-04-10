@@ -1,3 +1,4 @@
+import inspect
 import json
 from pathlib import Path
 
@@ -7,7 +8,8 @@ def x(name: str) -> dict:
     return json.loads(Path(Path(__file__).parent, name + '.json').read_text())
 
 
-empty = x('case1'), "Empty metadata"
-c2 = x('case2'), "Blank metadata"
+c1 = x('c1'), "Empty metadata"
+c2 = x('c2'), "Blank metadata"
+c3 = x('c3'), "Codified only"
 
-valid_cases = [c2]
+valid_cases = [c2, c3]
