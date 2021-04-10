@@ -1,10 +1,3 @@
 {
-  "path": "data/source/thatfile.txt",
-  "step_description": "Source file from available file system.",
-  "role": "source",
-  "checksum": {
-    "algorithm": "md5",
-    "value": "d41d8cd98f00b204e9800998ecf8427e"
-  },
-  "fingerprint": "d4adce2659416a96c7c25c01c6867cf3"
+  "fingerprint": "99914b93"
 }

@@ -23,3 +23,7 @@ class StepOutputMustExist(StepError):
 
 class StepUndefinedOutput(StepError):
     pass
+
+
+class InvalidMetadata(Exception):
+    pass

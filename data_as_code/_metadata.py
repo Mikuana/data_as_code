@@ -3,22 +3,23 @@ from hashlib import md5
 from pathlib import Path
 from typing import List, Union
 
+from data_as_code.exceptions import InvalidMetadata
+
 
 class _Meta:
-    lineage: List['_Meta'] = None
-
-    def __init__(self, fingerprint: str = None):
+    def __init__(self, fingerprint: str = None, lineage: List['_Meta'] = None):
+        self.lineage = lineage
         self.fingerprint = fingerprint or self.calculate_fingerprint()
 
     def calculate_fingerprint(self) -> str:
         return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
 
     def _meta_dict(self) -> dict:
-        return {}  # method stub for subclasses
+        raise Exception  # method stub for subclasses
 
     def to_dict(self) -> dict:
         d = self._meta_dict()
-        d['fingerprint'] = self.fingerprint or self.calculate_fingerprint()
+        d['fingerprint'] = self.fingerprint
         return d
 
     def prep_lineage(self) -> List[str]:
@@ -136,6 +137,11 @@ class Metadata(_Meta):
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
+        if metadata.get('fingerprint') is None:
+            raise InvalidMetadata(
+                'metadata must have a fingerprint'
+            )
+
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
 
         dc = metadata.get('codified')
