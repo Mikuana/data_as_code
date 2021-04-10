@@ -7,8 +7,10 @@ from data_as_code.exceptions import InvalidMetadata
 
 
 class _Meta:
-    def __init__(self, lineage: List['_Meta'] = None):
-        self.lineage = lineage
+    def __init__(self, lineage: List['_Meta'] = None, fingerprint: str = None):
+        if lineage:
+            self.lineage = lineage
+        self._cached_fingerprint = fingerprint  # TODO: check against calculation
 
     def fingerprint(self) -> str:
         return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
@@ -137,9 +139,7 @@ class Metadata(_Meta):
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
         if metadata.get('fingerprint') is None:
-            raise InvalidMetadata(
-                'metadata must have a fingerprint'
-            )
+            raise InvalidMetadata('metadata must have a fingerprint')
 
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
 
@@ -157,24 +157,5 @@ class Metadata(_Meta):
     @staticmethod
     def _replace(x: dict, **kwargs) -> dict:
         """Wrapper to merge dictionaries and overwrite where necessary"""
-        return {**x, **kwargs}
-
-
-if __name__ == '__main__':
-    c1 = Codified(Path(), description='xyz')
-    c2 = Codified(Path(), description='abc')
-    c3 = Codified(Path(), description='zzz', lineage=[c1, c2])
-    # print(c3.to_dict())
-
-    d1 = Derived('abc1')
-    d2 = Derived('abc2')
-    d3 = Derived('abc3', lineage=[d1, d2])
-    # print(d3.to_dict())
-
-    m1 = Metadata(c1, d1)
-    m3 = Metadata(c3, d3)
-    m2 = Metadata(c2, d2, lineage=[m1, m3])
-
-    mf = Metadata.from_dict(m2.to_dict()).to_dict()
-    p = Path('/home/chris/.config/JetBrains/PyCharm2020.3/scratches/scratch_1.json')
-    p.write_text(json.dumps(mf, indent=2))
+        d = {**x, **{k: v for k, v in kwargs.items() if v}}
+        return {**x, **{k: v for k, v in kwargs.items() if v}}

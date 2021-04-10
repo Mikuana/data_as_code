@@ -1,3 +1,14 @@
+"""
+To test:
+
+Fingerprints
+ - should always exist for root, subtype nodes, and lineage nodes
+ - fingerprints in subtype node lineage references need to refer to a
+    matching fingerprint in root lineage
+ - supplied fingerprints in metadata files should be checked against calculated
+    fingerprints for that metadata, with exceptions raised when they do not
+    match
+"""
 import itertools
 import re
 
