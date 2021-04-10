@@ -2,8 +2,27 @@
   "codified": {
     "path": "/home/run/safe.csv",
     "description": "safe data",
-    "lineage": ["00000001", "00000002"],
-    "fingerprint": "abcd1234"
+    "lineage": [
+      "a6e33a13",
+      "8719003a"
+    ],
+    "fingerprint": "564e8889"
   },
-  "fingerprint": "99914b93"
+  "lineage": [
+    {
+      "codified": {
+        "description": "predecessor 1",
+        "fingerprint": "a6e33a13"
+      },
+      "fingerprint": "c34a8bd7"
+    },
+    {
+      "codified": {
+        "description": "predecessor 2",
+        "fingerprint": "8719003a"
+      },
+      "fingerprint": "29c0e1ed"
+    }
+  ],
+  "fingerprint": "b8f736e0"
 }
