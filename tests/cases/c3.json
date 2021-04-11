@@ -1,6 +1,6 @@
 {
   "codified": {
-    "path": "/home/run/safe.csv",
+    "path": "run/safe.csv",
     "description": "safe data",
     "lineage": [
       "a6e33a13",

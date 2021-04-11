@@ -1,4 +1,3 @@
-import json
 from hashlib import md5
 from pathlib import Path
 from typing import List, Union
@@ -159,3 +158,23 @@ class Metadata(_Meta):
         """Wrapper to merge dictionaries and overwrite where necessary"""
         d = {**x, **{k: v for k, v in kwargs.items() if v}}
         return {**x, **{k: v for k, v in kwargs.items() if v}}
+
+
+if __name__ == '__main__':
+    import json
+    from pathlib import Path
+
+    from jsonschema import validate
+
+    from data_as_code import __version__ as v
+
+    sp = Path('/home/chris/PycharmProjects/data_as_code/data_as_code/schema.json')
+    dp = Path('/home/chris/PycharmProjects/data_as_code/tests/cases/c3.json')
+
+    schema = json.loads(sp.read_text())
+    schema['$id'] = (
+        f'https://raw.githubusercontent.com/'
+        f'Mikuana/data_as_code/v{v}/data_as_code/schema.json'
+    )
+    data = json.loads(dp.read_text())
+    validate(data, schema)
