@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/product.schema.json",
+  "title": "Data as Code Metadata",
+  "description": "A metadata object that defines a data object associated with a Data As Code recipe",
+  "type": "object",
+  "properties": {
+    "fingerprint": {
+      "description": "derived deterministic identifier of the metadata",
+      "type": "string",
+      "pattern": "^[a-f0-9]{8}$"
+    },
+    "codified": {
+      "description": "metadata defined as code within recipe",
+      "type": "object",
+      "properties": {
+        "fingerprint": {
+          "description": "derived deterministic identifier of the codified metadata",
+          "type": "string"
+        },
+        "path": {
+          "description": "a relative path to a file which contains the referenced data",
+          "type": "string"
+        },
+        "lineage": {
+          "description": "Tags for the product",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "fingerprint"
+      ]
+    },
+    "lineage": {
+      "description": "lineage description",
+      "type": "array",
+      "items": {
+        "$ref": "#"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "fingerprint"
+  ]
+}
