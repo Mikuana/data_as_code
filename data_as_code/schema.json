@@ -63,7 +63,7 @@
     }
   },
   "required": [
-    "fingerprint"
+    "fingerprint", "codified"
   ],
   "additionalProperties": false
 }
