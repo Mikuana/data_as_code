@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "$placeholder",
   "title": "Data as Code Metadata",
   "description": "A metadata object that defines a data object associated with a Data As Code recipe",
   "type": "object",
