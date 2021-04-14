@@ -1,17 +1,34 @@
+import json
 from hashlib import md5
+from importlib import resources
 from pathlib import Path
 from typing import List, Union
 
-from data_as_code.exceptions import InvalidMetadata
+from jsonschema import validate
 
 
 class _Meta:
+    _schema = json.loads(resources.read_text('data_as_code', 'schema.json'))
+    """JSON schema definition which can be used to validate the structure of
+    Metadata that has been exported.
+    """
+
     def __init__(self, lineage: List['_Meta'] = None, fingerprint: str = None):
         if lineage:
             self.lineage = lineage
         self._cached_fingerprint = fingerprint  # TODO: check against calculation
 
     def fingerprint(self) -> str:
+        if self._cached_fingerprint:
+            # TODO: enable this to work the way I want it to
+            # assert self._cached_fingerprint == self._calculate_fingerprint(),  \
+            #     "calculated fingerprint does not match cached. You're wrong"
+            return self._cached_fingerprint
+        else:
+            self._cached_fingerprint = self._calculate_fingerprint()
+            return self._cached_fingerprint
+
+    def _calculate_fingerprint(self):
         return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
 
     def _meta_dict(self) -> dict:
@@ -36,7 +53,8 @@ class Codified(_Meta):
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
         self.instruction = instruction
-        if lineage:
+        self.lineage = lineage
+        if self.lineage:
             self.lineage = [
                 x.codified if isinstance(x, Metadata) else x for x in lineage
             ]
@@ -133,48 +151,44 @@ class Metadata(_Meta):
                 key=lambda x: x['fingerprint']
             )
             f.append([x['fingerprint'] for x in d['lineage']])
+
+        assert validate(d, self._schema) is None
         return d
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
-        if metadata.get('fingerprint') is None:
-            raise InvalidMetadata('metadata must have a fingerprint')
+        # assertion time
+        assert not validate(metadata, cls._schema)
 
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
+        dc = metadata.get('codified', {})
+        dd = metadata.get('derived', {})
+        di = metadata.get('incidental', {})
 
-        dc = metadata.get('codified')
-        mc = Codified(**cls._replace(dc, lineage=dl)) if dc else None
+        assert len(dl) == len(dc.get('lineage', [])), \
+            "length of Metadata lineage node is not equal to the length of " \
+            "lineage fingerprints array in the Codified lineage sub-node"
 
-        dd = metadata.get('derived')
-        md = Derived(**cls._replace(dd, lineage=dl)) if dd else None
+        s1 = set([x.codified.fingerprint() for x in dl])
+        s2 = set(dc.get('lineage', []))
+        diff = s1.symmetric_difference(s2)
+        assert not diff, "the following fingerprints are present in either " \
+                         "the Metadata lineage codified sub-node, or in the " \
+                         "Codified lineage fingerprints array, but not both\n" \
+                         f"{diff}"
 
-        di = metadata.get('incidental')
-        mi = Incidental(**cls._replace(di, lineage=dl)) if di else None
+        if dd:
+            assert len(dl) == len(dd.get('lineage', [])), \
+                "length of Metadata lineage node is not equal to the length of " \
+                "lineage fingerprints array in the derived lineage sub-node"
 
+            s1 = set([x.derived.fingerprint() for x in dl])
+            s2 = set(dd.get('lineage', []))
+            diff = s1.symmetric_difference(s2)
+            assert not diff, "the following fingerprints are present in either " \
+                             "the Metadata lineage derived sub-node, or in the " \
+                             "derived lineage fingerprints array, but not both\n" \
+                             f"{diff}"
+
+        mc, md, mi = Codified(**dc), Derived(**dd), Incidental(**di)
         return cls(codified=mc, derived=md, incidental=mi, lineage=dl)
-
-    @staticmethod
-    def _replace(x: dict, **kwargs) -> dict:
-        """Wrapper to merge dictionaries and overwrite where necessary"""
-        d = {**x, **{k: v for k, v in kwargs.items() if v}}
-        return {**x, **{k: v for k, v in kwargs.items() if v}}
-
-
-if __name__ == '__main__':
-    import json
-    from pathlib import Path
-
-    from jsonschema import validate
-
-    from data_as_code import __version__ as v
-
-    sp = Path('/home/chris/PycharmProjects/data_as_code/data_as_code/schema.json')
-    dp = Path('/home/chris/PycharmProjects/data_as_code/tests/cases/c3.json')
-
-    schema = json.loads(sp.read_text())
-    schema['$id'] = (
-        f'https://raw.githubusercontent.com/'
-        f'Mikuana/data_as_code/v{v}/data_as_code/schema.json'
-    )
-    data = json.loads(dp.read_text())
-    validate(data, schema)
