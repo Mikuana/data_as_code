@@ -94,16 +94,17 @@ class Step:
 
     def __init__(self, destination: Path, antecedents: Dict[str, Dict[str, Metadata]]):
         self._guid = uuid4()
+        self.antecedents = antecedents
         self.destination = destination
-        self.metadata = self.construct_metadata(antecedents)
+        self.metadata = self.construct_metadata()
 
-    def construct_metadata(self, antecedents) -> Dict[str, Metadata]:
+    def construct_metadata(self) -> Dict[str, Metadata]:
         lineage = []
         for v in self._collect_ingredients().values():
-            m = antecedents[v[0]]  # TODO: if antecedent is empty raise exception
+            m = self.antecedents[v[0]]  # TODO: if antecedent is empty raise exception
             if v[1] is None:
-                if len(m.metadata) == 1:
-                    lineage.append(next(iter(m.metadata.values())))
+                if len(m) == 1:
+                    lineage.append(next(iter(m.values())))
                 else:
                     raise Exception(
                         f"No specified result_name for Step Metadata '{v[0]}', "
@@ -179,7 +180,7 @@ class Step:
                     if not v.incidental.path.is_file():
                         raise ex.StepOutputMustExist()
 
-                self.metadata = self._make_metadata()
+                self._make_metadata()
             finally:
                 os.chdir(original_wd)
         return self
@@ -210,17 +211,17 @@ class Step:
         This method must modify self, due to the dynamic naming of attributes.
         """
         for k, v in self._collect_ingredients().items():
-            ante = self._antecedents[v[0]]
+            ante = self.antecedents[v[0]]
             if v[1] is None:
-                if len(ante.metadata) == 1:
-                    m = list(ante.metadata.values())[0]
+                if len(ante) == 1:
+                    m = list(ante.values())[0]
                 else:
                     raise Exception
             else:
-                m = ante.metadata[v[1]]
+                m = ante[v[1]]
 
             self._ingredients[k] = m
-            setattr(self, k, m.path)
+            setattr(self, k, m.incidental.path)
 
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
@@ -237,7 +238,7 @@ class Step:
         p = Path(self.destination, self._make_relative_path(p, metadata))
         return p.absolute()
 
-    def _make_metadata(self) -> Dict[str, Metadata]:
+    def _make_metadata(self):
         """
         Set Output Metadata
 
@@ -263,7 +264,7 @@ class Step:
         existing metadata without executing instructions.
         """
         cache = {}
-        for k, v in self.results.items():
+        for k, v in self.metadata.items():
             mp = self._make_absolute_path(v, metadata=True)
             if mp.is_file():
                 meta = Metadata.from_dict(**json.loads(mp.read_text()))

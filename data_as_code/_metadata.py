@@ -52,7 +52,6 @@ class Codified(_Meta):
     ):
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
-        self.instruction = instruction
         self.lineage = lineage
         if self.lineage:
             self.lineage = [
@@ -67,8 +66,6 @@ class Codified(_Meta):
             d['path'] = self.path.as_posix()
         if self.description:
             d['description'] = self.description
-        if self.instruction:
-            d['instruction'] = self.instruction
         if self.lineage:
             d['lineage'] = self.prep_lineage()
         return d
@@ -131,6 +128,11 @@ class Metadata(_Meta):
         self.lineage = lineage
         super().__init__(**kwargs)
 
+    def to_dict(self) -> dict:
+        d = super().to_dict()
+        assert validate(d, self._schema) is None
+        return d
+
     def _meta_dict(self) -> dict:
         d = {}
         f = []
@@ -152,7 +154,6 @@ class Metadata(_Meta):
             )
             f.append([x['fingerprint'] for x in d['lineage']])
 
-        assert validate(d, self._schema) is None
         return d
 
     @classmethod
