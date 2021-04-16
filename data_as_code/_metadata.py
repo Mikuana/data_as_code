@@ -146,9 +146,6 @@ class Metadata(_Meta):
             d['derived'] = self.derived.to_dict()
             f.append(d['derived']['fingerprint'])
 
-        if self.incidental:
-            d['incidental'] = self.incidental.to_dict()
-
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],

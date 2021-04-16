@@ -130,7 +130,8 @@ class Step:
             metadata[k] = Metadata(
                 codified=Codified(
                     path=v.path if v else None,
-                    description=self.__doc__, instruction='yyz'
+                    description=self.__doc__, instruction='yyz',
+                    lineage=lineage
                 ),
                 lineage=lineage
             )
@@ -254,7 +255,7 @@ class Step:
 
             v.derived = Derived(
                 checksum=md5(v.incidental.path.read_bytes()).hexdigest(),
-                # lineage=Derived(['yyz'])  # TODO: not correct
+                lineage=v.lineage
             )
 
     def _check_cache(self) -> Union[Dict[str, Metadata], None]:
