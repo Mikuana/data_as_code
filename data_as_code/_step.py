@@ -7,7 +7,7 @@ from typing import Union, Dict, List, Tuple
 from uuid import uuid4
 
 from data_as_code import exceptions as ex
-from data_as_code._metadata import Metadata, Codified
+from data_as_code._metadata import Metadata, Codified, Derived, Incidental
 
 
 class _Ingredient:
@@ -95,27 +95,15 @@ class Step:
     def __init__(self, destination: Path, antecedents: Dict[str, Dict[str, Metadata]]):
         self._guid = uuid4()
         self.destination = destination
+        self.metadata = self.construct_metadata(antecedents)
 
-        self.results = self.set_results()
-        if not self.results:
-            if self.keep is True:
-                raise ex.StepUndefinedOutput(
-                    "To keep an artifact you must define the output path"
-                )
-            else:
-                self.output = Path(self._guid.hex)
-                # noinspection PyTypeChecker
-                self.results['output'] = self.output
-
-        self.metadata = self.codified_metadata(antecedents)
-
-    def codified_metadata(self, antecedents) -> Dict[str, Metadata]:
+    def construct_metadata(self, antecedents) -> Dict[str, Metadata]:
         lineage = []
         for v in self._collect_ingredients().values():
             m = antecedents[v[0]]  # TODO: if antecedent is empty raise exception
             if v[1] is None:
-                if len(m) == 1:
-                    lineage.append(next(iter(m.values())))
+                if len(m.metadata) == 1:
+                    lineage.append(next(iter(m.metadata.values())))
                 else:
                     raise Exception(
                         f"No specified result_name for Step Metadata '{v[0]}', "
@@ -132,11 +120,16 @@ class Step:
                         f"Metadata '{v[0]}', but it does not exist."
                     )
 
+        results = self._get_results()
+        if not results:
+            results = [('output', None)]
+
         metadata = {}
-        for k, v in self.results.items():
+        for (k, v) in results:
             metadata[k] = Metadata(
                 codified=Codified(
-                    path=v, description=self.__doc__, instruction='yyz'
+                    path=v.path if v else None,
+                    description=self.__doc__, instruction='yyz'
                 ),
                 lineage=lineage
             )
@@ -156,13 +149,17 @@ class Step:
         self._workspace = Path(_workspace, self._guid.hex)
         self._convert_ingredients()
 
-        if self._cache and self.trust_cache is True:
-            self._data_from_cache = True
-            print(
-                f'Step {self.__class__.__name__} using cache for files\n',
-                '\n'.join([f" {x.path.absolute().as_posix()}" for x in self._cache.values()])
-            )
-            self.metadata = self._cache
+        for k, v in self.metadata.items():
+            if v.codified.path:
+                p = v.codified.path
+            else:
+                p = Path(self._guid.hex, 'output')
+            p = Path(self._workspace, p).absolute()
+
+            self.metadata[k].incidental = Incidental(path=p)
+            self.__setattr__(k, p)
+
+        if False and self.trust_cache is True:  # TODO: fix caching
             return self
         else:
             self._data_from_cache = False
@@ -171,15 +168,15 @@ class Step:
                 self._workspace.mkdir(exist_ok=True)
                 os.chdir(self._workspace)
 
-                for k, v in self.results.items():
-                    if not v.parent.as_posix() == '.':
-                        v.parent.mkdir(parents=True)
+                for v in self.metadata.values():
+                    if not v.incidental.path.parent.as_posix() == '.':
+                        v.incidental.path.parent.mkdir(parents=True, exist_ok=True)
 
                 if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
-                for k, v in self.results.items():
-                    if not v.is_file():
+                for v in self.metadata.values():
+                    if not v.incidental.path.is_file():
                         raise ex.StepOutputMustExist()
 
                 self.metadata = self._make_metadata()
@@ -225,14 +222,6 @@ class Step:
             self._ingredients[k] = m
             setattr(self, k, m.path)
 
-    def set_results(self) -> Dict[str, Path]:
-        """Set Outputs"""
-        results = {}
-        for k, v in self._get_results():
-            results[k] = v.path
-            self.__setattr__(k, v.path)
-        return results
-
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
         return inspect.getmembers(cls, lambda x: isinstance(x, _Result))
@@ -256,31 +245,16 @@ class Step:
         output Metadata for the step. These outputs get added to the Recipe
         artifacts
         """
-        meta_dict = {}
-        for k, v in self.results.items():
-            p = Path(self._workspace, v)
-            hxd = md5(p.read_bytes()).hexdigest()
-
+        for k, v in self.metadata.items():
             if self.keep is True:
-                rp = self._make_relative_path(v)
-                ap = self._make_absolute_path(v)
+                ap = self._make_absolute_path(v.codified.path)
                 ap.parent.mkdir(parents=True, exist_ok=True)
-                p.rename(ap)
-            else:
-                ap = p
-                rp = None
+                v.incidental.path = v.incidental.path.rename(ap)
 
-            meta_dict[k] = Metadata(
-                absolute_path=ap, relative_path=rp,
-                checksum_value=hxd, checksum_algorithm='md5',
-                lineage=[x for x in self._ingredients.values()],
-                relative_to=self.destination.absolute(),
-                other=self._other_meta, step_description=self.__class__.__doc__,
-                step_instruction=inspect.getsource(self.instructions),
+            v.derived = Derived(
+                checksum=md5(v.incidental.path.read_bytes()).hexdigest(),
+                # lineage=Derived(['yyz'])  # TODO: not correct
             )
-        for k, v in meta_dict.items():
-            setattr(self, k, v)
-        return meta_dict
 
     def _check_cache(self) -> Union[Dict[str, Metadata], None]:
         """

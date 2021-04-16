@@ -104,7 +104,7 @@ class Incidental(_Meta):
             **kwargs
     ):
         self.path = Path(path) if isinstance(path, str) else path  # absolute path
-        self.directory = Path(directory) if isinstance(path, str) else path
+        self.directory = Path(directory) if isinstance(directory, str) else directory
         self.other = kwargs
         super().__init__(**kwargs)
 
