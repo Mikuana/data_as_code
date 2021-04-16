@@ -93,7 +93,7 @@ class Recipe:
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
-            steps[name] = step(self._target.folder, steps.copy())
+            steps[name] = step(self._target.folder, {k: v.metadata for k, v in steps.items()})
 
         return steps
 
@@ -313,15 +313,9 @@ class Recipe:
         for result in self._results.values():
             if result.keep is True:
                 for k, v in result.metadata.items():
-                    if v._relative_to:
-                        r = Path(v._relative_to, 'data')
-                        pp = Path(self._target.metadata, v.path.relative_to(r))
-                    else:
-                        pp = Path(
-                            self._target.metadata, v._relative_path.name
-                        )
-                    pp.parent.mkdir(parents=True, exist_ok=True)
+                    p = Path(self._target.metadata, v.codified.path)
+                    p.parent.mkdir(parents=True, exist_ok=True)
 
                     d = v.to_dict()
                     j = json.dumps(d, indent=2)
-                    Path(pp.as_posix() + '.json').write_text(j)
+                    Path(p.as_posix() + '.json').write_text(j)

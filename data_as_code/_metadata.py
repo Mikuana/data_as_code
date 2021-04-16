@@ -72,6 +72,8 @@ class Codified(_Meta):
 
 
 class Derived(_Meta):
+    lineage: Union[List['Metadata'], List['Derived']] = None
+
     def __init__(
             self,
             checksum: str = None,

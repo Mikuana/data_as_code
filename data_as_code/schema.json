@@ -38,7 +38,7 @@
           ]
         },
         "lineage": {
-          "description": "Tags for the product",
+          "description": "list of fingerprints for codified nodes of lineage",
           "type": "array",
           "items": {
             "$ref": "#/definitions/fingerprint"
@@ -52,6 +52,46 @@
       ],
       "additionalProperties": false
     },
+    "derived": {
+      "description": "metadata derived from artifacts during recipe execution",
+      "type": "object",
+      "properties": {
+        "fingerprint": {
+          "$ref": "#/definitions/fingerprint"
+        },
+        "checksum": {
+          "description": "md5 checksum of the file",
+          "type": "string",
+          "pattern": "^[a-f0-9]{32}$"
+        },
+        "lineage": {
+          "description": "list of fingerprints for derived nodes of lineage",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/fingerprint"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "fingerprint"
+      ],
+      "additionalProperties": false
+    },
+    "incidental": {
+      "description": "metadata that is generally ",
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "an absolute path to the file",
+          "type": "string",
+          "examples": [
+            "/home/my_user/data_folder/data/my_file.csv"
+          ]
+        }
+      }
+    },
     "lineage": {
       "description": "lineage description",
       "type": "array",
@@ -63,7 +103,8 @@
     }
   },
   "required": [
-    "fingerprint", "codified"
+    "fingerprint",
+    "codified"
   ],
   "additionalProperties": false
 }
