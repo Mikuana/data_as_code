@@ -278,13 +278,14 @@ class Step:
                     dp = self._make_absolute_path(meta.codified.path)
                     if dp.is_file():
                         try:
-                            assert meta.codified.fingerprint() == v.codified.fingerprint()
-                            assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest()
+                            assert meta.codified.fingerprint() == v.codified.fingerprint(), \
+                                "Codified fingerprint does not match cache"
+                            assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest(), \
+                                f"checksum does not match file {dp}"
                             meta.incidental.file_path = dp
                             cache[k] = meta
                         except AssertionError as e:
-                            print(f'Ignoring cache for step {self.__class__.__name__}: ')
-                            print(e)
+                            print(f'Ignoring cache: ' + str(e))
                             return
 
         print(
