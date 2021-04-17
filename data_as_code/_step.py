@@ -161,8 +161,9 @@ class Step:
             self.metadata[k].incidental = Incidental(path=p)
             self.__setattr__(k, p)
 
-        if False and self.trust_cache is True:  # TODO: fix caching
+        if self.trust_cache is True and self._check_cache() is True:
             return self
+
         else:
             self._data_from_cache = False
             original_wd = os.getcwd()
@@ -171,19 +172,20 @@ class Step:
                 os.chdir(self._workspace)
 
                 for v in self.metadata.values():
-                    if not v.incidental.path.parent.as_posix() == '.':
-                        v.incidental.path.parent.mkdir(parents=True, exist_ok=True)
+                    if not v.incidental.file_path.parent.as_posix() == '.':
+                        v.incidental.file_path.parent.mkdir(parents=True, exist_ok=True)
 
                 if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
                 for v in self.metadata.values():
-                    if not v.incidental.path.is_file():
+                    if not v.incidental.file_path.is_file():
                         raise ex.StepOutputMustExist()
 
                 self._make_metadata()
             finally:
                 os.chdir(original_wd)
+
         return self
 
     @classmethod
@@ -222,7 +224,7 @@ class Step:
                 m = ante[v[1]]
 
             self._ingredients[k] = m
-            setattr(self, k, m.incidental.path)
+            setattr(self, k, m.incidental.file_path)
 
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
@@ -251,31 +253,47 @@ class Step:
             if self.keep is True:
                 ap = self._make_absolute_path(v.codified.path)
                 ap.parent.mkdir(parents=True, exist_ok=True)
-                v.incidental.path = v.incidental.path.rename(ap)
+                v.incidental.file_path = v.incidental.file_path.rename(ap)
 
             v.derived = Derived(
-                checksum=md5(v.incidental.path.read_bytes()).hexdigest(),
+                checksum=md5(v.incidental.file_path.read_bytes()).hexdigest(),
                 lineage=v.lineage
             )
 
-    def _check_cache(self) -> Union[Dict[str, Metadata], None]:
+    def _check_cache(self) -> Union[bool, None]:
         """
         Check project data folder for existing file before attempting to recreate.
-        If fingerprint in the metadata matches the mocked fingerprint, use the
-        existing metadata without executing instructions.
+        If codified fingerprint in the metadata matches, and the checksum of the
+        referenced file matches the metadata checksum, use the existing metadata
+        and file without executing instructions.
         """
+        print(f'Checking cache for step {self.__class__.__name__}')
         cache = {}
         for k, v in self.metadata.items():
-            mp = self._make_absolute_path(v, metadata=True)
-            if mp.is_file():
-                meta = Metadata.from_dict(**json.loads(mp.read_text()))
-                dp = Path(self.destination, meta.codified.path)
-                if dp.is_file():
-                    try:
-                        assert meta.codified.fingerprint is False  # TODO: add codified metadata
-                        # this assumes the algorithm is md5
-                        assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest()
-                        cache[k] = meta
-                    except AssertionError:
-                        return
-        return cache
+            if v.codified.path:
+                mp = self._make_absolute_path(v.codified.path, metadata=True)
+                if mp.is_file():
+                    j = json.loads(mp.read_text())
+                    meta = Metadata.from_dict(j)
+                    dp = self._make_absolute_path(meta.codified.path)
+                    if dp.is_file():
+                        try:
+                            assert meta.codified.fingerprint() == v.codified.fingerprint()
+                            assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest()
+                            meta.incidental.file_path = dp
+                            cache[k] = meta
+                        except AssertionError as e:
+                            print(f'Ignoring cache for step {self.__class__.__name__}: ')
+                            print(e)
+                            return
+
+        print(
+            "Using cache for results:\n" +
+            '\n'.join([f' - {v.codified.path}' for v in cache.values()]) +
+            '\n'
+        )
+        for k, v in self.metadata.items():
+            self.metadata[k].derived = cache[k].derived
+            self.metadata[k].incidental = cache[k].incidental
+
+        return True

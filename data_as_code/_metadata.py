@@ -13,7 +13,10 @@ class _Meta:
     Metadata that has been exported.
     """
 
-    def __init__(self, lineage: List['_Meta'] = None, fingerprint: str = None):
+    def __init__(
+            self, lineage: Union[List['_Meta'], List[str]] = None,
+            fingerprint: str = None
+    ):
         if lineage:
             self.lineage = lineage
         self._cached_fingerprint = fingerprint  # TODO: check against calculation
@@ -40,7 +43,10 @@ class _Meta:
         return d
 
     def prep_lineage(self) -> List[str]:
-        return sorted([x.fingerprint() for x in self.lineage])
+        if all([isinstance(x, str) for x in self.lineage]):
+            return sorted(self.lineage)
+        else:
+            return sorted([x.fingerprint() for x in self.lineage])
 
 
 class Codified(_Meta):
@@ -102,7 +108,7 @@ class Incidental(_Meta):
             directory: Union[Path, str] = None,
             **kwargs
     ):
-        self.path = Path(path) if isinstance(path, str) else path  # absolute path
+        self.file_path = Path(path) if isinstance(path, str) else path
         self.directory = Path(directory) if isinstance(directory, str) else directory
         self.other = kwargs
         super().__init__(**kwargs)
