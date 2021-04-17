@@ -48,10 +48,9 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         def instructions(self):
             pass
 
-        def _execute(self):
-            cached = self._check_cache()
-            if cached:
-                return cached
+        def _execute(self):  # TODO: this is all messed up
+            if self._check_cache():
+                return self
             else:
                 return self._make_metadata()
 

@@ -260,33 +260,42 @@ class Step:
                 lineage=v.lineage
             )
 
-    def _check_cache(self) -> Union[bool, None]:
+    def _check_cache(self) -> bool:
         """
-        Check project data folder for existing file before attempting to recreate.
+        Check project data folder for existing file before attempting execution.
         If codified fingerprint in the metadata matches, and the checksum of the
-        referenced file matches the metadata checksum, use the existing metadata
-        and file without executing instructions.
+        referenced file matches the metadata checksum, then update the derived
+        and incidental metadata to reflect the use of the cache. This allows us
+        to skip execution.
+
+        :return: a boolean value indicating whether the metadata was updated
+            using the cache. If True, the execution of instructions can be
+            skipped.
         """
         print(f'Checking cache for step {self.__class__.__name__}')
         cache = {}
         for k, v in self.metadata.items():
-            if v.codified.path:
+            try:
+                assert v.codified.path is not None, \
+                    f"result {k} does not have a codified output path"
+
                 mp = self._make_absolute_path(v.codified.path, metadata=True)
-                if mp.is_file():
-                    j = json.loads(mp.read_text())
-                    meta = Metadata.from_dict(j)
-                    dp = self._make_absolute_path(meta.codified.path)
-                    if dp.is_file():
-                        try:
-                            assert meta.codified.fingerprint() == v.codified.fingerprint(), \
-                                "Codified fingerprint does not match cache"
-                            assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest(), \
-                                f"checksum does not match file {dp}"
-                            meta.incidental.file_path = dp
-                            cache[k] = meta
-                        except AssertionError as e:
-                            print(f'Ignoring cache: ' + str(e))
-                            return
+                assert mp.is_file(), f"expected metadata {mp} does not exist"
+
+                meta = Metadata.from_dict(json.loads(mp.read_text()))
+                dp = self._make_absolute_path(meta.codified.path)
+
+                assert dp.is_file(), f"expected file {dp} does not exist"
+                assert meta.codified.fingerprint() == v.codified.fingerprint(), \
+                    "codified fingerprint does not match cache"
+                assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest(), \
+                    f"checksum does not match file {dp}"
+                meta.incidental.file_path = dp
+                cache[k] = meta
+
+            except AssertionError as e:
+                print(f'Ignoring cache: ' + str(e))
+                return False
 
         print(
             "Using cache for results:\n" +
