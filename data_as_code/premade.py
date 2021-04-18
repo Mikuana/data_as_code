@@ -49,7 +49,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
             pass
 
         def _execute(self):  # TODO: this is all messed up
-            if self._check_cache():
+            if self.check_cache():
                 return self
             else:
                 return self._make_metadata()

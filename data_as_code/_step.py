@@ -100,7 +100,7 @@ class Step:
 
     def construct_metadata(self) -> Dict[str, Metadata]:
         lineage = []
-        for v in self._collect_ingredients().values():
+        for v in self.collect_ingredients().values():
             m = self.antecedents[v[0]]  # TODO: if antecedent is empty raise exception
             if v[1] is None:
                 if len(m) == 1:
@@ -161,7 +161,7 @@ class Step:
             self.metadata[k].incidental = Incidental(path=p)
             self.__setattr__(k, p)
 
-        if self.trust_cache is True and self._check_cache() is True:
+        if self.trust_cache is True and self.check_cache() is True:
             return self
 
         else:
@@ -172,14 +172,14 @@ class Step:
                 os.chdir(self._workspace)
 
                 for v in self.metadata.values():
-                    if not v.incidental.file_path.parent.as_posix() == '.':
-                        v.incidental.file_path.parent.mkdir(parents=True, exist_ok=True)
+                    if not v.incidental.path.parent.as_posix() == '.':
+                        v.incidental.path.parent.mkdir(parents=True, exist_ok=True)
 
                 if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
                 for v in self.metadata.values():
-                    if not v.incidental.file_path.is_file():
+                    if not v.incidental.path.is_file():
                         raise ex.StepOutputMustExist()
 
                 self._make_metadata()
@@ -189,7 +189,7 @@ class Step:
         return self
 
     @classmethod
-    def _collect_ingredients(cls) -> Dict[str, Tuple[str, Union[str, None]]]:
+    def collect_ingredients(cls) -> Dict[str, Tuple[str, Union[str, None]]]:
         """
         Collect Step Ingredients
 
@@ -213,7 +213,7 @@ class Step:
 
         This method must modify self, due to the dynamic naming of attributes.
         """
-        for k, v in self._collect_ingredients().items():
+        for k, v in self.collect_ingredients().items():
             ante = self.antecedents[v[0]]
             if v[1] is None:
                 if len(ante) == 1:
@@ -224,7 +224,7 @@ class Step:
                 m = ante[v[1]]
 
             self._ingredients[k] = m
-            setattr(self, k, m.incidental.file_path)
+            setattr(self, k, m.incidental.path)
 
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
@@ -253,14 +253,14 @@ class Step:
             if self.keep is True:
                 ap = self._make_absolute_path(v.codified.path)
                 ap.parent.mkdir(parents=True, exist_ok=True)
-                v.incidental.file_path = v.incidental.file_path.rename(ap)
+                v.incidental.path = v.incidental.path.rename(ap)
 
             v.derived = Derived(
-                checksum=md5(v.incidental.file_path.read_bytes()).hexdigest(),
+                checksum=md5(v.incidental.path.read_bytes()).hexdigest(),
                 lineage=v.lineage
             )
 
-    def _check_cache(self) -> bool:
+    def check_cache(self) -> bool:
         """
         Check project data folder for existing file before attempting execution.
         If codified fingerprint in the metadata matches, and the checksum of the
@@ -290,7 +290,8 @@ class Step:
                     "codified fingerprint does not match cache"
                 assert meta.derived.checksum == md5(dp.read_bytes()).hexdigest(), \
                     f"checksum does not match file {dp}"
-                meta.incidental.file_path = dp
+                meta.incidental.path = dp
+                meta.incidental.usage = 'cached'
                 cache[k] = meta
 
             except AssertionError as e:

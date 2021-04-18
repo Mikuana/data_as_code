@@ -66,23 +66,50 @@ class Recipe:
     def __init__(
             self, destination: Union[str, Path] = '.',
             keep: Union[str, List[str]] = None,
-            trust_cache: bool = None
+            trust_cache: bool = None,
+            pickup=False
     ):
         self.destination = Path(destination)
 
         self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
+        self.pickup = pickup
 
         self._step_check()
         self._target = self._get_targets()
 
-    def _pickup_step(self):
-        """Start from latest available step in chain"""
-        steps = self._stepper()
-        prods = {k: v for k, v in steps.items() if k in self._products()}
+    def pickup_step(self) -> Dict[str, Step]:
+        """
+        Identify pickup steps
 
-        for k, v in prods.items():
-            print(k, v._cache)
+        Start with all products of a recipe, and check the cache for valid
+        artifacts. If the product is missing a valid artifact in the cache,
+        iterate through the ingredients of that product and check their cache
+        status, continuing indefinitely until a valid cache exists.
+
+        The idea is to be able to generate a product from the cache with the
+        least number of steps possible, potentially even when some of the data
+        used in certain steps is completely unavailable at the time of execution
+        of the recipe.
+
+        :return: a list of step names which will need to be executed in order to
+        create the recipe.
+        """
+        steps = self._stepper()
+
+        def check_it(step_name: str) -> set:
+            required = {step_name}
+            s = steps[step_name]
+            if s.check_cache() is False:
+                for (x, y) in s.collect_ingredients().values():
+                    required = required.union(check_it(x))
+            return required
+
+        pickups = set()
+        for k in self._products():
+            pickups = pickups.union(check_it(k))
+
+        return {k: v for k, v in steps.items() if k in pickups}
 
     def _stepper(self) -> Dict[str, Step]:
         steps = {}
@@ -232,7 +259,7 @@ class Recipe:
         steps = cls._steps()
         for ix, (k, step) in enumerate(steps.items()):
             priors = list(steps.keys())[:ix]
-            for x in step._collect_ingredients().values():
+            for x in step.collect_ingredients().values():
                 ingredient = x[0]
                 msg = (
                     f"Step '{k}' references ingredient '{ingredient}', but"
@@ -258,12 +285,12 @@ class Recipe:
         steps = cls._steps()
         ingredient_list = set(
             v[0] for sublist in steps.values()
-            for k, v in sublist._collect_ingredients().items()
+            for k, v in sublist.collect_ingredients().items()
         )
 
         roles = {}
         for k, step in steps.items():
-            if not step._collect_ingredients():
+            if not step.collect_ingredients():
                 roles[k] = SOURCE
             if k not in ingredient_list:
                 roles[k] = PRODUCT

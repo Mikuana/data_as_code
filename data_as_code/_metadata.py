@@ -106,10 +106,12 @@ class Incidental(_Meta):
             self,
             path: Union[Path, str] = None,
             directory: Union[Path, str] = None,
+            usage: str = None,
             **kwargs
     ):
-        self.file_path = Path(path) if isinstance(path, str) else path
+        self.path = Path(path) if isinstance(path, str) else path
         self.directory = Path(directory) if isinstance(directory, str) else directory
+        self.usage = usage
         self.other = kwargs
         super().__init__(**kwargs)
 
