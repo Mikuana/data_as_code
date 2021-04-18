@@ -225,6 +225,7 @@ class Step:
 
             self._ingredients[k] = m
             setattr(self, k, m.incidental.path)
+            # TODO: fix ingredient conversion
 
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
