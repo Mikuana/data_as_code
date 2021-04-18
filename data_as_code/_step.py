@@ -161,7 +161,7 @@ class Step:
             self.metadata[k].incidental = Incidental(path=p)
             self.__setattr__(k, p)
 
-        if self.trust_cache is True and self.check_cache() is True:
+        if self.check_cache() is True:
             return self
 
         else:
@@ -272,10 +272,12 @@ class Step:
             using the cache. If True, the execution of instructions can be
             skipped.
         """
+        # TODO: replace prints with logging module calls
         print(f'Checking cache for step {self.__class__.__name__}')
-        cache = {}
-        for k, v in self.metadata.items():
-            try:
+        try:
+            assert self.trust_cache is True, f"cache is not trusted"
+            cache = {}
+            for k, v in self.metadata.items():
                 assert v.codified.path is not None, \
                     f"result {k} does not have a codified output path"
 
@@ -294,9 +296,9 @@ class Step:
                 meta.incidental.usage = 'cached'
                 cache[k] = meta
 
-            except AssertionError as e:
-                print(f'Ignoring cache: ' + str(e))
-                return False
+        except AssertionError as e:
+            print(f'Ignoring cache: ' + str(e))
+            return False
 
         print(
             "Using cache for results:\n" +

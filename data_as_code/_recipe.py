@@ -67,13 +67,13 @@ class Recipe:
             self, destination: Union[str, Path] = '.',
             keep: Union[str, List[str]] = None,
             trust_cache: bool = None,
-            pickup=False
+            pickup: bool = None
     ):
         self.destination = Path(destination)
 
         self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
-        self.pickup = pickup
+        self.pickup = pickup or self.pickup
 
         self._step_check()
         self._target = self._get_targets()
@@ -128,7 +128,12 @@ class Recipe:
         self._begin()
         self._results = {}
 
-        for name, step in self._stepper().items():
+        if self.pickup is True:
+            steps = self.pickup_step()
+        else:
+            steps = self._stepper()
+
+        for name, step in steps.items():
             self._results[name] = step._execute(self._workspace)
 
         self._export_metadata()
