@@ -1,3 +1,4 @@
+import logging
 import difflib
 import gzip
 import json
@@ -183,19 +184,19 @@ class Recipe:
 
         only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
         if only_in_b:
-            print(f"Comparison contains files(s) not in this package:\n")
+            logging.info(f"Comparison contains files(s) not in this package:\n")
             for x in only_in_b:
-                print(' - ' + x.as_posix())
+                logging.info(' - ' + x.as_posix())
 
         only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
         if only_in_a:
-            print(f"Package contains file(s) not in the comparison:\n")
+            logging.info(f"Package contains file(s) not in the comparison:\n")
             for x in only_in_a:
-                print(' - ' + x.as_posix())
+                logging.info(' - ' + x.as_posix())
 
         # difference in intersecting metadata
         for meta in set(meta_a.keys()).intersection(meta_b.keys()):
-            print(meta.as_posix())
+            logging.info(meta.as_posix())
             sys.stdout.writelines(
                 difflib.unified_diff(
                     meta_a[meta], meta_b[meta], 'Package', 'Comparison'
@@ -242,7 +243,7 @@ class Recipe:
             for folder in [self._target.data, self._target.metadata]:
                 for file in [x for x in folder.rglob('*') if x.is_file()]:
                     if file not in expect:
-                        print(f"Removing unexpected file {file}")
+                        logging.warning(f"Removing unexpected file {file}")
                         file.unlink()
         finally:
             os.chdir(cwd)

@@ -1,3 +1,4 @@
+import logging
 import inspect
 import json
 import os
@@ -148,24 +149,22 @@ class Step:
 
     def _execute(self, _workspace: Path):
         """Do the work"""
-        self._workspace = Path(_workspace, self._guid.hex)
-        self._convert_ingredients()
-
-        for k, v in self.metadata.items():
-            if v.codified.path:
-                p = v.codified.path
-            else:
-                p = Path(self._guid.hex, 'output')
-            p = Path(self._workspace, p).absolute()
-
-            self.metadata[k].incidental = Incidental(path=p)
-            self.__setattr__(k, p)
-
         if self.check_cache() is True:
             return self
-
         else:
-            self._data_from_cache = False
+            self._workspace = Path(_workspace, self._guid.hex)
+            for k, v in self.metadata.items():
+                if v.codified.path:
+                    p = v.codified.path
+                else:
+                    p = Path(self._guid.hex, 'output')
+                p = Path(self._workspace, p).absolute()
+
+                self.metadata[k].incidental = Incidental(path=p)
+                self.__setattr__(k, p)
+
+            self._convert_ingredients()
+
             original_wd = os.getcwd()
             try:
                 self._workspace.mkdir(exist_ok=True)
@@ -273,8 +272,7 @@ class Step:
             using the cache. If True, the execution of instructions can be
             skipped.
         """
-        # TODO: replace prints with logging module calls
-        print(f'Checking cache for step {self.__class__.__name__}')
+        logging.info(f'Check cache for: {self.__class__.__name__}')
         try:
             assert self.trust_cache is True, f"cache is not trusted"
             cache = {}
@@ -298,13 +296,12 @@ class Step:
                 cache[k] = meta
 
         except AssertionError as e:
-            print(f'Ignoring cache: ' + str(e))
+            logging.info(f'Ignoring cache: ' + str(e))
             return False
 
-        print(
-            "Using cache for results:\n" +
-            '\n'.join([f' - {v.codified.path}' for v in cache.values()]) +
-            '\n'
+        logging.info(
+            "Using cache for files: " +
+            ','.join([v.codified.path.as_posix() for v in cache.values()])
         )
         for k, v in self.metadata.items():
             self.metadata[k].derived = cache[k].derived

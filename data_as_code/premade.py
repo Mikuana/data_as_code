@@ -8,6 +8,7 @@ and over again, but to handle it in a way which brings the advantages of the
 data-as-code framework, including the tracking of metadata, and caching of
 artifacts.
 """
+import logging
 import inspect
 import shutil
 from hashlib import md5
@@ -101,7 +102,9 @@ def source_http(url: str, keep=False) -> Type[Step]:
 
         def instructions(self):
             try:
-                print('Downloading from URL:\n' + self._url)
+                msg = 'Downloading from URL:\n' + self._url
+                logging.info(msg)
+                print(msg)
                 response = requests.get(self._url, stream=True)
                 context = dict(
                     total=int(response.headers.get('content-length', 0)),
@@ -113,7 +116,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
                             stream.write(chunk)
 
             except requests.HTTPError as te:
-                print(f'HTTP error while attempting to download: {self._url}')
+                logging.error(f'HTTP error while attempting to download: {self._url}')
                 raise te
 
     return PremadeSourceHTTP
