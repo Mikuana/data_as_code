@@ -14,6 +14,8 @@ from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
 __all__ = ['Recipe']
 
+log = logging.getLogger(__name__)
+
 
 class Recipe:
     """
@@ -184,19 +186,19 @@ class Recipe:
 
         only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
         if only_in_b:
-            logging.info(f"Comparison contains files(s) not in this package:\n")
+            log.info(f"Comparison contains files(s) not in this package:\n")
             for x in only_in_b:
-                logging.info(' - ' + x.as_posix())
+                log.info(' - ' + x.as_posix())
 
         only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
         if only_in_a:
-            logging.info(f"Package contains file(s) not in the comparison:\n")
+            log.info(f"Package contains file(s) not in the comparison:\n")
             for x in only_in_a:
-                logging.info(' - ' + x.as_posix())
+                log.info(' - ' + x.as_posix())
 
         # difference in intersecting metadata
         for meta in set(meta_a.keys()).intersection(meta_b.keys()):
-            logging.info(meta.as_posix())
+            log.info(meta.as_posix())
             sys.stdout.writelines(
                 difflib.unified_diff(
                     meta_a[meta], meta_b[meta], 'Package', 'Comparison'
@@ -243,7 +245,7 @@ class Recipe:
             for folder in [self._target.data, self._target.metadata]:
                 for file in [x for x in folder.rglob('*') if x.is_file()]:
                     if file not in expect:
-                        logging.warning(f"Removing unexpected file {file}")
+                        log.warning(f"Removing unexpected file {file}")
                         file.unlink()
         finally:
             os.chdir(cwd)

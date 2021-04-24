@@ -1,3 +1,4 @@
+import logging
 import json
 from hashlib import md5
 from importlib import resources
@@ -5,6 +6,8 @@ from pathlib import Path
 from typing import List, Union
 
 from jsonschema import validate
+
+log = logging.getLogger(__name__)
 
 
 class _Meta:
@@ -165,7 +168,6 @@ class Metadata(_Meta):
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
-        # assertion time
         assert not validate(metadata, cls._schema)
 
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
@@ -174,29 +176,33 @@ class Metadata(_Meta):
         di = metadata.get('incidental', {})
 
         assert len(dl) == len(dc.get('lineage', [])), \
-            "length of Metadata lineage node is not equal to the length of " \
-            "lineage fingerprints array in the Codified lineage sub-node"
+            "length of Metadata lineage node is not equal to the length " \
+            "of lineage fingerprints array in the Codified lineage sub-node"
 
         s1 = set([x.codified.fingerprint() for x in dl])
         s2 = set(dc.get('lineage', []))
         diff = s1.symmetric_difference(s2)
-        assert not diff, "the following fingerprints are present in either " \
-                         "the Metadata lineage codified sub-node, or in the " \
-                         "Codified lineage fingerprints array, but not both\n" \
-                         f"{diff}"
+
+        assert not diff, \
+            "the following fingerprints are present in either " \
+            "the Metadata lineage codified sub-node, or in the " \
+            "Codified lineage fingerprints array, but not both\n" \
+            f"{diff}"
 
         if dd:
             assert len(dl) == len(dd.get('lineage', [])), \
-                "length of Metadata lineage node is not equal to the length of " \
-                "lineage fingerprints array in the derived lineage sub-node"
+                "length of Metadata lineage node is not equal to the" \
+                "length of lineage fingerprints array in the derived " \
+                "lineage sub-node"
 
             s1 = set([x.derived.fingerprint() for x in dl])
             s2 = set(dd.get('lineage', []))
             diff = s1.symmetric_difference(s2)
-            assert not diff, "the following fingerprints are present in either " \
-                             "the Metadata lineage derived sub-node, or in the " \
-                             "derived lineage fingerprints array, but not both\n" \
-                             f"{diff}"
+            assert not diff, \
+                "the following fingerprints are present in either " \
+                "the Metadata lineage derived sub-node, or in the " \
+                "derived lineage fingerprints array, but not both\n" \
+                f"{diff}"
 
         mc, md, mi = Codified(**dc), Derived(**dd), Incidental(**di)
         return cls(codified=mc, derived=md, incidental=mi, lineage=dl)

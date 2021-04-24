@@ -1,3 +1,4 @@
+import difflib
 import logging
 import inspect
 import json
@@ -9,6 +10,8 @@ from uuid import uuid4
 
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata, Codified, Derived, Incidental
+
+log = logging.getLogger(__name__)
 
 
 class _Ingredient:
@@ -272,7 +275,7 @@ class Step:
             using the cache. If True, the execution of instructions can be
             skipped.
         """
-        logging.info(f'Check cache for: {self.__class__.__name__}')
+        log.info(f'Check cache for: {self.__class__.__name__}')
         try:
             assert self.trust_cache is True, f"cache is not trusted"
             cache = {}
@@ -284,6 +287,18 @@ class Step:
                 assert mp.is_file(), f"expected metadata {mp} does not exist"
 
                 meta = Metadata.from_dict(json.loads(mp.read_text()))
+                diff = difflib.unified_diff(
+                    json.dumps(v.codified.to_dict(), indent=2).split('\n'),
+                    json.dumps(meta.codified.to_dict(), indent=2).split('\n'),
+                    'Recipe', 'Cached'
+                )
+                if list(diff):
+                    log.debug(
+                        f'Difference between step {self.__class__.__name__} codified '
+                        f'and metadata cached in {mp.as_posix()}\n' +
+                        '\n'.join([line for line in diff])
+                    )
+
                 dp = self._make_absolute_path(meta.codified.path)
 
                 assert dp.is_file(), f"expected file {dp} does not exist"
@@ -296,10 +311,10 @@ class Step:
                 cache[k] = meta
 
         except AssertionError as e:
-            logging.info(f'Ignoring cache: ' + str(e))
+            log.info(f'Ignoring cache: ' + str(e))
             return False
 
-        logging.info(
+        log.info(
             "Using cache for files: " +
             ','.join([v.codified.path.as_posix() for v in cache.values()])
         )
