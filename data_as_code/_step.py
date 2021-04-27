@@ -135,11 +135,16 @@ class Step:
                 codified=Codified(
                     path=v.path if v else None,
                     description=self.__doc__, instruction='yyz',
-                    lineage=lineage
+                    lineage=lineage if lineage else None
                 ),
-                lineage=lineage
+                lineage=lineage if lineage else None
             )
         return metadata
+
+    def collect_derivatives(self):  # TODO: maybe?
+        for k, v in self.antecedents.items():
+            for k2, v2 in v.items():
+                self.metadata[k2].derived = v2.derived
 
     def instructions(self):
         """
@@ -152,6 +157,7 @@ class Step:
 
     def _execute(self, _workspace: Path):
         """Do the work"""
+        self.collect_derivatives()
         if self.check_cache() is True:
             return self
         else:

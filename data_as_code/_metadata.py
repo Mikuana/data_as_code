@@ -5,7 +5,8 @@ from importlib import resources
 from pathlib import Path
 from typing import List, Union
 
-from jsonschema import validate
+import jsonschema.exceptions
+import jsonschema
 
 log = logging.getLogger(__name__)
 
@@ -35,14 +36,26 @@ class _Meta:
             return self._cached_fingerprint
 
     def _calculate_fingerprint(self):
+        d = self._meta_dict()
+        if not d:
+            log.error('Attempting to calculate fingerprint for empty metadata')
         return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
 
     def _meta_dict(self) -> dict:
         raise Exception  # method stub for subclasses
 
+    @classmethod
+    def validate(cls, metadata: dict):
+        try:
+            jsonschema.validate(metadata, cls._schema)
+        except jsonschema.exceptions.ValidationError as e:
+            log.error(e)
+            raise jsonschema.exceptions.ValidationError('schema is not valid')
+
     def to_dict(self) -> dict:
         d = self._meta_dict()
         d['fingerprint'] = self.fingerprint()
+        self.validate(d)
         return d
 
     def prep_lineage(self) -> List[str]:
@@ -52,7 +65,16 @@ class _Meta:
             return sorted([x.fingerprint() for x in self.lineage])
 
 
+def sub_schema(schema: dict, node: str) -> dict:
+    schema = schema.copy()
+    schema['required'] = schema['properties'][node]['required']
+    schema['properties'] = schema['properties'][node]['properties']
+    return schema
+
+
 class Codified(_Meta):
+    _schema = sub_schema(_Meta._schema, 'codified')
+
     def __init__(
             self, path: Union[Path, str] = None,
             description: str = None, instruction: str = None,
@@ -81,6 +103,7 @@ class Codified(_Meta):
 
 
 class Derived(_Meta):
+    _schema = sub_schema(_Meta._schema, 'derived')
     lineage: Union[List['Metadata'], List['Derived']] = None
 
     def __init__(
@@ -118,12 +141,15 @@ class Incidental(_Meta):
         self.other = kwargs
         super().__init__(**kwargs)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Union[dict, None]:
         d = {
             k: v for k, v in
             sorted(self.other.items(), key=lambda item: item[1], reverse=True)
         }
-        return d
+        if d:
+            return d
+        else:
+            return
 
 
 class Metadata(_Meta):
@@ -141,34 +167,31 @@ class Metadata(_Meta):
         self.lineage = lineage
         super().__init__(**kwargs)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Union[dict, None]:
         d = super().to_dict()
-        assert validate(d, self._schema) is None
-        return d
+
+        if d:
+            return d
+        else:
+            return
 
     def _meta_dict(self) -> dict:
-        d = {}
-        f = []
-        if self.codified:
-            d['codified'] = self.codified.to_dict()
-            f.append(d['codified']['fingerprint'])
-
-        if self.derived:
-            d['derived'] = self.derived.to_dict()
-            f.append(d['derived']['fingerprint'])
+        d = {
+            'codified': self.codified.to_dict() if self.codified else None,
+            'derived': self.derived.to_dict() if self.derived else None,
+        }
 
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],
                 key=lambda x: x['fingerprint']
             )
-            f.append([x['fingerprint'] for x in d['lineage']])
 
-        return d
+        return {k: v for k, v in d.items() if v}
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
-        assert not validate(metadata, cls._schema)
+        cls.validate(metadata)
 
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
         dc = metadata.get('codified', {})
@@ -181,7 +204,7 @@ class Metadata(_Meta):
 
         s1 = set([x.codified.fingerprint() for x in dl])
         s2 = set(dc.get('lineage', []))
-        diff = s1.symmetric_difference(s2)
+        diff = sorted(s1.symmetric_difference(s2))
 
         assert not diff, \
             "the following fingerprints are present in either " \
@@ -197,7 +220,7 @@ class Metadata(_Meta):
 
             s1 = set([x.derived.fingerprint() for x in dl])
             s2 = set(dd.get('lineage', []))
-            diff = s1.symmetric_difference(s2)
+            diff = sorted(s1.symmetric_difference(s2))
             assert not diff, \
                 "the following fingerprints are present in either " \
                 "the Metadata lineage derived sub-node, or in the " \
