@@ -2,7 +2,7 @@ import copy
 from pathlib import Path
 from typing import List
 
-__all__ = ['codified']
+__all__ = ['codified', 'derived', 'metadata']
 
 SCHEMA_META = "https://json-schema.org/draft/2020-12/schema"
 
@@ -91,8 +91,10 @@ LINEAGE = {
     "uniqueItems": True
 }
 
-BASE = {
-    # **FRAME,
+METADATA = {
+    "title": "Data as Code: Metadata",
+    "description": "Full metadata for a recipe artifact",
+    "type": "object",
     "definitions": {
         "fingerprint": FINGERPRINT
     },
@@ -125,7 +127,6 @@ def require_lineage(schema: dict, expected_lineage: List[str]):
     return schema
 
 
-# noinspection PyTypeChecker
 def codified(expected_lineage: List[str] = None) -> dict:
     d = {
         '$schema': SCHEMA_META,
@@ -150,8 +151,9 @@ def derived(expected_lineage: List[str] = None) -> dict:
     return d
 
 
-if __name__ == '__main__':
-    import json
-
-    print(json.dumps(derived(['abcd1234', 'fghy1234']), indent=2))
-    print(json.dumps(derived(), indent=2))
+def metadata():
+    return {
+        '$schema': SCHEMA_META,
+        '$id': f"data_as_code/{Path(__file__).stem}/metadata",
+        **METADATA,
+    }
