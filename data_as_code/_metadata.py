@@ -10,12 +10,14 @@ import jsonschema
 
 log = logging.getLogger(__name__)
 
+_schema = json.loads(resources.read_text('data_as_code', 'schema.json'))
+"""JSON schema definition which can be used to validate the structure of
+Metadata that has been exported.
+"""
+
 
 class _Meta:
-    _schema = json.loads(resources.read_text('data_as_code', 'schema.json'))
-    """JSON schema definition which can be used to validate the structure of
-    Metadata that has been exported.
-    """
+    schema = _schema.copy()
 
     def __init__(
             self, lineage: Union[List['_Meta'], List[str]] = None,
@@ -44,10 +46,9 @@ class _Meta:
     def _meta_dict(self) -> dict:
         raise Exception  # method stub for subclasses
 
-    @classmethod
-    def validate(cls, metadata: dict):
+    def validate(self, metadata: dict):
         try:
-            jsonschema.validate(metadata, cls._schema)
+            jsonschema.validate(metadata, self.schema)
         except jsonschema.exceptions.ValidationError as e:
             log.error(e)
             raise jsonschema.exceptions.ValidationError('schema is not valid')
@@ -64,23 +65,21 @@ class _Meta:
         else:
             return sorted([x.fingerprint() for x in self.lineage])
 
-
-def sub_schema(schema: dict, node: str) -> dict:
-    schema = schema.copy()
-    schema['required'] = schema['properties'][node]['required']
-    schema['properties'] = schema['properties'][node]['properties']
-    return schema
+    def sub_schema(self) -> dict:
+        s = _Meta.schema.copy()
+        s['required'] = s['properties'][self.__class__.__name__.lower()]['required']
+        s['properties'] = s['properties'][self.__class__.__name__.lower()]['properties']
+        return s
 
 
 class Codified(_Meta):
-    _schema = sub_schema(_Meta._schema, 'codified')
-
     def __init__(
             self, path: Union[Path, str] = None,
             description: str = None, instruction: str = None,
-            lineage: Union[List['Metadata'], List['Codified']] = None,
+            lineage: Union[List['Metadata'], List['Codified'], List[str]] = None,
             **kwargs
     ):
+        self.schema = self.sub_schema()
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
         self.lineage = lineage
@@ -103,15 +102,15 @@ class Codified(_Meta):
 
 
 class Derived(_Meta):
-    _schema = sub_schema(_Meta._schema, 'derived')
     lineage: Union[List['Metadata'], List['Derived']] = None
 
     def __init__(
             self,
             checksum: str = None,
-            lineage: Union[List['Metadata'], List['Derived']] = None,
+            lineage: Union[List['Metadata'], List['Derived'], List[str]] = None,
             **kwargs
     ):
+        self.schema = self.sub_schema()
         self.checksum = checksum
         super().__init__(**kwargs)
 
@@ -176,16 +175,21 @@ class Metadata(_Meta):
             return
 
     def _meta_dict(self) -> dict:
-        d = {
-            'codified': self.codified.to_dict() if self.codified else None,
-            'derived': self.derived.to_dict() if self.derived else None,
-        }
+        d = {}
 
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],
                 key=lambda x: x['fingerprint']
             )
+            # TODO: super hack to get around conditional requirements
+            self.codified.schema['required'] += ['lineage']
+            self.derived.schema['required'] += ['lineage']
+
+        d = {
+            'codified': self.codified.to_dict() if self.codified else None,
+            'derived': self.derived.to_dict() if self.derived else None,
+        }
 
         return {k: v for k, v in d.items() if v}
 

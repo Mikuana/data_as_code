@@ -79,9 +79,6 @@
       ],
       "additionalProperties": false
     },
-    "incidental": {
-      "$ref": "#/definitions/incidental"
-    },
     "lineage": {
       "description": "lineage description",
       "type": "array",
