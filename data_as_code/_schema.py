@@ -138,8 +138,7 @@ def validate(instance: dict, schema: dict):
     try:
         jsonschema.validate(instance, schema)
     except jsonschema.exceptions.ValidationError as e:
-        print(e)
-        raise jsonschema.exceptions.ValidationError('x')
+        raise e
 
 
 def codified(meta: dict, expected_lineage: List[str] = None):
@@ -148,7 +147,8 @@ def codified(meta: dict, expected_lineage: List[str] = None):
         **copy.deepcopy(CODIFIED),
         'definitions': dict(fingerprint=FINGERPRINT.copy()),
     }
-    if expected_lineage is not None:
+    # TODO: handle explicit signaling that lineage should not be allowed
+    if expected_lineage:
         require_lineage(d, expected_lineage)
 
     validate(meta, d)

@@ -23,6 +23,11 @@ class Case:
 
 full = Case("Full featured, valid metadata")
 
+v1 = Case("No lineage")
+v1.meta.pop('lineage')
+v1.meta['codified'].pop('lineage')
+v1.meta['derived'].pop('lineage')
+
 c1 = Case("Mismatched codified fingerprint", ValidationError)
 c1.meta['codified']['lineage'][0] = '00000000'
 
