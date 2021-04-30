@@ -3,7 +3,7 @@ from typing import List
 
 import jsonschema
 
-__all__ = ['metadata']
+__all__ = ['validate_metadata']
 
 SCHEMA_META = "https://json-schema.org/draft/2020-12/schema"
 
@@ -150,7 +150,7 @@ def node_handler(node: dict, meta: dict, expected_lineage: List[str] = None):
     validate(meta, d)
 
 
-def metadata(meta: dict):
+def validate_metadata(meta: dict):
     d = {
         '$schema': SCHEMA_META,
         **METADATA,

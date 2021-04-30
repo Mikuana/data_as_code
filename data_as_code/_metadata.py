@@ -1,12 +1,11 @@
-import logging
 import json
+import logging
 from hashlib import md5
 from importlib import resources
 from pathlib import Path
 from typing import List, Union
 
-import jsonschema.exceptions
-import jsonschema
+from data_as_code._schema import validate_metadata
 
 log = logging.getLogger(__name__)
 
@@ -46,17 +45,9 @@ class _Meta:
     def _meta_dict(self) -> dict:
         raise Exception  # method stub for subclasses
 
-    def validate(self, metadata: dict):
-        try:
-            jsonschema.validate(metadata, self.schema)
-        except jsonschema.exceptions.ValidationError as e:
-            log.error(e)
-            raise jsonschema.exceptions.ValidationError('schema is not valid')
-
     def to_dict(self) -> dict:
         d = self._meta_dict()
         d['fingerprint'] = self.fingerprint()
-        self.validate(d)
         return d
 
     def prep_lineage(self) -> List[str]:
@@ -168,34 +159,28 @@ class Metadata(_Meta):
 
     def to_dict(self) -> Union[dict, None]:
         d = super().to_dict()
-
+        validate_metadata(d)
         if d:
             return d
         else:
             return
 
     def _meta_dict(self) -> dict:
-        d = {}
-
+        d = {
+            'codified': self.codified.to_dict() if self.codified else None,
+            'derived': self.derived.to_dict() if self.derived else None,
+        }
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],
                 key=lambda x: x['fingerprint']
             )
-            # TODO: super hack to get around conditional requirements
-            self.codified.schema['required'] += ['lineage']
-            self.derived.schema['required'] += ['lineage']
-
-        d = {
-            'codified': self.codified.to_dict() if self.codified else None,
-            'derived': self.derived.to_dict() if self.derived else None,
-        }
 
         return {k: v for k, v in d.items() if v}
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
-        cls.validate(metadata)
+        validate_metadata(metadata)
 
         dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
         dc = metadata.get('codified', {})
