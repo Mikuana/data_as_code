@@ -1,15 +1,34 @@
-import inspect
 import json
+import sys
+from dataclasses import dataclass
+from inspect import getmembers
 from pathlib import Path
+from typing import Dict, Type
+
+from jsonschema.exceptions import ValidationError
 
 
-def x(name: str) -> dict:
-    """ Read JSON case data from test folder"""
-    return json.loads(Path(Path(__file__).parent, name + '.json').read_text())
+@dataclass
+class Case:
+    label: str
+    error: Type[Exception] = None
+
+    def __post_init__(self):
+        p = Path(Path(__file__).parent, 'full.json')
+        self.meta = json.loads(p.read_text())
 
 
-c1 = x('c1'), "Empty metadata"
-c2 = x('c2'), "Blank metadata"
-c3 = x('c3'), "Codified only"
+full = Case("Full featured, valid metadata")
 
-valid_cases = [c2, c3]
+c1 = Case("Mismatched codified fingerprint", ValidationError)
+c1.meta['codified']['lineage'][0] = '00000000'
+
+c2 = Case("Mismatched derived fingerprint", ValidationError)
+c2.meta['derived']['lineage'][0] = '00000000'
+
+cases: Dict[str, Case] = {
+    k: v for k, v
+    in getmembers(sys.modules[__name__], lambda x: isinstance(x, Case))
+}
+valid = [v for v in cases.values() if v.error is None]
+invalid = [v for v in cases.values() if v.error]

@@ -1,0 +1,44 @@
+{
+  "fingerprint": "abcd1234",
+  "codified": {
+    "fingerprint": "abcd5678",
+    "description": "this is codified",
+    "path": "x",
+    "lineage": [
+      "abcd9012",
+      "abcd3456"
+    ]
+  },
+  "derived": {
+    "fingerprint": "abcd7890",
+    "checksum": "a123456789012345678901234567890b",
+    "lineage": [
+      "abcd9012",
+      "abcd3456"
+    ]
+  },
+  "lineage": [
+    {
+      "fingerprint": "abcd8888",
+      "codified": {
+        "fingerprint": "abcd9012",
+        "path": "z"
+      },
+      "derived": {
+        "fingerprint": "abcd9012",
+        "checksum": "a123456789012345678901234567890b"
+      }
+    },
+    {
+      "fingerprint": "abcd9999",
+      "codified": {
+        "fingerprint": "abcd3456",
+        "path": "y"
+      },
+      "derived": {
+        "fingerprint": "abcd3456",
+        "checksum": "b123456789012345678901234567890c"
+      }
+    }
+  ]
+}

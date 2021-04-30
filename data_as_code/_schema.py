@@ -1,6 +1,7 @@
 import copy
-from pathlib import Path
 from typing import List
+
+import jsonschema
 
 __all__ = ['codified', 'derived', 'metadata']
 
@@ -48,6 +49,11 @@ CODIFIED = {
     },
     "required": [
         "fingerprint"
+    ],
+    "anyOf": [
+        {"required": ["description"]},
+        {"required": ["path"]},
+        {"required": ["lineage"]},
     ],
     "additionalProperties": False
 }
@@ -127,33 +133,50 @@ def require_lineage(schema: dict, expected_lineage: List[str]):
     return schema
 
 
-def codified(expected_lineage: List[str] = None) -> dict:
+def validate(instance: dict, schema: dict):
+    try:
+        jsonschema.validate(instance, schema)
+    except jsonschema.exceptions.ValidationError as e:
+        print(e)
+        raise jsonschema.exceptions.ValidationError('x')
+
+
+def codified(meta: dict, expected_lineage: List[str] = None):
     d = {
         '$schema': SCHEMA_META,
-        '$id': f"data_as_code/{Path(__file__).stem}/codified",
         **copy.deepcopy(CODIFIED),
         'definitions': dict(fingerprint=FINGERPRINT.copy()),
     }
-    if expected_lineage:
+    if expected_lineage is not None:
         require_lineage(d, expected_lineage)
-    return d
+
+    validate(meta, d)
 
 
-def derived(expected_lineage: List[str] = None) -> dict:
+def derived(meta: dict, expected_lineage: List[str] = None):
     d = {
         '$schema': SCHEMA_META,
-        '$id': f"data_as_code/{Path(__file__).stem}/derived",
         **copy.deepcopy(DERIVED),
         'definitions': dict(fingerprint=FINGERPRINT.copy()),
     }
     if expected_lineage:
         require_lineage(d, expected_lineage)
-    return d
+
+    validate(meta, d)
 
 
-def metadata():
-    return {
+def metadata(meta: dict):
+    d = {
         '$schema': SCHEMA_META,
-        '$id': f"data_as_code/{Path(__file__).stem}/metadata",
         **METADATA,
     }
+
+    validate(meta, d)
+
+    lineage = meta.get('lineage', [])
+    codified(
+        meta['codified'], [x['codified']['fingerprint'] for x in lineage]
+    )
+    derived(
+        meta['derived'], [x['derived']['fingerprint'] for x in lineage]
+    )

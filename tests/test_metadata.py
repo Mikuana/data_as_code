@@ -16,7 +16,7 @@ import pytest
 
 from data_as_code._metadata import Metadata, _Meta
 from data_as_code.exceptions import InvalidMetadata
-from tests.cases import valid_cases, c1
+from tests.cases import valid, c1
 
 
 class BaseMetaTester(_Meta):
@@ -72,18 +72,18 @@ def test_empty_metadata():
         Metadata.from_dict(c1[0])
 
 
-@pytest.mark.parametrize('x,doc', valid_cases)
+@pytest.mark.parametrize('x,doc', valid)
 def test_from_dict(x, doc):
     assert isinstance(Metadata.from_dict(x), Metadata), "cant load lineage from dictionary"
 
 
-@pytest.mark.parametrize('x,doc', valid_cases)
+@pytest.mark.parametrize('x,doc', valid)
 def test_to_dict(x, doc):
     lc = Metadata.from_dict(x)
     assert isinstance(lc.to_dict(), dict), "cant unload lineage to dictionary"
 
 
-@pytest.mark.parametrize('x,doc', valid_cases)
+@pytest.mark.parametrize('x,doc', valid)
 def test_lineage_consistency(x, doc):
     l1 = Metadata.from_dict(x)
     x2 = l1.to_dict()
