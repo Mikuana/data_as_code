@@ -82,7 +82,8 @@ DERIVED = {
         }
     },
     "required": [
-        "fingerprint"
+        "fingerprint",
+        "checksum"
     ],
     "additionalProperties": False
 }
