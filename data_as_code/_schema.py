@@ -3,7 +3,7 @@ from typing import List
 
 import jsonschema
 
-__all__ = ['codified', 'derived', 'metadata']
+__all__ = ['metadata']
 
 SCHEMA_META = "https://json-schema.org/draft/2020-12/schema"
 
@@ -122,18 +122,6 @@ METADATA = {
 }
 
 
-def require_lineage(schema: dict, expected_lineage: List[str]):
-    schema['required'] += ['lineage']
-    schema['properties']['lineage']['items'] = {
-        "description": "expected fingerprint array",
-        "type": "string",
-        "enum": expected_lineage,
-    }
-    schema['properties']['lineage']['minItems'] = len(expected_lineage)
-    schema['properties']['lineage']['maxItems'] = len(expected_lineage)
-    return schema
-
-
 def validate(instance: dict, schema: dict):
     try:
         jsonschema.validate(instance, schema)
@@ -141,27 +129,23 @@ def validate(instance: dict, schema: dict):
         raise e
 
 
-def codified(meta: dict, expected_lineage: List[str] = None):
+def node_handler(node: dict, meta: dict, expected_lineage: List[str] = None):
     d = {
         '$schema': SCHEMA_META,
-        **copy.deepcopy(CODIFIED),
+        **copy.deepcopy(node),
         'definitions': dict(fingerprint=FINGERPRINT.copy()),
     }
-    # TODO: handle explicit signaling that lineage should not be allowed
-    if expected_lineage:
-        require_lineage(d, expected_lineage)
-
-    validate(meta, d)
-
-
-def derived(meta: dict, expected_lineage: List[str] = None):
-    d = {
-        '$schema': SCHEMA_META,
-        **copy.deepcopy(DERIVED),
-        'definitions': dict(fingerprint=FINGERPRINT.copy()),
-    }
-    if expected_lineage:
-        require_lineage(d, expected_lineage)
+    if isinstance(expected_lineage, list) and len(expected_lineage) == 0:
+        d['properties'].pop('lineage')
+    elif expected_lineage:
+        d['required'] += ['lineage']
+        d['properties']['lineage']['items'] = {
+            "description": "expected fingerprint array",
+            "type": "string",
+            "enum": expected_lineage,
+        }
+        d['properties']['lineage']['minItems'] = len(expected_lineage)
+        d['properties']['lineage']['maxItems'] = len(expected_lineage)
 
     validate(meta, d)
 
@@ -175,9 +159,11 @@ def metadata(meta: dict):
     validate(meta, d)
 
     lineage = meta.get('lineage', [])
-    codified(
-        meta['codified'], [x['codified']['fingerprint'] for x in lineage]
+    node_handler(
+        CODIFIED, meta['codified'],
+        [x['codified']['fingerprint'] for x in lineage]
     )
-    derived(
-        meta['derived'], [x['derived']['fingerprint'] for x in lineage]
+    node_handler(
+        DERIVED, meta['derived'],
+        [x['derived']['fingerprint'] for x in lineage]
     )
