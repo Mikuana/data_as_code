@@ -1,42 +1,42 @@
 {
-  "fingerprint": "591fdeff",
+  "fingerprint": "5e4ed3ee",
   "codified": {
-    "fingerprint": "abcd5678",
+    "fingerprint": "02a58902",
     "description": "this is codified",
     "path": "x",
     "lineage": [
-      "abcd3456",
-      "abcd9012"
+      "693f16b1",
+      "1dfc2b30"
     ]
   },
   "derived": {
-    "fingerprint": "abcd7890",
+    "fingerprint": "5cb5c236",
     "checksum": "a123456789012345678901234567890b",
     "lineage": [
-      "abcd6789",
-      "abcd7890"
+      "3d358af5",
+      "8eb9de34"
     ]
   },
   "lineage": [
     {
-      "fingerprint": "3d6242d6",
+      "fingerprint": "e1741a4a",
       "codified": {
-        "fingerprint": "abcd9012",
+        "fingerprint": "1dfc2b30",
         "path": "z"
       },
       "derived": {
-        "fingerprint": "abcd7890",
+        "fingerprint": "8eb9de34",
         "checksum": "a123456789012345678901234567890b"
       }
     },
     {
-      "fingerprint": "3ebe2108",
+      "fingerprint": "a2cafaa5",
       "codified": {
-        "fingerprint": "abcd3456",
+        "fingerprint": "693f16b1",
         "path": "y"
       },
       "derived": {
-        "fingerprint": "abcd6789",
+        "fingerprint": "3d358af5",
         "checksum": "b123456789012345678901234567890c"
       }
     }

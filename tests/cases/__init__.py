@@ -42,7 +42,10 @@ v1 = Full("No lineage")
 v1.meta.pop('lineage')
 v1.meta['codified'].pop('lineage')
 v1.meta['derived'].pop('lineage')
-v1.meta['fingerprint'] = 'eb34488f'  # lineage alteration changes fingerprint
+# lineage alteration changes fingerprint
+v1.meta['codified']['fingerprint'] = '7f7c6bb6'
+v1.meta['derived']['fingerprint'] = '8eb9de34'
+v1.meta['fingerprint'] = '9c0d7447'
 
 c1 = Full("Mismatched codified fingerprint", ValidationError)
 c1.meta['codified']['lineage'][0] = '00000000'
@@ -96,7 +99,6 @@ c11.meta['codified']['fingerprint'] = 'abcd1234'
 
 c12 = Min("Incorrect derived fingerprint", InvalidFingerprint)
 c12.meta['derived']['fingerprint'] = 'abcd1234'
-
 
 meta_cases = [m1, m2]
 meta_cases2 = [c10, c11, c12]

@@ -29,8 +29,12 @@ class _Meta:
 
     def fingerprint(self) -> str:
         if self._expected:
-            if self._expected != self._calculate_fingerprint():
-                raise InvalidFingerprint()
+            calc = self._calculate_fingerprint()
+            if self._expected != calc:
+                raise InvalidFingerprint(
+                    f"Expected fingerprint {self._expected}, but calculation "
+                    f"of metadata fingerprint returned {calc}"
+                )
             return self._expected
         else:
             return self._calculate_fingerprint()
