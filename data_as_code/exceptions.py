@@ -27,3 +27,7 @@ class StepUndefinedOutput(StepError):
 
 class InvalidMetadata(Exception):
     pass
+
+
+class InvalidFingerprint(Exception):
+    pass

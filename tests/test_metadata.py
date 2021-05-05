@@ -6,7 +6,7 @@ import pytest
 from data_as_code._metadata import (
     Metadata, _Meta
 )
-from tests.cases import valid, meta_cases
+from tests.cases import valid, meta_cases, meta_cases2, Case
 
 
 class BaseMetaTester(_Meta):
@@ -65,3 +65,10 @@ def test_lineage_consistency(case):
     m = Metadata.from_dict(case.meta)
     x2 = m.to_dict()
     assert case.meta == x2, "lineage inconsistent between import/export"
+
+
+@pytest.mark.parametrize('case', meta_cases2, ids=[x.label for x in meta_cases2])
+def test_expected_errors(case: Case):
+    with pytest.raises(case.error):
+        m = Metadata.from_dict(case.meta)
+        m.to_dict()

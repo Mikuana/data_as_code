@@ -8,6 +8,7 @@ from typing import Dict, Type
 
 from jsonschema.exceptions import ValidationError
 
+from data_as_code.exceptions import InvalidFingerprint
 from data_as_code._metadata import Codified, Derived, Metadata
 
 _full_json = Path(Path(__file__).parent, 'full.json').read_text()
@@ -20,6 +21,7 @@ _min = json.loads(_min_json)
 class Case:
     label: str
     error: Type[Exception] = None
+    meta: dict = None
 
 
 @dataclass
@@ -68,15 +70,6 @@ c4.meta.pop('lineage')
 
 c9 = Min("Minimal Example")
 
-c10 = Min("Incorrect root fingerprint", ValidationError)
-c10.meta['fingerprint'] = 'abcd1234'
-
-c11 = Min("Incorrect codified fingerprint", ValidationError)
-c11.meta['codified']['fingerprint'] = 'abcd1234'
-
-c11 = Min("Incorrect derived fingerprint", ValidationError)
-c11.meta['derived']['fingerprint'] = 'abcd1234'
-
 cases: Dict[str, Case] = {
     k: v for k, v
     in getmembers(sys.modules[__name__], lambda x: issubclass(type(x), Case))
@@ -95,4 +88,15 @@ m2 = Metadata(
     lineage=[m1]
 )
 
+c10 = Min("Incorrect root fingerprint", InvalidFingerprint)
+c10.meta['fingerprint'] = 'abcd1234'
+
+c11 = Min("Incorrect codified fingerprint", InvalidFingerprint)
+c11.meta['codified']['fingerprint'] = 'abcd1234'
+
+c12 = Min("Incorrect derived fingerprint", InvalidFingerprint)
+c12.meta['derived']['fingerprint'] = 'abcd1234'
+
+
 meta_cases = [m1, m2]
+meta_cases2 = [c10, c11, c12]

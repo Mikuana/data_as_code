@@ -5,6 +5,7 @@ from importlib import resources
 from pathlib import Path
 from typing import List, Union
 
+from data_as_code.exceptions import InvalidFingerprint
 from data_as_code._schema import validate_metadata
 
 log = logging.getLogger(__name__)
@@ -24,17 +25,15 @@ class _Meta:
     ):
         if lineage:
             self.lineage = lineage
-        self._cached_fingerprint = fingerprint  # TODO: check against calculation
+        self._expected = fingerprint
 
     def fingerprint(self) -> str:
-        if self._cached_fingerprint:
-            # TODO: enable this to work the way I want it to
-            # assert self._cached_fingerprint == self._calculate_fingerprint(),  \
-            #     "calculated fingerprint does not match cached. You're wrong"
-            return self._cached_fingerprint
+        if self._expected:
+            if self._expected != self._calculate_fingerprint():
+                raise InvalidFingerprint()
+            return self._expected
         else:
-            self._cached_fingerprint = self._calculate_fingerprint()
-            return self._cached_fingerprint
+            return self._calculate_fingerprint()
 
     def _calculate_fingerprint(self):
         d = self._meta_dict()
@@ -186,6 +185,10 @@ class Metadata(_Meta):
         dc = metadata.get('codified', {})
         dd = metadata.get('derived', {})
         di = metadata.get('incidental', {})
+        fp = metadata.get('fingerprint')
 
         mc, md, mi = Codified(**dc), Derived(**dd), Incidental(**di)
-        return cls(codified=mc, derived=md, incidental=mi, lineage=dl)
+        return cls(
+            codified=mc, derived=md, incidental=mi,
+            lineage=dl, fingerprint=fp
+        )
