@@ -67,7 +67,15 @@ c4 = Full("Missing root lineage", ValidationError)
 c4.meta.pop('lineage')
 
 c9 = Min("Minimal Example")
+
 c10 = Min("Incorrect root fingerprint", ValidationError)
+c10.meta['fingerprint'] = 'abcd1234'
+
+c11 = Min("Incorrect codified fingerprint", ValidationError)
+c11.meta['codified']['fingerprint'] = 'abcd1234'
+
+c11 = Min("Incorrect derived fingerprint", ValidationError)
+c11.meta['derived']['fingerprint'] = 'abcd1234'
 
 cases: Dict[str, Case] = {
     k: v for k, v
