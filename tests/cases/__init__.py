@@ -12,6 +12,8 @@ from data_as_code._metadata import Codified, Derived, Metadata
 
 _full_json = Path(Path(__file__).parent, 'full.json').read_text()
 _full = json.loads(_full_json)
+_min_json = Path(Path(__file__).parent, 'minimal.json').read_text()
+_min = json.loads(_min_json)
 
 
 @dataclass
@@ -19,45 +21,57 @@ class Case:
     label: str
     error: Type[Exception] = None
 
+
+@dataclass
+class Full(Case):
     def __post_init__(self):
         self.meta = copy.deepcopy(_full)
 
 
-full = Case("Full featured, valid metadata")
+@dataclass
+class Min(Case):
+    def __post_init__(self):
+        self.meta = copy.deepcopy(_min)
 
-v1 = Case("No lineage")
+
+full = Full("Full featured, valid metadata")
+
+v1 = Full("No lineage")
 v1.meta.pop('lineage')
 v1.meta['codified'].pop('lineage')
 v1.meta['derived'].pop('lineage')
 v1.meta['fingerprint'] = 'eb34488f'  # lineage alteration changes fingerprint
 
-c1 = Case("Mismatched codified fingerprint", ValidationError)
+c1 = Full("Mismatched codified fingerprint", ValidationError)
 c1.meta['codified']['lineage'][0] = '00000000'
 
-c6 = Case("Extra codified fingerprint", ValidationError)
+c6 = Full("Extra codified fingerprint", ValidationError)
 c6.meta['codified']['lineage'].append('00000000')
 
-c2 = Case("Mismatched derived fingerprint", ValidationError)
+c2 = Full("Mismatched derived fingerprint", ValidationError)
 c2.meta['derived']['lineage'][0] = '00000000'
 
-c5 = Case("Extra derived fingerprint", ValidationError)
+c5 = Full("Extra derived fingerprint", ValidationError)
 c5.meta['derived']['lineage'].append('00000000')
 
-c3 = Case("Missing checksum", ValidationError)
+c3 = Full("Missing checksum", ValidationError)
 c3.meta['derived'].pop('checksum')
 
-c7 = Case("Missing codified", ValidationError)
+c7 = Full("Missing codified", ValidationError)
 c7.meta.pop('codified')
 
-c8 = Case("Missing derived", ValidationError)
+c8 = Full("Missing derived", ValidationError)
 c8.meta.pop('derived')
 
-c4 = Case("Missing root lineage", ValidationError)
+c4 = Full("Missing root lineage", ValidationError)
 c4.meta.pop('lineage')
+
+c9 = Min("Minimal Example")
+c10 = Min("Incorrect root fingerprint", ValidationError)
 
 cases: Dict[str, Case] = {
     k: v for k, v
-    in getmembers(sys.modules[__name__], lambda x: isinstance(x, Case))
+    in getmembers(sys.modules[__name__], lambda x: issubclass(type(x), Case))
 }
 valid = [v for v in cases.values() if v.error is None]
 invalid = [v for v in cases.values() if v.error]
