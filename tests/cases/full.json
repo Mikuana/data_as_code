@@ -5,8 +5,8 @@
     "description": "this is codified",
     "path": "x",
     "lineage": [
-      "693f16b1",
-      "1dfc2b30"
+      "1dfc2b30",
+      "693f16b1"
     ]
   },
   "derived": {
@@ -19,17 +19,6 @@
   },
   "lineage": [
     {
-      "fingerprint": "e1741a4a",
-      "codified": {
-        "fingerprint": "1dfc2b30",
-        "path": "z"
-      },
-      "derived": {
-        "fingerprint": "8eb9de34",
-        "checksum": "a123456789012345678901234567890b"
-      }
-    },
-    {
       "fingerprint": "a2cafaa5",
       "codified": {
         "fingerprint": "693f16b1",
@@ -38,6 +27,17 @@
       "derived": {
         "fingerprint": "3d358af5",
         "checksum": "b123456789012345678901234567890c"
+      }
+    },
+    {
+      "fingerprint": "e1741a4a",
+      "codified": {
+        "fingerprint": "1dfc2b30",
+        "path": "z"
+      },
+      "derived": {
+        "fingerprint": "8eb9de34",
+        "checksum": "a123456789012345678901234567890b"
       }
     }
   ]
