@@ -8,6 +8,8 @@ from typing import Dict, Type
 
 from jsonschema.exceptions import ValidationError
 
+from data_as_code._metadata import Codified, Derived, Metadata
+
 _full_json = Path(Path(__file__).parent, 'full.json').read_text()
 _full = json.loads(_full_json)
 
@@ -27,6 +29,7 @@ v1 = Case("No lineage")
 v1.meta.pop('lineage')
 v1.meta['codified'].pop('lineage')
 v1.meta['derived'].pop('lineage')
+v1.meta['fingerprint'] = 'eb34488f'  # lineage alteration changes fingerprint
 
 c1 = Case("Mismatched codified fingerprint", ValidationError)
 c1.meta['codified']['lineage'][0] = '00000000'
@@ -58,3 +61,16 @@ cases: Dict[str, Case] = {
 }
 valid = [v for v in cases.values() if v.error is None]
 invalid = [v for v in cases.values() if v.error]
+
+m1 = Metadata(
+    Codified(path='a.csv'),
+    Derived(checksum='a' * 32)
+)
+
+m2 = Metadata(
+    Codified('x.csv', lineage=['a5eff3ed']),
+    Derived(checksum='a' * 32, lineage=['56b31c3b']),
+    lineage=[m1]
+)
+
+meta_cases = [m1, m2]

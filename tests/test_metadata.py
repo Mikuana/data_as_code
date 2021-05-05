@@ -1,22 +1,12 @@
-"""
-To test:
-
-Fingerprints
- - should always exist for root, subtype nodes, and lineage nodes
- - fingerprints in subtype node lineage references need to refer to a
-    matching fingerprint in root lineage
- - supplied fingerprints in metadata files should be checked against calculated
-    fingerprints for that metadata, with exceptions raised when they do not
-    match
-"""
 import itertools
-import re
 
+import jsonschema.exceptions
 import pytest
 
-from data_as_code._metadata import Metadata, _Meta
-from data_as_code.exceptions import InvalidMetadata
-from tests.cases import valid, c1
+from data_as_code._metadata import (
+    Metadata, _Meta
+)
+from tests.cases import valid, meta_cases
 
 
 class BaseMetaTester(_Meta):
@@ -30,24 +20,9 @@ def test_meta_dict_stub():
         _Meta()._meta_dict()
 
 
-def test_fingerprinter():
-    """ fingerprint should look like first 8 characters of an md5 """
-    assert re.match(r'[a-f0-9]{8}', BaseMetaTester().fingerprint())
-
-
-@pytest.mark.parametrize('x', ['abcd1234', None])
-def test_fingerprint_param(x):
-    """
-    If a fingerprint is provided, it should be retained. Otherwise it should be
-    calculated from the dictionary.
-    """
-    m = BaseMetaTester(x)
-    assert m.fingerprint == x or m.fingerprint()
-
-
-def test_dict_maker():
-    m = BaseMetaTester()
-    assert m.to_dict() == {'fingerprint': m.fingerprint()}
+@pytest.mark.parametrize('metadata', meta_cases)
+def test_dict_maker(metadata):
+    assert isinstance(metadata.to_dict(), dict)
 
 
 def test_base_lineage_prep():
@@ -68,23 +43,25 @@ def test_base_lineage_prep():
 
 
 def test_empty_metadata():
-    with pytest.raises(InvalidMetadata):
-        Metadata.from_dict(c1[0])
+    with pytest.raises(jsonschema.exceptions.ValidationError):
+        Metadata.from_dict({})
 
 
-@pytest.mark.parametrize('x,doc', valid)
-def test_from_dict(x, doc):
-    assert isinstance(Metadata.from_dict(x), Metadata), "cant load lineage from dictionary"
+@pytest.mark.parametrize('case', valid, ids=[x.label for x in valid])
+def test_from_dict(case):
+    assert isinstance(
+        Metadata.from_dict(case.meta), Metadata
+    ), "cant load lineage from dictionary"
 
 
-@pytest.mark.parametrize('x,doc', valid)
-def test_to_dict(x, doc):
-    lc = Metadata.from_dict(x)
+@pytest.mark.parametrize('case', valid, ids=[x.label for x in valid])
+def test_to_dict(case):
+    lc = Metadata.from_dict(case.meta)
     assert isinstance(lc.to_dict(), dict), "cant unload lineage to dictionary"
 
 
-@pytest.mark.parametrize('x,doc', valid)
-def test_lineage_consistency(x, doc):
-    l1 = Metadata.from_dict(x)
-    x2 = l1.to_dict()
-    assert x == x2, "lineage inconsistent between import/export"
+@pytest.mark.parametrize('case', valid, ids=[x.label for x in valid])
+def test_lineage_consistency(case):
+    m = Metadata.from_dict(case.meta)
+    x2 = m.to_dict()
+    assert case.meta == x2, "lineage inconsistent between import/export"
