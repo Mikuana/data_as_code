@@ -5,8 +5,6 @@ import jsonschema
 
 __all__ = ['validate_metadata']
 
-SCHEMA_META = "https://json-schema.org/draft/2020-12/schema"
-
 FINGERPRINT = {
     "description": "derived deterministic identifier of the metadata",
     "type": "string",
@@ -131,7 +129,6 @@ def validate(instance: dict, schema: dict):
 
 def node_handler(node: dict, meta: dict, expected_lineage: List[str] = None):
     d = {
-        '$schema': SCHEMA_META,
         **copy.deepcopy(node),
         'definitions': dict(fingerprint=FINGERPRINT.copy()),
     }
@@ -152,7 +149,6 @@ def node_handler(node: dict, meta: dict, expected_lineage: List[str] = None):
 
 def validate_metadata(meta: dict):
     d = {
-        '$schema': SCHEMA_META,
         **METADATA,
     }
 
