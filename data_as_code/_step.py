@@ -71,7 +71,7 @@ class Step:
                  self.output.write_text(self.x.read_text())
     """
 
-    output: _Result = None
+    output: Union[_Result, Path] = None
     """The relative path of the output artifact of the step. Optional, unless
     `keep` is set to True. This path must be relative, because the ultimate
     destination of the artifact is controlled by the
