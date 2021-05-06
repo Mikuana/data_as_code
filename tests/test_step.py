@@ -17,7 +17,7 @@ def test_step_content_write(tmpdir):
         def instructions(self):
             self.output.write_text(file_content)
 
-    s = S(Path(tmpdir), {})._execute(tmpdir)
+    s = S(tmpdir, {})._execute(tmpdir)
 
     p = Path(s._workspace, file_name)
     assert p.is_file()
@@ -33,12 +33,12 @@ def test_error_on_return(tmpdir):
     instructions are allowed to communicate back using anything but the output.
     """
 
-    class X(Step):
+    class S(Step):
         def instructions(self):
             return 1
 
     with pytest.raises(ex.StepNoReturnAllowed):
-        X(tmpdir, tmpdir, {}).instructions()
+        S(tmpdir, {})._execute(tmpdir)
 
 
 def test_error_on_missing_output(tmpdir):
