@@ -2,33 +2,26 @@ from pathlib import Path
 
 import pytest
 
-from data_as_code import exceptions as ex, ingredient
-from data_as_code._recipe import Recipe
-from data_as_code._step import Step
-from data_as_code.misc import SOURCE, PRODUCT
+from data_as_code import exceptions as ex
+from data_as_code._step import Step, result
 
 
-def test_step_content_pass(tmpdir):
-    """Content can be handed successfully from one step to another"""
+def test_step_content_write(tmpdir):
+    """Content is written to a file in step workspace"""
+    file_name = 'file.txt'
+    file_content = 'file_content'
 
-    class R(Recipe):
-        class S1(Step):
-            _role = SOURCE
-            keep = False
+    class S(Step):
+        output = result(file_name)
 
-            def instructions(self):
-                self.output.write_text('abc')
+        def instructions(self):
+            self.output.write_text(file_content)
 
-        class S2(Step):
-            output = Path('product.txt')
-            _role = PRODUCT
-            x = ingredient('S1')
+    s = S(Path(tmpdir), {})._execute(tmpdir)
 
-            def instructions(self):
-                self.output.write_text(self.x.read_text().upper())
-
-    R(tmpdir).execute()
-    assert Path(tmpdir, 'data', PRODUCT, 'product.txt').read_text() == 'ABC'
+    p = Path(s._workspace, file_name)
+    assert p.is_file()
+    assert p.read_text() == file_content
 
 
 def test_error_on_return(tmpdir):
