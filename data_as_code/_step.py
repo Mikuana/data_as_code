@@ -126,7 +126,11 @@ class Step:
                     )
 
         results = self._get_results()
-        if not results:
+        if not results and self.keep is True:
+            raise ex.StepUndefinedOutput(
+                'Step keep is True, but no output is defined'
+            )
+        elif not results:
             results = [('output', None)]
 
         metadata = {}

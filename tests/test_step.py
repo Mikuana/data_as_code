@@ -54,14 +54,37 @@ def test_error_on_missing_output(tmpdir):
             pass
 
     with pytest.raises(ex.StepOutputMustExist):
-        X(tmpdir, tmpdir, {}).instructions()
+        X(tmpdir, {})._execute(tmpdir)
+
+
+def test_error_on_missing_multi_output(tmpdir):
+    """
+    Output must get populated
+
+    Steps should automatically check output after instructions are executed to
+    ensure output has been populated for all declared results.
+    """
+
+    class X(Step):
+        x = result('x')
+        y = result('y')
+
+        def instructions(self):
+            self.x.write_text('x')
+            # no y output
+
+    with pytest.raises(ex.StepOutputMustExist):
+        X(tmpdir, {})._execute(tmpdir)
 
 
 def test_error_on_default_output_product(tmpdir):
-    """A product step must define output name"""
+    """A keep step must define output name"""
 
     class X(Step):
         keep = True
 
+        def instructions(self):
+            self.output.write_text('x')
+
     with pytest.raises(ex.StepUndefinedOutput):
-        X(tmpdir, tmpdir, {})
+        X(tmpdir, {})._execute(tmpdir)
