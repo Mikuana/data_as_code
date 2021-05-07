@@ -18,7 +18,6 @@ def test_step_content_write(tmpdir):
             self.output.write_text(file_content)
 
     s = S(tmpdir, {})._execute(tmpdir)
-
     p = Path(s._workspace, file_name)
     assert p.is_file()
     assert p.read_text() == file_content

@@ -1,11 +1,12 @@
 import os
 import time
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
 from data_as_code._recipe import Recipe
-from data_as_code._step import Step
+from data_as_code._step import Step, result
 from data_as_code.misc import SOURCE
 
 
@@ -97,3 +98,35 @@ def test_step_execution(tmpdir):
     t = T(tmpdir)
     t.execute()
     assert timing['S1'] < timing['S2'] < timing['S3']
+
+
+@pytest.mark.parametrize('expected', (True, False))
+def test_uses_cache(tmpdir, expected):
+    """
+    Cached result
+
+    When cache is trusted, the existence of a metadata file along with a data
+    artifact that matches the checksum results in the Step using the cached
+    artifact. The instructions will not be executed.
+
+    When cache is not trusted, the non-deterministic function below (it calls
+    UUID-4) results in the
+    """
+    file_name = 'file.txt'
+
+    class R(Recipe):
+        class S(Step):
+            output = result(file_name)
+            trust_cache = expected
+
+            def instructions(self):
+                """intentionally non-deterministic"""
+                self.output.write_text(uuid4().hex)
+
+    p = Path(tmpdir, 'data', file_name)
+
+    R(tmpdir).execute()
+    txt1 = p.read_text()
+    R(tmpdir).execute()
+    txt2 = p.read_text()
+    assert (txt1 == txt2) is expected
