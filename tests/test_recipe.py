@@ -1,5 +1,4 @@
 import os
-import time
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,7 +6,6 @@ import pytest
 
 from data_as_code._recipe import Recipe
 from data_as_code._step import Step, result
-from data_as_code.misc import SOURCE
 
 
 def test_destination_explicit(tmpdir):
@@ -74,15 +72,15 @@ def test_artifact_sub_folder(tmpdir):
 
 
 def test_step_execution(tmpdir):
-    """Check timestamps of step output to ensure correct execution order"""
-    timing = {}
+    """Ensure execution order matches declaration"""
+    order = {}
 
     class S(Step):
-        _role = SOURCE
+        keep = False
 
         def instructions(self):
-            timing[self.__class__.__name__] = time.time_ns()
             self.output.touch()
+            order[self.__class__.__name__] = len(order) + 1
 
     class T(Recipe):
         class S1(S):
@@ -96,7 +94,9 @@ def test_step_execution(tmpdir):
 
     t = T(tmpdir)
     t.execute()
-    assert timing['S1'] < timing['S2'] < timing['S3']
+    assert order['S1'] == 1
+    assert order['S2'] == 2
+    assert order['S3'] == 3
 
 
 @pytest.mark.parametrize('expected', (True, False))
