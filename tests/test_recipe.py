@@ -53,25 +53,24 @@ def test_cleanup_workspace(tmpdir):
     assert r._workspace.exists() is False
 
 
-def test_existing_keep_error(tmpdir):
-    """Raise error when package file exists, and keep settings True"""
-    Path(tmpdir, tmpdir.name + '.tar').touch()
-    with pytest.raises(FileExistsError):
-        Recipe(tmpdir, keep=dict(existing=True)).execute()
+def test_artifact_sub_folder(tmpdir):
+    """
+    Test artifact sub-folder creation
 
+    When result path is declared as a file in sub-folder, the result is output
+    in a corresponding path in the recipe data folder.
+    """
+    sub = 'sub/file.txt'
 
-def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
-    class T(Recipe):
+    class R(Recipe):
         class S(Step):
-            output = Path('subfolder', 'file.txt')
-            _role = SOURCE
-            keep = True
+            output = result(sub)
 
             def instructions(self):
                 self.output.touch()
 
-    T(tmpdir).execute()
-    assert Path(tmpdir, 'data', SOURCE, 'subfolder', 'file.txt').is_file()
+    R(tmpdir).execute()
+    assert Path(tmpdir, 'data', sub).is_file()
 
 
 def test_step_execution(tmpdir):
