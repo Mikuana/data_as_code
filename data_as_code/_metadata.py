@@ -1,3 +1,38 @@
+"""
+Data as Code Metadata
+
+A key concept of managing *data as code* is metadata. That is to say, the data
+*about* the data must be understood and captured in a way that allows the
+package to evaluate data artifacts. This evaluation serves as a check for
+consistency and continuity of the artifacts, and provides a means of
+sophisticated handling of artifacts during data processing.
+
+Metadata in this package is divided into three sub-categories:
+
+#. **codified**: metadata which are entirely expressed within the code, and do not
+   require actual data artifacts. In other words, codified metadata can be
+   completely fabricated from a script, even for non-existent data.
+#. **derived**: metadata which are collected during runtime and processing of
+   data artifacts, which cannot be expressed in code without replicating the
+   actual data in part, or whole. In other words, derived metadata are only
+   obtainable when executing a recipe. Ideally, these metadata will are
+   deterministic, and every execution of a recipe with the same **codified**
+   metadata will result in the same **derived** metadata. This is not an actual
+   requirement, but any non-deterministic step in a recipe will limit the more
+   advanced features of this package.
+#. **incidental**: metadata which are derived at runtime, but which are
+   considered to be more of a side-effect than an actual derivative of the data
+   artifact. An example of this is timestamps; while the start time or duration
+   of recipe execution *could* be meaningful, it is effectively guaranteed to
+   change with each execution, even when the resulting data artifacts are
+   identical in content and context for a previous run. Because of the limited
+   usefulness of these metadata, they are largely ignored by the package and
+   stored primarily for user reference.
+
+There is also special consideration for **lineage**, which is a concept that
+builds metadata in a recursive manner to ensure that the context of a data
+artifact is treated as a first-class citizen.
+"""
 import json
 import logging
 from hashlib import md5
