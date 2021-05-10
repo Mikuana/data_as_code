@@ -52,6 +52,15 @@ Metadata that has been exported.
 
 
 class _Meta:
+    """
+    Base metadata class
+
+    Provides the basic framework for handling of complete, and sub-category
+    metadata as objects.
+
+    :param lineage: TODO
+    :param fingerprint: TODO
+    """
     schema = _schema.copy()
 
     def __init__(
@@ -63,8 +72,29 @@ class _Meta:
         self._expected = fingerprint
 
     def fingerprint(self) -> str:
+        """
+        Metadata fingerprint
+
+        Calculate an 8 character hexadecimal string by performing an md5 hash
+        sum calculation against specific attributes of the metadata class
+        (rendered into a JSON string). This includes a check against an expected
+        fingerprint stored in a cache - if that is provided during object
+        construction - which raises an error if the calculated fingerprint does
+        not match.
+
+        This is a deterministic function, which relies upon the consistency of
+        dictionaries provided by an semi-private function, which is overwritten
+        in subclasses.
+
+        :return: an 8 character hexadecimal checksum string which uniquely
+            identifies the contents of a metadata object
+        """
+        d = self._meta_dict()
+        if not d:
+            log.error('Attempting to calculate fingerprint for empty metadata')
+        calc = md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
+
         if self._expected:
-            calc = self._calculate_fingerprint()
             if self._expected != calc:
                 raise InvalidFingerprint(
                     f"Expected fingerprint {self._expected}, but calculation "
@@ -72,18 +102,27 @@ class _Meta:
                 )
             return self._expected
         else:
-            return self._calculate_fingerprint()
-
-    def _calculate_fingerprint(self):
-        d = self._meta_dict()
-        if not d:
-            log.error('Attempting to calculate fingerprint for empty metadata')
-        return md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
+            return calc
 
     def _meta_dict(self) -> dict:
-        raise Exception  # method stub for subclasses
+        """
+        Render metadata
+
+        Used to provide consistent ordering and formatting of python objects for
+        the ultimate purpose of exporting to JSON.
+        """
+        raise Exception  # exception stub for subclasses
 
     def to_dict(self) -> dict:
+        """
+        Render metadata to dictionary
+
+        Used to provide consistent ordering and formatting of python objects for
+        the ultimate purpose of exporting to JSON.
+
+        :return: a specifically ordered dictionary, with keys and values
+            formatted in a JSON-friendly way.
+        """
         d = self._meta_dict()
         d['fingerprint'] = self.fingerprint()
         return d
