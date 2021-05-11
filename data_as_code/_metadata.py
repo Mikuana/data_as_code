@@ -239,7 +239,7 @@ class Metadata(_Meta):
         self.lineage = lineage
         super().__init__(**kwargs)
 
-    def to_dict(self) -> Union[dict, None]:
+    def to_dict(self) -> dict:
         d = {}
         if self.codified:
             d['codified'] = self.codified.to_dict()
@@ -253,11 +253,7 @@ class Metadata(_Meta):
 
         d = {k: v for k, v in d.items() if v}
         d['fingerprint'] = self._fingerprinter(d)
-        validate_metadata(d)
-        if d:
-            return d
-        else:
-            return
+        return d
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':

@@ -329,7 +329,9 @@ class Step:
             ','.join([v.codified.path.as_posix() for v in cache.values()])
         )
         for k, v in self.metadata.items():
+            # THIS IS INCREDIBLY IMPORTANT TO DO RIGHT
             self.metadata[k].derived = cache[k].derived
             self.metadata[k].incidental = cache[k].incidental
+            self.metadata[k].lineage = cache[k].lineage  # TODO: especially THIS
 
         return True

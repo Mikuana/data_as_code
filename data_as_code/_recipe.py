@@ -9,6 +9,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, List
 
+from data_as_code._metadata import validate_metadata
 from data_as_code._step import Step
 from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
@@ -81,9 +82,18 @@ class Recipe:
         self._step_check()
         self._target = self._get_targets()
 
-    def pickup_step(self) -> Dict[str, Step]:
+    @classmethod
+    def check_it(cls, step_name: str, steps: dict) -> set:
+        required = {step_name}
+        s = steps[step_name]
+        if s.check_cache() is False:
+            for (x, y) in s.collect_ingredients().values():
+                required = required.union(cls.check_it(x, steps))
+        return required
+
+    def _stepper(self) -> Dict[str, Step]:
         """
-        Identify pickup steps
+        TODO...
 
         Start with all products of a recipe, and check the cache for valid
         artifacts. If the product is missing a valid artifact in the cache,
@@ -94,33 +104,10 @@ class Recipe:
         least number of steps possible, potentially even when some of the data
         used in certain steps is completely unavailable at the time of execution
         of the recipe.
-
-        :return: a list of step names which will need to be executed in order to
-        create the recipe.
         """
-        steps = self._stepper()
-
-        def check_it(step_name: str) -> set:
-            required = {step_name}
-            s = steps[step_name]
-            if s.check_cache() is False:
-                for (x, y) in s.collect_ingredients().values():
-                    required = required.union(check_it(x))
-            return required
-
-        pickups = set()
-        for k in self._products():
-            pickups = pickups.union(check_it(k))
-
-        d = {}
-        for k, v in steps.items():
-            if k in pickups:
-                v.antecedents = {k: v.metadata for k, v in steps.items()}
-        return d
-
-    def _stepper(self) -> Dict[str, Step]:
         steps = {}
         roles = self._determine_roles()
+
         for name, step in self._steps().items():
             if step.keep is None:
                 step.keep = roles[name] in self.keep
@@ -129,18 +116,20 @@ class Recipe:
 
             steps[name] = step(self._target.folder, {k: v.metadata for k, v in steps.items()})
 
-        return steps
+        if self.pickup is True:  # identify pick steps
+            pickups = set()
+            for k in [k for k, v in roles.items() if v == PRODUCT]:
+                pickups = pickups.union(self.check_it(k, steps))
+
+            return {k: v for k, v in steps.items() if k in pickups}
+        else:
+            return steps
 
     def execute(self):
         self._begin()
         self._results = {}
 
-        if self.pickup is True:
-            steps = self.pickup_step()
-        else:
-            steps = self._stepper()
-
-        for name, step in steps.items():
+        for name, step in self._stepper().items():
             self._results[name] = step._execute(self._workspace)
 
         self._export_metadata()
@@ -356,5 +345,6 @@ class Recipe:
                     p.parent.mkdir(parents=True, exist_ok=True)
 
                     d = v.to_dict()
+                    validate_metadata(d)
                     j = json.dumps(d, indent=2)
                     Path(p.as_posix() + '.json').write_text(j)
