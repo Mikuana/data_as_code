@@ -112,7 +112,11 @@ class Recipe:
         for k in self._products():
             pickups = pickups.union(check_it(k))
 
-        return {k: v for k, v in steps.items() if k in pickups}
+        d = {}
+        for k, v in steps.items():
+            if k in pickups:
+                v.antecedents = {k: v.metadata for k, v in steps.items()}
+        return d
 
     def _stepper(self) -> Dict[str, Step]:
         steps = {}

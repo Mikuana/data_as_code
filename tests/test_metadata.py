@@ -10,14 +10,14 @@ from tests.cases import valid, meta_cases, meta_cases2, Case
 
 
 class BaseMetaTester(_Meta):
-    def _meta_dict(self):  # overwrite to avoid stub exception
+    def to_dict(self) -> dict:  # overwrite to avoid stub exception
         return {}
 
 
 def test_meta_dict_stub():
     """ Ensure that stub method will raise exception if not redefined """
     with pytest.raises(Exception):
-        _Meta()._meta_dict()
+        _Meta().to_dict()
 
 
 @pytest.mark.parametrize('metadata', meta_cases)

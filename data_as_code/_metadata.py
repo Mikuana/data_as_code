@@ -40,8 +40,8 @@ from importlib import resources
 from pathlib import Path
 from typing import List, Union
 
-from data_as_code.exceptions import InvalidFingerprint
 from data_as_code._schema import validate_metadata
+from data_as_code.exceptions import InvalidFingerprint
 
 log = logging.getLogger(__name__)
 
@@ -73,6 +73,15 @@ class _Meta:
 
     def fingerprint(self) -> str:
         """
+        View Fingerprint
+
+        Return the 8 character fingerprint, which is a deterministic identifier
+        of the metadata contained in this object.
+        """
+        return self.to_dict()['fingerprint']
+
+    def _fingerprinter(self, rendered: dict) -> str:
+        """
         Metadata fingerprint
 
         Calculate an 8 character hexadecimal string by performing an md5 hash
@@ -83,16 +92,19 @@ class _Meta:
         not match.
 
         This is a deterministic function, which relies upon the consistency of
-        dictionaries provided by an semi-private function, which is overwritten
-        in subclasses.
+        dictionaries provided by the to_dict function, which is overwritten
+        in each metadata subclass type.
 
+        :param rendered: (optional) argument to private a dictionary object
+            instead of calling the dictionary output of self, which lets us
+            avoid calling the dictionary output method multiple times
         :return: an 8 character hexadecimal checksum string which uniquely
             identifies the contents of a metadata object
         """
-        d = self._meta_dict()
+        d = rendered
         if not d:
             log.error('Attempting to calculate fingerprint for empty metadata')
-        calc = md5(json.dumps(self._meta_dict()).encode('utf8')).hexdigest()[:8]
+        calc = md5(json.dumps(d).encode('utf8')).hexdigest()[:8]
 
         if self._expected:
             if self._expected != calc:
@@ -104,15 +116,6 @@ class _Meta:
         else:
             return calc
 
-    def _meta_dict(self) -> dict:
-        """
-        Render metadata
-
-        Used to provide consistent ordering and formatting of python objects for
-        the ultimate purpose of exporting to JSON.
-        """
-        raise Exception  # exception stub for subclasses
-
     def to_dict(self) -> dict:
         """
         Render metadata to dictionary
@@ -123,9 +126,7 @@ class _Meta:
         :return: a specifically ordered dictionary, with keys and values
             formatted in a JSON-friendly way.
         """
-        d = self._meta_dict()
-        d['fingerprint'] = self.fingerprint()
-        return d
+        raise Exception  # exception stub for subclasses
 
     def prep_lineage(self) -> List[str]:
         if all([isinstance(x, str) for x in self.lineage]):
@@ -158,7 +159,7 @@ class Codified(_Meta):
 
         super().__init__(**kwargs)
 
-    def _meta_dict(self) -> dict:
+    def to_dict(self) -> dict:
         d = {}
         if self.path:
             d['path'] = self.path.as_posix()
@@ -166,6 +167,8 @@ class Codified(_Meta):
             d['description'] = self.description
         if self.lineage:
             d['lineage'] = self.prep_lineage()
+
+        d['fingerprint'] = self._fingerprinter(d)
         return d
 
 
@@ -185,12 +188,14 @@ class Derived(_Meta):
         if lineage:
             self.lineage = [x.derived if isinstance(x, Metadata) else x for x in lineage]
 
-    def _meta_dict(self) -> dict:
+    def to_dict(self) -> dict:
         d = {}
         if self.checksum:
             d['checksum'] = self.checksum
         if self.lineage:
             d['lineage'] = self.prep_lineage()
+
+        d['fingerprint'] = self._fingerprinter(d)
         return d
 
 
@@ -235,25 +240,24 @@ class Metadata(_Meta):
         super().__init__(**kwargs)
 
     def to_dict(self) -> Union[dict, None]:
-        d = super().to_dict()
-        validate_metadata(d)
-        if d:
-            return d
-        else:
-            return
-
-    def _meta_dict(self) -> dict:
-        d = {
-            'codified': self.codified.to_dict() if self.codified else None,
-            'derived': self.derived.to_dict() if self.derived else None,
-        }
+        d = {}
+        if self.codified:
+            d['codified'] = self.codified.to_dict()
+        if self.derived:
+            d['derived'] = self.derived.to_dict()
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],
                 key=lambda x: x['fingerprint']
             )
 
-        return {k: v for k, v in d.items() if v}
+        d = {k: v for k, v in d.items() if v}
+        d['fingerprint'] = self._fingerprinter(d)
+        validate_metadata(d)
+        if d:
+            return d
+        else:
+            return
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':
