@@ -1,7 +1,7 @@
 import difflib
-import logging
 import inspect
 import json
+import logging
 import os
 from hashlib import md5
 from pathlib import Path
@@ -138,7 +138,7 @@ class Step:
             metadata[k] = Metadata(
                 codified=Codified(
                     path=v.path if v else None,
-                    description=self.__doc__, instruction='yyz',
+                    description=self.__doc__,
                     lineage=lineage if lineage else None
                 ),
                 lineage=lineage if lineage else None

@@ -15,7 +15,7 @@ Metadata in this package is divided into three sub-categories:
 #. **derived**: metadata which are collected during runtime and processing of
    data artifacts, which cannot be expressed in code without replicating the
    actual data in part, or whole. In other words, derived metadata are only
-   obtainable when executing a recipe. Ideally, these metadata will are
+   obtainable when executing a recipe. Ideally, these metadata are
    deterministic, and every execution of a recipe with the same **codified**
    metadata will result in the same **derived** metadata. This is not an actual
    requirement, but any non-deterministic step in a recipe will limit the more
@@ -58,8 +58,12 @@ class _Meta:
     Provides the basic framework for handling of complete, and sub-category
     metadata as objects.
 
-    :param lineage: TODO
-    :param fingerprint: TODO
+    :param lineage: a list of fingerprints or _Meta objects which which make up
+        the lineage for this object.
+    :param fingerprint: The expected fingerprint for this object. This will be
+        checked against a calculation each time the fingerprint is called for in
+        the to_dict or fingerprint methods, acting as a check to ensure that
+        expected fingerprints do not drift.
     """
     schema = _schema.copy()
 
@@ -80,7 +84,7 @@ class _Meta:
         """
         return self.to_dict()['fingerprint']
 
-    def _fingerprinter(self, rendered: dict) -> str:
+    def _fingerprinter(self, rendered: dict) -> dict:
         """
         Metadata fingerprint
 
@@ -101,20 +105,23 @@ class _Meta:
         :return: an 8 character hexadecimal checksum string which uniquely
             identifies the contents of a metadata object
         """
-        d = rendered
-        if not d:
-            log.error('Attempting to calculate fingerprint for empty metadata')
-        calc = md5(json.dumps(d).encode('utf8')).hexdigest()[:8]
+        if not rendered:
+            raise Exception(
+                'Attempting to calculate fingerprint for empty metadata'
+            )
+        calc = md5(json.dumps(rendered).encode('utf8')).hexdigest()[:8]
 
-        if self._expected:
-            if self._expected != calc:
-                raise InvalidFingerprint(
-                    f"Expected fingerprint {self._expected}, but calculation "
-                    f"of metadata fingerprint returned {calc}"
-                )
-            return self._expected
-        else:
-            return calc
+        if rendered.get('fingerprint'):
+            raise Exception('dictionary already contains a fingerprint')
+
+        if self._expected and self._expected != calc:
+            raise InvalidFingerprint(
+                f"Expected fingerprint {self._expected}, but calculation "
+                f"of metadata fingerprint returned {calc}"
+            )
+
+        rendered['fingerprint'] = calc
+        return rendered
 
     def to_dict(self) -> dict:
         """
@@ -142,9 +149,16 @@ class _Meta:
 
 
 class Codified(_Meta):
+    """
+    Codified Metadata
+
+    These metadata are made up entirely of elements which are codified within
+    the Step attributes and instructions. These metadata are derived prior to
+    execution of the Recipe, and should not be modified after execution.
+    """
     def __init__(
             self, path: Union[Path, str] = None,
-            description: str = None, instruction: str = None,
+            description: str = None,
             lineage: Union[List['Metadata'], List['Codified'], List[str]] = None,
             **kwargs
     ):
@@ -168,11 +182,20 @@ class Codified(_Meta):
         if self.lineage:
             d['lineage'] = self.prep_lineage()
 
-        d['fingerprint'] = self._fingerprinter(d)
-        return d
+        return self._fingerprinter(d)
 
 
 class Derived(_Meta):
+    """
+    Derived Metadata
+
+    These metadata are made up entirely of elements which can only be determined
+    at runtime, as a result of deriving the actual data artifact for a Step.
+    Ideally, these metadata are deterministic, and every execution of a recipe
+    with the same **codified** metadata will result in the same **derived**
+    metadata. This is not an actual requirement, but any non-deterministic step
+    in a recipe will limit the more advanced features of this package.
+    """
     lineage: Union[List['Metadata'], List['Derived']] = None
 
     def __init__(
@@ -195,11 +218,22 @@ class Derived(_Meta):
         if self.lineage:
             d['lineage'] = self.prep_lineage()
 
-        d['fingerprint'] = self._fingerprinter(d)
-        return d
+        return self._fingerprinter(d)
 
 
 class Incidental(_Meta):
+    """
+    Incidental Metadata
+
+    These metadata are derived at runtime, but are
+    considered to be more of a side-effect than an actual derivative of the data
+    artifact. An example of this is timestamps; while the start time or duration
+    of recipe execution *could* be meaningful, it is effectively guaranteed to
+    change with each execution, even when the resulting data artifacts are
+    identical in content and context for a previous run. Because of the limited
+    usefulness of these metadata, they are largely ignored by the package and
+    stored primarily for user reference.
+    """
     def __init__(
             self,
             path: Union[Path, str] = None,
@@ -211,20 +245,42 @@ class Incidental(_Meta):
         self.directory = Path(directory) if isinstance(directory, str) else directory
         self.usage = usage
         self.other = kwargs
-        super().__init__(**kwargs)
+        super().__init__()
 
     def to_dict(self) -> Union[dict, None]:
-        d = {
-            k: v for k, v in
-            sorted(self.other.items(), key=lambda item: item[1], reverse=True)
-        }
-        if d:
-            return d
-        else:
-            return
+        d = {}
+        if self.path:
+            d['path'] = self.path
+        if self.directory:
+            d['directory'] = self.directory
+        if self.usage:
+            d['usage'] = self.usage
+        if self.other:
+            d = {
+                k: v for k, v in
+                sorted(self.other.items(), key=lambda item: item[1], reverse=True)
+            }
+
+        return d if d else None
 
 
 class Metadata(_Meta):
+    """
+    Metadata
+
+    A fully qualified metadata object, which contains codified, derived, and
+    (if applicable) incidental sub-categories, as well as any lineage (which
+    in turn contains its own fully qualified Metadata).
+
+    This class is used as the primary interface between Steps in a recipe, with
+    the results of each execution being provided to the next in the form of a
+    Metadata object.
+
+    This class also contains wrappers to handle the import and export of the
+    metadata object into JSON data in a consistent fashion; data which are
+    exported using the ``to_dict`` method will result in an identical Metadata
+    object when importing via the ``from_dict`` method.
+    """
     def __init__(
             self,
             codified: Codified = None,
@@ -252,8 +308,7 @@ class Metadata(_Meta):
             )
 
         d = {k: v for k, v in d.items() if v}
-        d['fingerprint'] = self._fingerprinter(d)
-        return d
+        return self._fingerprinter(d)
 
     @classmethod
     def from_dict(cls, metadata: dict) -> 'Metadata':

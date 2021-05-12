@@ -4,14 +4,9 @@ import jsonschema.exceptions
 import pytest
 
 from data_as_code._metadata import (
-    Metadata, _Meta
+    Metadata, _Meta, Codified, Incidental
 )
 from tests.cases import valid, meta_cases, meta_cases2, Case
-
-
-class BaseMetaTester(_Meta):
-    def to_dict(self) -> dict:  # overwrite to avoid stub exception
-        return {}
 
 
 def test_meta_dict_stub():
@@ -39,7 +34,7 @@ def test_base_lineage_prep():
     lineage = [Prep(str(x)) for x in range(3)]
     expected = [x.fingerprint() for x in lineage]
     for perm in itertools.permutations(lineage):
-        assert BaseMetaTester(lineage=list(perm)).prep_lineage() == expected
+        assert _Meta(lineage=list(perm)).prep_lineage() == expected
 
 
 def test_empty_metadata():
@@ -72,3 +67,41 @@ def test_expected_errors(case: Case):
     with pytest.raises(case.error):
         m = Metadata.from_dict(case.meta)
         m.to_dict()
+
+
+def test_fingerprint():
+    c = Codified('x')
+    assert c.to_dict()['fingerprint'] == c.fingerprint()
+
+
+def test_fingerprint_empty():
+    """ Raise exception when trying to fingerprint empty dict """
+    m = _Meta()
+    with pytest.raises(Exception):
+        m._fingerprinter({})
+
+
+def test_fingerprint_a_fingerprint():
+    """ Raise exception when trying to fingerprint a fingerprint """
+    m = _Meta()
+    with pytest.raises(Exception):
+        m._fingerprinter(dict(fingerprint='abcd1234'))
+
+
+@pytest.mark.parametrize('kwargs', [
+    {'x': 1, 'y': 2, 'z': 3},
+    {'path': 'abc.txt', 'y': 2, 'usage': 'this', 'z': 3},
+    {'path': 'abc.txt', 'z': 3, 'usage': 'this', 'directory': 'folder'}
+])
+def test_incidental_consistency(kwargs):
+    """
+    Incidental metadata results in identical dictionary
+
+    Regardless of provided ordered, or mixture of expected versus unexpected
+    keywords. All unexpected keywords should be incorporated
+    """
+    comp = Incidental(**kwargs).to_dict()
+    assert all([x in kwargs.keys() for x in comp])
+    for perm in itertools.permutations(kwargs):
+        new_kwargs = {k: kwargs[k] for k in perm}
+        assert Incidental(**new_kwargs).to_dict() == comp
