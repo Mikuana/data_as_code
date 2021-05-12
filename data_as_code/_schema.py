@@ -127,6 +127,7 @@ def validate(instance: dict, schema: dict):
         raise e
 
 
+# noinspection PyTypeChecker
 def node_handler(node: dict, meta: dict, expected_lineage: List[str] = None):
     d = {
         **copy.deepcopy(node),
