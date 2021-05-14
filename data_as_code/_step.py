@@ -22,7 +22,7 @@ class _Ingredient:
 
 def ingredient(step: str, result_name: str = None) -> Path:
     """
-    Prepare step ingredient
+    Declare step ingredient
 
     Use the metadata from a previously executed step as an ingredient for
     another step. This function is a wrapper to allowing passing the results of
@@ -36,6 +36,16 @@ def ingredient(step: str, result_name: str = None) -> Path:
     be assigned to. Once the ingredients are captured, the attribute is
     reassigned to the path attribute for the ingredient, allowing the path to
     be called directly from inside the :class:`Step.instructions`
+
+    :param step: the name of the previous step class that is an ingredient in
+        this step.
+    :param result_name: the name of the particular result from the previous Step
+        which will be used as an ingredient in this step. This is only necessary
+        if the referenced Step included multiple results; if there is only one,
+        this method will select it by default.
+
+    :return: an object built from a semi-private class, which will ultimately be
+        converted into a Path object for use in the Step instructions method.
     """
     # noinspection PyTypeChecker
     return _Ingredient(step, result_name)
@@ -47,6 +57,26 @@ class _Result:
 
 
 def result(path: Union[str, Path]) -> Path:
+    """
+    Declare step result path
+
+    Prepare a Step for writing to results to an object at the provided relative
+    path.
+
+    The typehint says that the return is a :class:`pathlib.Path` object, but
+    that is a lie; the return is actually a semi-private Ingredient class. This
+    mismatch is done intentionally to allow all ingredients in a step to be
+    identified without first knowing the names of the attributes that they will
+    be assigned to. Once the ingredients are captured, the attribute is
+    reassigned to the path attribute for the ingredient, allowing the path to
+    be called directly from inside the :class:`Step.instructions`
+
+    :param path: a Path or path-like string which provides the relative path
+        where this result will be written.
+    :return: an object built from a semi-private Result class, which will
+        ultimately be converted into a Path object for use in the Step
+        instructions method.
+    """
     # noinspection PyTypeChecker
     return _Result(path)
 
@@ -105,7 +135,7 @@ class Step:
     def construct_metadata(self) -> Dict[str, Metadata]:
         lineage = []
         for v in self.collect_ingredients().values():
-            m = self.antecedents[v[0]]  # TODO: if antecedent is empty raise exception
+            m = self.antecedents[v[0]]
             if v[1] is None:
                 if len(m) == 1:
                     lineage.append(next(iter(m.values())))
@@ -157,10 +187,19 @@ class Step:
         Define the logic for this step which will use the inputs to generate an
         output file, and return the path, or paths, of the output.
         """
-        return None
+        return Exception  # instructions must be redefined on all subclasses
 
     def _execute(self, _workspace: Path):
-        """Do the work"""
+        """
+        Execute Step
+
+        This is semi-private, and not meant to be called directly by the user.
+
+        This method performs numerous actions before and after  execution of
+        instructions, to first check the cache (and determine if that should be
+        used), set up the step workspace, execute the instructions, collect
+        metadata, and manage the file system.
+        """
         self.collect_derivatives()
         if self.check_cache() is True:
             return self
@@ -205,9 +244,11 @@ class Step:
         """
         Collect Step Ingredients
 
-        Identify all ingredients used by the step by examining their class, then
-        return a dictionary of the results, identifying the previous step by
-        name, as well as the sub-result (if applicable).
+        Identify all ingredients used by the step, by examining the dictionary
+        of the constructed object, and checking if it is a Result class.
+
+        :return: a dictionary of the results, identifying the previous step by
+            name, as well as the sub-result (if applicable).
         """
         return {
             k: (v.step_name, v.result_name)
@@ -237,7 +278,6 @@ class Step:
 
             self._ingredients[k] = m
             setattr(self, k, m.incidental.path)
-            # TODO: fix ingredient conversion
 
     @classmethod
     def _get_results(cls) -> List[Tuple[str, _Result]]:
@@ -329,9 +369,8 @@ class Step:
             ','.join([v.codified.path.as_posix() for v in cache.values()])
         )
         for k, v in self.metadata.items():
-            # THIS IS INCREDIBLY IMPORTANT TO DO RIGHT
             self.metadata[k].derived = cache[k].derived
             self.metadata[k].incidental = cache[k].incidental
-            self.metadata[k].lineage = cache[k].lineage  # TODO: especially THIS
+            self.metadata[k].lineage = cache[k].lineage
 
         return True

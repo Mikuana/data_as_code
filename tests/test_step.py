@@ -3,7 +3,9 @@ from pathlib import Path
 import pytest
 
 from data_as_code import exceptions as ex
-from data_as_code._step import Step, result
+from data_as_code._metadata import Metadata
+from data_as_code._step import Step, result, ingredient, _Ingredient
+from data_as_code import exceptions as ex
 
 
 def test_step_content_write(tmpdir):
@@ -82,8 +84,112 @@ def test_error_on_default_output_product(tmpdir):
     class X(Step):
         keep = True
 
-        def instructions(self):
-            self.output.write_text('x')
-
     with pytest.raises(ex.StepUndefinedOutput):
+        X(tmpdir, {})._execute(tmpdir)
+
+
+def test_ingredient_collection(tmpdir):
+    """
+    Step attributes declared as an ingredient get converted into a Path object,
+    for ease of use during instruction declaration.
+    """
+
+    class X(Step):
+        def instructions(self):
+            self.output.write_text('abc')
+
+    class Y(Step):
+        x = ingredient('x')
+
+        def instructions(self):
+            self.output.write_text('efg')
+
+    x = X(tmpdir, {})
+    x._execute(tmpdir)
+    y = Y(tmpdir, {'x': x.metadata})
+    y._execute(tmpdir)
+    assert isinstance(y.x, Path)
+
+
+def test_multi_ingredient(tmpdir):
+    """
+    Raise an error when previous multi-result doesn't exist
+
+    If an ingredient asks for a result that doesn't exist, and exception is
+    raised.
+    """
+
+    class X(Step):
+        a = result('a')
+        b = result('b')
+
+        def instructions(self):
+            self.a.write_text('a')
+            self.b.write_text('b')
+
+    class Y(Step):
+        a = ingredient('X', 'b')
+
+    x = X(tmpdir, {})
+    x._execute(tmpdir)
+    y = Y(tmpdir, {'X': x.metadata})
+    y._execute(tmpdir)
+    assert y.output.read_text() == 'b'
+
+
+def test_multi_non_specific(tmpdir):
+    """
+    Raise an error on under-qualified multi-result
+
+    If an ingredient provides multiple results, the call to the ingredient
+    method must contain an explicit result name, else an exception is raised.
+    """
+
+    class X(Step):
+        a = result('a')
+        b = result('b')
+
+        def instructions(self):
+            self.a.write_text('')
+            self.b.write_text('')
+
+    class Y(Step):
+        a = ingredient('X')
+
+    x = X(tmpdir, {})
+    x._execute(tmpdir)
+    with pytest.raises(Exception):
+        Y(tmpdir, {'X': x.metadata})
+
+
+def test_multi_non_existent(tmpdir):
+    """
+    Raise an error when previous multi-result doesn't exist
+
+    If an ingredient asks for a result that doesn't exist, and exception is
+    raised.
+    """
+
+    class X(Step):
+        a = result('a')
+        b = result('b')
+
+        def instructions(self):
+            self.a.write_text('')
+            self.b.write_text('')
+
+    class Y(Step):
+        a = ingredient('X', 'c')
+
+    x = X(tmpdir, {})
+    x._execute(tmpdir)
+    with pytest.raises(Exception):
+        Y(tmpdir, {'X': x.metadata})
+
+
+def test_undefined_instructions(tmpdir):
+    class X(Step):
+        pass
+
+    with pytest.raises(Exception):
         X(tmpdir, {})._execute(tmpdir)
