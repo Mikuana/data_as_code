@@ -113,10 +113,7 @@ def test_ingredient_collection(tmpdir):
 
 def test_multi_ingredient(tmpdir):
     """
-    Raise an error when previous multi-result doesn't exist
-
-    If an ingredient asks for a result that doesn't exist, and exception is
-    raised.
+    Read one result as an ingredient from prior multi-step
     """
 
     class X(Step):
@@ -128,7 +125,12 @@ def test_multi_ingredient(tmpdir):
             self.b.write_text('b')
 
     class Y(Step):
-        a = ingredient('X', 'b')
+        b = ingredient('X', 'b')
+
+        def instructions(self):
+            self.output.write_text(
+                self.b.read_text()
+            )
 
     x = X(tmpdir, {})
     x._execute(tmpdir)

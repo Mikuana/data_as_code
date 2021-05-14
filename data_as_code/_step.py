@@ -175,11 +175,6 @@ class Step:
             )
         return metadata
 
-    def collect_derivatives(self):  # TODO: maybe?
-        for k, v in self.antecedents.items():
-            for k2, v2 in v.items():
-                self.metadata[k2].derived = v2.derived
-
     def instructions(self):
         """
         Step Instructions
@@ -200,7 +195,6 @@ class Step:
         used), set up the step workspace, execute the instructions, collect
         metadata, and manage the file system.
         """
-        self.collect_derivatives()
         if self.check_cache() is True:
             return self
         else:
