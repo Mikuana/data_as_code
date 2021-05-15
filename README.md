@@ -19,7 +19,6 @@ class DataAsCode(Recipe):
         """Change all instance of the word 'Data' to 'Code'"""
         x = ingredient('wiki')
         output = Path('code.html')
-        _role = PRODUCT
 
         def instructions(self):
             self.output.write_text(

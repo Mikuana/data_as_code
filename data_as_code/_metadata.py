@@ -1,145 +1,344 @@
+"""
+Data as Code Metadata
+
+A key concept of managing *data as code* is metadata. That is to say, the data
+*about* the data must be understood and captured in a way that allows the
+package to evaluate data artifacts. This evaluation serves as a check for
+consistency and continuity of the artifacts, and provides a means of
+sophisticated handling of artifacts during data processing.
+
+Metadata in this package is divided into three sub-categories:
+
+#. **codified**: metadata which are entirely expressed within the code, and do not
+   require actual data artifacts. In other words, codified metadata can be
+   completely fabricated from a script, even for non-existent data.
+#. **derived**: metadata which are collected during runtime and processing of
+   data artifacts, which cannot be expressed in code without replicating the
+   actual data in part, or whole. In other words, derived metadata are only
+   obtainable when executing a recipe. Ideally, these metadata are
+   deterministic, and every execution of a recipe with the same **codified**
+   metadata will result in the same **derived** metadata. This is not an actual
+   requirement, but any non-deterministic step in a recipe will limit the more
+   advanced features of this package.
+#. **incidental**: metadata which are derived at runtime, but which are
+   considered to be more of a side-effect than an actual derivative of the data
+   artifact. An example of this is timestamps; while the start time or duration
+   of recipe execution *could* be meaningful, it is effectively guaranteed to
+   change with each execution, even when the resulting data artifacts are
+   identical in content and context for a previous run. Because of the limited
+   usefulness of these metadata, they are largely ignored by the package and
+   stored primarily for user reference.
+
+There is also special consideration for **lineage**, which is a concept that
+builds metadata in a recursive manner to ensure that the context of a data
+artifact is treated as a first-class citizen.
+"""
 import json
+import logging
 from hashlib import md5
+from importlib import resources
 from pathlib import Path
-from typing import Dict, List, Tuple, Union
+from typing import List, Union, Tuple, Callable
+
+from data_as_code._schema import validate_metadata
+from data_as_code.exceptions import InvalidFingerprint
+
+log = logging.getLogger(__name__)
+
+_schema = json.loads(resources.read_text('data_as_code', 'schema.json'))
+"""JSON schema definition which can be used to validate the structure of
+Metadata that has been exported.
+"""
 
 
-class Metadata:
+class _Meta:
     """
-    The metadata corresponding to an Artifact which describes the series of
-    Artifacts which describe the complete transformation of source cases into a
-    final product.
+    Base metadata class
 
-    :param absolute_path: ...
-    :param checksum_value: ...
-    :param checksum_algorithm: ...
-    :param lineage: ...
+    Provides the basic framework for handling of complete, and sub-category
+    metadata as objects.
+
+    :param lineage: a list of fingerprints or _Meta objects which which make up
+        the lineage for this object.
+    :param fingerprint: The expected fingerprint for this object. This will be
+        checked against a calculation each time the fingerprint is called for in
+        the to_dict or fingerprint methods, acting as a check to ensure that
+        expected fingerprints do not drift.
     """
+    schema = _schema.copy()
 
-    # TODO: path param must be required, or else use of self.path must account for None
-    def __init__(self, absolute_path: Union[Path, None], relative_path: Union[Path, None],
-                 checksum_value: Union[str, None], checksum_algorithm: Union[str, None],
-                 lineage: list, role: str, relative_to: Path = None,
-                 other: Dict[str, str] = None, fingerprint: str = None,
-                 step_description: str = None, step_instruction: str = None,
-                 timing: dict = None
-                 ):
-        self.path = absolute_path
-        self._relative_path = relative_path
-        self._relative_to = relative_to
-        if self.path is None and self._relative_path and self._relative_to:
-            self.path = Path(self._relative_to, self._relative_path)
+    _fingers: List[Union[str, Tuple[str, Callable]]]
+    """A list of strings which identify the attribute names which should be used
+    to produce a fingerprint. This allows elements of metadata to be included
+    and modified without impacting caching."""
 
-        self.checksum_value = checksum_value
-        self.checksum_algorithm = checksum_algorithm
-        self.lineage = lineage
-        self.other = other or {}
-        self.role = role
-        self.step_description = step_description
-        self._step_instruction = step_instruction
-        self.timing = timing or {}
-        self.fingerprint = fingerprint or self.calculate_fingerprint()
+    def __init__(
+            self, lineage: Union[List['_Meta'], List[str]] = None,
+            fingerprint: str = None
+    ):
+        if lineage:
+            self.lineage = lineage
+        self._expected = fingerprint
 
-    def calculate_fingerprint(self) -> str:
-        d = dict(
-            checksum=dict(value=self.checksum_value, algorithm=self.checksum_algorithm),
-            lineage=sorted([x.fingerprint for x in self.lineage]), role=self.role,
-            step_description=self.step_description, step_instruction=self._step_instruction
-        )
-        d = {
-            **d,
-            **{k: v for k, v in sorted(self.other.items(), key=lambda item: item[1])}
-        }
-
-        return md5(json.dumps(d).encode('utf8')).hexdigest()
-
-    def get_network(self, child: str = None) -> Tuple[List[Tuple[str, dict]], List[Tuple[str, str]]]:
+    def fingerprint(self) -> str:
         """
-        Recurse through lineage to provide a list of names of artifacts in this
-        lineage.
+        View Fingerprint
+
+        Return the 8 character fingerprint, which is a deterministic identifier
+        of the metadata contained in this object.
         """
-        nodes = [(self.fingerprint, self.node_attributes())]
-        edges = []
-        if child:
-            edges.append((self.fingerprint, child))
+        return self.to_dict()['fingerprint']
 
-        for x in self.lineage:
-            subnet = x.get_network(self.fingerprint)
-            nodes += subnet[0]
-            edges += subnet[1]
-        return nodes, edges
+    def _fingerprinter(self, rendered: dict) -> dict:
+        """
+        Metadata fingerprint
 
-    def node_attributes(self) -> dict:
-        return dict(
-            checksum=self.checksum_value[:5],
-            path=self.path
-        )
+        Calculate an 8 character hexadecimal string by performing an md5 hash
+        sum calculation against specific attributes of the metadata class
+        (rendered into a JSON string). This includes a check against an expected
+        fingerprint stored in a cache - if that is provided during object
+        construction - which raises an error if the calculated fingerprint does
+        not match.
+
+        This is a deterministic function, which relies upon the consistency of
+        dictionaries provided by the to_dict function, which is overwritten
+        in each metadata subclass type.
+
+        :param rendered: (optional) argument to private a dictionary object
+            instead of calling the dictionary output of self, which lets us
+            avoid calling the dictionary output method multiple times
+        :return: an 8 character hexadecimal checksum string which uniquely
+            identifies the contents of a metadata object
+        """
+        sub = {k: v for k, v in rendered.items() if k in self._fingers}
+        if not rendered or not sub:
+            raise Exception(
+                'Attempting to calculate fingerprint for empty metadata'
+            )
+
+        if rendered.get('fingerprint'):
+            raise Exception('dictionary already contains a fingerprint')
+
+        calc = md5(json.dumps(sub).encode('utf8')).hexdigest()[:8]
+
+        if self._expected and self._expected != calc:
+            raise InvalidFingerprint(
+                f"Expected fingerprint {self._expected}, but calculation "
+                f"of metadata fingerprint returned {calc}"
+            )
+
+        rendered['fingerprint'] = calc
+        return rendered
 
     def to_dict(self) -> dict:
-        if self.checksum_value and self.checksum_algorithm:
-            cs = dict(algorithm=self.checksum_algorithm, value=self.checksum_value)
-        else:
-            cs = None
+        """
+        Render metadata to dictionary
 
-        base = {
-            'path': self._relative_path.as_posix() if self._relative_path else None,
-            'step_description': self.step_description,
-            'role': self.role,
-            'checksum': cs,
-            'fingerprint': self.fingerprint,
-            'lineage': [x.to_dict() for x in self.lineage],
-            'timing': {k: str(v) for k, v in self.timing.items()}  # TODO: volatile. Think about this
+        Used to provide consistent ordering and formatting of python objects for
+        the ultimate purpose of exporting to JSON.
+
+        :return: a specifically ordered dictionary, with keys and values
+            formatted in a JSON-friendly way.
+        """
+        raise Exception  # exception stub for subclasses
+
+    def prep_lineage(self) -> List[str]:
+        if all([isinstance(x, str) for x in self.lineage]):
+            return sorted(self.lineage)
+        else:
+            return sorted([x.fingerprint() for x in self.lineage])
+
+    def sub_schema(self) -> dict:
+        s = _Meta.schema.copy()
+        s['required'] = s['properties'][self.__class__.__name__.lower()]['required']
+        s['properties'] = s['properties'][self.__class__.__name__.lower()]['properties']
+        return s
+
+
+class Codified(_Meta):
+    """
+    Codified Metadata
+
+    These metadata are made up entirely of elements which are codified within
+    the Step attributes and instructions. These metadata are derived prior to
+    execution of the Recipe, and should not be modified after execution.
+    """
+    _fingers = ('path', 'instructions', 'lineage')
+
+    def __init__(
+            self, path: Union[Path, str] = None,
+            description: str = None,
+            lineage: Union[List['Metadata'], List['Codified'], List[str]] = None,
+            instructions: str = None,
+            **kwargs
+    ):
+        self.schema = self.sub_schema()
+        self.path = Path(path) if isinstance(path, str) else path
+        self.description = description
+        self.lineage = lineage
+        self.instructions = instructions
+        if self.lineage:
+            self.lineage = [
+                x.codified if isinstance(x, Metadata) else x for x in lineage
+            ]
+
+        super().__init__(**kwargs)
+
+    def to_dict(self) -> dict:
+        d = {}
+        if self.path:
+            d['path'] = self.path.as_posix()
+        if self.description:
+            d['description'] = self.description
+        d['instructions'] = self.instructions
+        if self.lineage:
+            d['lineage'] = self.prep_lineage()
+
+        return self._fingerprinter(d)
+
+
+class Derived(_Meta):
+    """
+    Derived Metadata
+
+    These metadata are made up entirely of elements which can only be determined
+    at runtime, as a result of deriving the actual data artifact for a Step.
+    Ideally, these metadata are deterministic, and every execution of a recipe
+    with the same **codified** metadata will result in the same **derived**
+    metadata. This is not an actual requirement, but any non-deterministic step
+    in a recipe will limit the more advanced features of this package.
+    """
+    lineage: Union[List['Metadata'], List['Derived']] = None
+
+    _fingers = ('checksum', 'lineage')
+
+    def __init__(
+            self,
+            checksum: str = None,
+            lineage: Union[List['Metadata'], List['Derived'], List[str]] = None,
+            **kwargs
+    ):
+        self.schema = self.sub_schema()
+        self.checksum = checksum
+        super().__init__(**kwargs)
+
+        if lineage:
+            self.lineage = [x.derived if isinstance(x, Metadata) else x for x in lineage]
+
+    def to_dict(self) -> dict:
+        d = {}
+        if self.checksum:
+            d['checksum'] = self.checksum
+        if self.lineage:
+            d['lineage'] = self.prep_lineage()
+
+        return self._fingerprinter(d)
+
+
+class Incidental(_Meta):
+    """
+    Incidental Metadata
+
+    These metadata are derived at runtime, but are
+    considered to be more of a side-effect than an actual derivative of the data
+    artifact. An example of this is timestamps; while the start time or duration
+    of recipe execution *could* be meaningful, it is effectively guaranteed to
+    change with each execution, even when the resulting data artifacts are
+    identical in content and context for a previous run. Because of the limited
+    usefulness of these metadata, they are largely ignored by the package and
+    stored primarily for user reference.
+    """
+
+    def __init__(
+            self,
+            path: Union[Path, str] = None,
+            directory: Union[Path, str] = None,
+            usage: str = None,
+            **kwargs
+    ):
+        self.path = Path(path) if isinstance(path, str) else path
+        self.directory = Path(directory) if isinstance(directory, str) else directory
+        self.usage = usage
+        self.other = kwargs
+        super().__init__()
+
+    def to_dict(self) -> Union[dict, None]:
+        d = {}
+        if self.path:
+            d['path'] = self.path
+        if self.directory:
+            d['directory'] = self.directory
+        if self.usage:
+            d['usage'] = self.usage
+        if self.other:
+            d = {
+                k: v for k, v in
+                sorted(self.other.items(), key=lambda item: item[1], reverse=True)
+            }
+
+        return d if d else None
+
+
+class Metadata(_Meta):
+    """
+    Metadata
+
+    A fully qualified metadata object, which contains codified, derived, and
+    (if applicable) incidental sub-categories, as well as any lineage (which
+    in turn contains its own fully qualified Metadata).
+
+    This class is used as the primary interface between Steps in a recipe, with
+    the results of each execution being provided to the next in the form of a
+    Metadata object.
+
+    This class also contains wrappers to handle the import and export of the
+    metadata object into JSON data in a consistent fashion; data which are
+    exported using the ``to_dict`` method will result in an identical Metadata
+    object when importing via the ``from_dict`` method.
+    """
+    _fingers = ('codified', 'derived', 'lineage')
+
+    def __init__(
+            self,
+            codified: Codified = None,
+            derived: Derived = None,
+            incidental: Incidental = None,
+            lineage: List['Metadata'] = None,
+            **kwargs
+    ):
+        self.codified = codified
+        self.derived = derived
+        self.incidental = incidental
+        self.lineage = lineage
+        super().__init__(**kwargs)
+
+    def to_dict(self) -> dict:
+        d = {
+            'codified': self.codified.to_dict(),
+            'derived': self.derived.to_dict()
         }
 
-        base = {**{k: v for k, v in base.items() if v}, **self.other}
-        return base
+        if self.lineage:
+            d['lineage'] = sorted(
+                [y.to_dict() for y in self.lineage],
+                key=lambda x: x['fingerprint']
+            )
 
-    def show_lineage(self):
-        """
-        Show plotly network graph of lineage
+        d = {k: v for k, v in d.items() if v}
+        return self._fingerprinter(d)
 
-        Note: Requires plotly and networkx packages to be installed.
-        """
-        # TODO: add import failure notice and point to Lineage extras
-        from data_as_code._plotly import show_lineage
-        import networkx as nx
+    @classmethod
+    def from_dict(cls, metadata: dict) -> 'Metadata':
+        validate_metadata(metadata)
 
-        nodes, edges = self.get_network()
-        graph = nx.OrderedDiGraph()
-        graph.add_nodes_from(nodes)
-        graph.add_edges_from(edges)
-        show_lineage(graph)
+        dl = [cls.from_dict(x) for x in metadata.get('lineage', [])]
+        dc = metadata.get('codified', {})
+        dd = metadata.get('derived', {})
+        di = metadata.get('incidental', {})
+        fp = metadata.get('fingerprint')
 
-
-def from_dictionary(
-        checksum: Dict[str, str], fingerprint: str,
-        role: str, lineage: List[dict] = None, path: str = None,
-        relative_to: str = None, step_description=None, timing: dict = None,
-        **kwargs
-):
-    return Metadata(
-        absolute_path=None, relative_path=Path(path) if path else None,
-        checksum_value=checksum['value'], checksum_algorithm=checksum['algorithm'],
-        lineage=[from_dictionary(**x) for x in lineage or []], role=role,
-        fingerprint=fingerprint, relative_to=relative_to,
-        step_description=step_description, timing=timing, other=kwargs
-    )
-
-
-class Reference(Metadata):
-    """
-    Mock Source
-
-    A lineage Artifact which precedes a Source, but which is not actually
-    available for use by the Recipe. Allows for a more complete lineage to be
-    declared, when appropriate.
-    """
-
-    def __init__(self, lineage: list, other: Dict[str, str] = None):
-        super().__init__(None, None, None, None, lineage, 'reference', other=other)
-
-    def calculate_fingerprint(self) -> str:
-        d = dict(
-            lineage=sorted([x.fingerprint for x in self.lineage])
+        mc, md, mi = Codified(**dc), Derived(**dd), Incidental(**di)
+        return cls(
+            codified=mc, derived=md, incidental=mi,
+            lineage=dl, fingerprint=fp
         )
-        return md5(json.dumps(d).encode('utf8')).hexdigest()

@@ -8,6 +8,7 @@ and over again, but to handle it in a way which brings the advantages of the
 data-as-code framework, including the tracking of metadata, and caching of
 artifacts.
 """
+import logging
 import inspect
 import shutil
 from hashlib import md5
@@ -48,17 +49,16 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
         def instructions(self):
             pass
 
-        def _execute(self):
-            cached = self._check_cache()
-            if cached:
-                return cached
+        def _execute(self):  # TODO: this is all messed up
+            if self.check_cache():
+                return self
             else:
                 return self._make_metadata()
 
         def _make_metadata(self) -> Metadata:
-            rp = Path('data', self._role, self.output.name)
+            rp = Path('data', self.output.name)
             if self.keep is True:
-                ap = Path(self._destination, rp)
+                ap = Path(self.destination, rp)
                 ap.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(self.output.absolute(), ap)
             else:
@@ -69,7 +69,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 checksum_value=md5(self.output.read_bytes()).hexdigest(),
                 checksum_algorithm='md5',
                 lineage=[x for x in self._ingredients],
-                role=self._role, step_description=self.__doc__,
+                step_description=self.__doc__,
                 step_instruction=inspect.getsource(self.instructions)
             )
 
@@ -102,7 +102,9 @@ def source_http(url: str, keep=False) -> Type[Step]:
 
         def instructions(self):
             try:
-                print('Downloading from URL:\n' + self._url)
+                msg = 'Downloading from URL:\n' + self._url
+                logging.info(msg)
+                print(msg)
                 response = requests.get(self._url, stream=True)
                 context = dict(
                     total=int(response.headers.get('content-length', 0)),
@@ -114,7 +116,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
                             stream.write(chunk)
 
             except requests.HTTPError as te:
-                print(f'HTTP error while attempting to download: {self._url}')
+                logging.error(f'HTTP error while attempting to download: {self._url}')
                 raise te
 
     return PremadeSourceHTTP

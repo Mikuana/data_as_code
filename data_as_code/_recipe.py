@@ -1,17 +1,21 @@
-import sys
+import logging
 import difflib
 import gzip
 import json
 import os
+import sys
 import tarfile
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Union, Dict, Type, Tuple
+from typing import Union, Dict, Type, List
 
+from data_as_code._metadata import validate_metadata
 from data_as_code._step import Step
 from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
 
 __all__ = ['Recipe']
+
+log = logging.getLogger(__name__)
 
 
 class Recipe:
@@ -38,7 +42,7 @@ class Recipe:
         Values set here are overwritten by those set in individual Step
         settings.
     """
-    keep: Dict[str, bool] = (PRODUCT,)
+    keep: List[str] = [PRODUCT]
     """Controls whether to keep source, intermediate, and final product
     artifacts. Values set here can be overwritten by the `keep`
     parameter during construction, or by those set in individual Step settings.
@@ -54,38 +58,81 @@ class Recipe:
     Step settings.
     """
 
+    pickup = False
+    """Controls behavior of execution to work backwards for each Product to
+    determine the latest cached Step in their ingredients. 
+    """
+
     _workspace: Union[str, Path]
     _td: TemporaryDirectory
     _results: Dict[str, Step]
 
     def __init__(
             self, destination: Union[str, Path] = '.',
-            keep: Union[str, Tuple[str]] = None, trust_cache: bool = None
+            keep: Union[str, List[str]] = None,
+            trust_cache: bool = None,
+            pickup: bool = None
     ):
         self.destination = Path(destination)
-        self.keep = (keep if isinstance(keep, tuple) else (keep,)) or self.keep
+
+        self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
+        self.pickup = pickup or self.pickup
 
         self._step_check()
-        self._assign_roles()
         self._target = self._get_targets()
 
-    def execute(self):
-        self._begin()
+    @classmethod
+    def check_it(cls, step_name: str, steps: dict) -> set:
+        required = {step_name}
+        s = steps[step_name]
+        if s.check_cache() is False:
+            for (x, y) in s.collect_ingredients().values():
+                required = required.union(cls.check_it(x, steps))
+        return required
 
-        self._results = {}
+    def _stepper(self) -> Dict[str, Step]:
+        """
+        TODO...
+
+        Start with all products of a recipe, and check the cache for valid
+        artifacts. If the product is missing a valid artifact in the cache,
+        iterate through the ingredients of that product and check their cache
+        status, continuing indefinitely until a valid cache exists.
+
+        The idea is to be able to generate a product from the cache with the
+        least number of steps possible, potentially even when some of the data
+        used in certain steps is completely unavailable at the time of execution
+        of the recipe.
+        """
+        steps = {}
+        roles = self._determine_roles()
+
         for name, step in self._steps().items():
             if step.keep is None:
-                step.keep = step._role in self.keep
+                step.keep = roles[name] in self.keep
             if step.trust_cache is None:
                 step.trust_cache = self.trust_cache
 
-            self._results[name] = step(
-                self._workspace.absolute(), self._target.folder, self._results
-            )
+            steps[name] = step(self._target.folder, {k: v.metadata for k, v in steps.items()})
+
+        if self.pickup is True:  # identify pick steps
+            pickups = set()
+            for k in [k for k, v in roles.items() if v == PRODUCT]:
+                pickups = pickups.union(self.check_it(k, steps))
+
+            return {k: v for k, v in steps.items() if k in pickups}
+        else:
+            return steps
+
+    def execute(self):
+        self._begin()
+        self._results = {}
+
+        for name, step in self._stepper().items():
+            self._results[name] = step._execute(self._workspace)
 
         self._export_metadata()
-
         self._end()
 
     def verify(self):
@@ -132,19 +179,19 @@ class Recipe:
 
         only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
         if only_in_b:
-            print(f"Comparison contains files(s) not in this package:\n")
+            log.info(f"Comparison contains files(s) not in this package:\n")
             for x in only_in_b:
-                print(' - ' + x.as_posix())
+                log.info(' - ' + x.as_posix())
 
         only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
         if only_in_a:
-            print(f"Package contains file(s) not in the comparison:\n")
+            log.info(f"Package contains file(s) not in the comparison:\n")
             for x in only_in_a:
-                print(' - ' + x.as_posix())
+                log.info(' - ' + x.as_posix())
 
         # difference in intersecting metadata
         for meta in set(meta_a.keys()).intersection(meta_b.keys()):
-            print(meta.as_posix())
+            log.info(meta.as_posix())
             sys.stdout.writelines(
                 difflib.unified_diff(
                     meta_a[meta], meta_b[meta], 'Package', 'Comparison'
@@ -191,7 +238,7 @@ class Recipe:
             for folder in [self._target.data, self._target.metadata]:
                 for file in [x for x in folder.rglob('*') if x.is_file()]:
                     if file not in expect:
-                        print(f"Removing unexpected file {file}")
+                        log.warning(f"Removing unexpected file {file}")
                         file.unlink()
         finally:
             os.chdir(cwd)
@@ -204,20 +251,26 @@ class Recipe:
         }
 
     @classmethod
+    def _products(cls) -> Dict[str, Type[Step]]:
+        x = [k for k, v in cls._determine_roles().items() if v == PRODUCT]
+        return {k: v for k, v in cls._steps().items() if k in x}
+
+    @classmethod
     def _step_check(cls):
         steps = cls._steps()
         for ix, (k, step) in enumerate(steps.items()):
             priors = list(steps.keys())[:ix]
-            for ingredient in step._get_ingredients():
-                ingredient_name = ingredient[1].step_name
+            for x in step.collect_ingredients().values():
+                ingredient = x[0]
                 msg = (
-                    f"Step '{k}' references ingredient '{ingredient_name}', but"
+                    f"Step '{k}' references ingredient '{ingredient}', but"
                     f" there is no preceding Step with that name in the recipe."
                     f" Valid values are: \n {priors}"
                 )
-                assert ingredient_name in priors, msg
+                assert ingredient in priors, msg
 
-    def _assign_roles(self):
+    @classmethod
+    def _determine_roles(cls) -> Dict[str, str]:
         """
         Role assigner
 
@@ -230,22 +283,22 @@ class Recipe:
             product (overwriting previous Source assignment if applicable)
          - if a Step is neither a source or product, then it is an intermediary
         """
-        steps = self._steps()
+        steps = cls._steps()
         ingredient_list = set(
-            ingredient[1].step_name for sublist in steps.values()
-            for ingredient in sublist._get_ingredients()
+            v[0] for sublist in steps.values()
+            for k, v in sublist.collect_ingredients().items()
         )
 
+        roles = {}
         for k, step in steps.items():
-            role = None
-            if not step._get_ingredients():
-                role = SOURCE
+            if not step.collect_ingredients():
+                roles[k] = SOURCE
             if k not in ingredient_list:
-                role = PRODUCT
-            if role is None:
-                role = INTERMEDIARY
+                roles[k] = PRODUCT
+            if roles.get(k) is None:
+                roles[k] = INTERMEDIARY
 
-            setattr(getattr(self, k), '_role', role)
+        return roles
 
     def _get_targets(self):
         fold = self.destination.absolute()
@@ -288,16 +341,10 @@ class Recipe:
         for result in self._results.values():
             if result.keep is True:
                 for k, v in result.metadata.items():
-                    if v._relative_to:
-                        r = Path(v._relative_to, 'data')
-                        pp = Path(self._target.metadata, v.path.relative_to(r))
-                    else:
-                        pp = Path(
-                            self._target.metadata, v._role,
-                            v._relative_path.name
-                        )
-                    pp.parent.mkdir(parents=True, exist_ok=True)
+                    p = Path(self._target.metadata, v.codified.path)
+                    p.parent.mkdir(parents=True, exist_ok=True)
 
                     d = v.to_dict()
+                    validate_metadata(d)
                     j = json.dumps(d, indent=2)
-                    Path(pp.as_posix() + '.json').write_text(j)
+                    Path(p.as_posix() + '.json').write_text(j)

@@ -1,12 +1,11 @@
 import os
-import time
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
 from data_as_code._recipe import Recipe
-from data_as_code._step import Step
-from data_as_code.misc import SOURCE
+from data_as_code._step import Step, result, ingredient
 
 
 def test_destination_explicit(tmpdir):
@@ -52,37 +51,36 @@ def test_cleanup_workspace(tmpdir):
     assert r._workspace.exists() is False
 
 
-def test_existing_keep_error(tmpdir):
-    """Raise error when package file exists, and keep settings True"""
-    Path(tmpdir, tmpdir.name + '.tar').touch()
-    with pytest.raises(FileExistsError):
-        Recipe(tmpdir, keep=dict(existing=True)).execute()
+def test_artifact_sub_folder(tmpdir):
+    """
+    Test artifact sub-folder creation
 
+    When result path is declared as a file in sub-folder, the result is output
+    in a corresponding path in the recipe data folder.
+    """
+    sub = 'sub/file.txt'
 
-def test_artifact_subfolder(tmpdir):  # TODO: move this to step (I think)
-    class T(Recipe):
+    class R(Recipe):
         class S(Step):
-            output = Path('subfolder', 'file.txt')
-            _role = SOURCE
-            keep = True
+            output = result(sub)
 
             def instructions(self):
                 self.output.touch()
 
-    T(tmpdir).execute()
-    assert Path(tmpdir, 'data', SOURCE, 'subfolder', 'file.txt').is_file()
+    R(tmpdir).execute()
+    assert Path(tmpdir, 'data', sub).is_file()
 
 
 def test_step_execution(tmpdir):
-    """Check timestamps of step output to ensure correct execution order"""
-    timing = {}
+    """Ensure execution order matches declaration"""
+    order = {}
 
     class S(Step):
-        _role = SOURCE
+        keep = False
 
         def instructions(self):
-            timing[self.__class__.__name__] = time.time_ns()
             self.output.touch()
+            order[self.__class__.__name__] = len(order) + 1
 
     class T(Recipe):
         class S1(S):
@@ -96,4 +94,69 @@ def test_step_execution(tmpdir):
 
     t = T(tmpdir)
     t.execute()
-    assert timing['S1'] < timing['S2'] < timing['S3']
+    assert order['S1'] == 1
+    assert order['S2'] == 2
+    assert order['S3'] == 3
+
+
+@pytest.mark.parametrize('expected', (True, False))
+def test_uses_cache(tmpdir, expected):
+    """
+    Cached result
+
+    When cache is trusted, the existence of a metadata file along with a data
+    artifact that matches the checksum results in the Step using the cached
+    artifact. The instructions will not be executed.
+
+    When cache is not trusted, the non-deterministic function below (it calls
+    UUID-4) results in the
+    """
+    file_name = 'file.txt'
+
+    class R(Recipe):
+        class S(Step):
+            output = result(file_name)
+            trust_cache = expected
+
+            def instructions(self):
+                """intentionally non-deterministic"""
+                self.output.write_text(uuid4().hex)
+
+    p = Path(tmpdir, 'data', file_name)
+
+    R(tmpdir).execute()
+    txt1 = p.read_text()
+    R(tmpdir).execute()
+    txt2 = p.read_text()
+    assert (txt1 == txt2) is expected
+
+
+def test_catches_diff(tmpdir):
+    """
+    Step identifies difference in codified metadata
+    """
+    same_file_name = 'file.txt'
+    p = Path(tmpdir, 'data', same_file_name)
+
+    class R1(Recipe):
+        class S1(Step):
+            output = result(same_file_name)
+
+            def instructions(self):
+                self.output.write_text(uuid4().hex)
+
+    class R2(Recipe):
+        class S1(Step):
+            output = result(same_file_name)
+
+            def instructions(self):
+                self.output.touch()
+
+    R1(tmpdir).execute()
+    first = p.read_text()
+    R1(tmpdir).execute()
+    second = p.read_text()
+    assert first == second
+    R2(tmpdir).execute()
+    third = p.read_text()
+    assert third == ''
