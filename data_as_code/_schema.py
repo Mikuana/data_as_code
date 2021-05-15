@@ -35,6 +35,11 @@ CODIFIED = {
                 "data/that_file.parquet"
             ]
         },
+        "instructions": {
+            "description": "an md5 checksum of the source code defined in the instructions",
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+        },
         "lineage": {
             "description": "list of fingerprints for codified nodes of lineage",
             "type": "array",
@@ -46,12 +51,8 @@ CODIFIED = {
         }
     },
     "required": [
-        "fingerprint"
-    ],
-    "anyOf": [
-        {"required": ["description"]},
-        {"required": ["path"]},
-        {"required": ["lineage"]},
+        "fingerprint",
+        "instructions"
     ],
     "additionalProperties": False
 }

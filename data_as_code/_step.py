@@ -158,7 +158,7 @@ class Step:
         results = self._get_results()
         if not results and self.keep is True:
             raise ex.StepUndefinedOutput(
-                'Step keep is True, but no output is defined'
+                f'{self.__class__.__name__} keep is True, but no output is defined'
             )
         elif not results:
             results = [('output', None)]
@@ -168,6 +168,7 @@ class Step:
             metadata[k] = Metadata(
                 codified=Codified(
                     path=v.path if v else None,
+                    instructions=self._instruction_digest(),
                     description=self.__doc__,
                     lineage=lineage if lineage else None
                 ),
@@ -183,6 +184,10 @@ class Step:
         output file, and return the path, or paths, of the output.
         """
         return Exception  # instructions must be redefined on all subclasses
+
+    def _instruction_digest(self) -> str:
+        source = inspect.getsource(self.instructions)
+        return md5(source.encode('utf-8')).hexdigest()
 
     def _execute(self, _workspace: Path):
         """
@@ -263,10 +268,7 @@ class Step:
         for k, v in self.collect_ingredients().items():
             ante = self.antecedents[v[0]]
             if v[1] is None:
-                if len(ante) == 1:
-                    m = list(ante.values())[0]
-                else:
-                    raise Exception
+                m = list(ante.values())[0]
             else:
                 m = ante[v[1]]
 

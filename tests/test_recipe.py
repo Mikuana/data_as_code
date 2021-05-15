@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from data_as_code._recipe import Recipe
-from data_as_code._step import Step, result
+from data_as_code._step import Step, result, ingredient
 
 
 def test_destination_explicit(tmpdir):
@@ -129,3 +129,34 @@ def test_uses_cache(tmpdir, expected):
     R(tmpdir).execute()
     txt2 = p.read_text()
     assert (txt1 == txt2) is expected
+
+
+def test_catches_diff(tmpdir):
+    """
+    Step identifies difference in codified metadata
+    """
+    same_file_name = 'file.txt'
+    p = Path(tmpdir, 'data', same_file_name)
+
+    class R1(Recipe):
+        class S1(Step):
+            output = result(same_file_name)
+
+            def instructions(self):
+                self.output.write_text(uuid4().hex)
+
+    class R2(Recipe):
+        class S1(Step):
+            output = result(same_file_name)
+
+            def instructions(self):
+                self.output.touch()
+
+    R1(tmpdir).execute()
+    first = p.read_text()
+    R1(tmpdir).execute()
+    second = p.read_text()
+    assert first == second
+    R2(tmpdir).execute()
+    third = p.read_text()
+    assert third == ''

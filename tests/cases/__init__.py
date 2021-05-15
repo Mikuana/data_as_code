@@ -43,9 +43,9 @@ v1.meta.pop('lineage')
 v1.meta['codified'].pop('lineage')
 v1.meta['derived'].pop('lineage')
 # lineage alteration changes fingerprint
-v1.meta['codified']['fingerprint'] = '7f7c6bb6'
-v1.meta['derived']['fingerprint'] = '8eb9de34'
-v1.meta['fingerprint'] = '9c0d7447'
+v1.meta['codified']['fingerprint'] = 'b3fa65c8'
+v1.meta['derived']['fingerprint'] = 'eb985999'
+v1.meta['fingerprint'] = '05bb36f2'
 
 c1 = Full("Mismatched codified fingerprint", ValidationError)
 c1.meta['codified']['lineage'][0] = '00000000'

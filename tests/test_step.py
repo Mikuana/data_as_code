@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+import json
 from data_as_code import exceptions as ex
 from data_as_code._metadata import Metadata
 from data_as_code._step import Step, result, ingredient, _Ingredient

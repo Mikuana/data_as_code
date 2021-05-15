@@ -38,7 +38,7 @@ import logging
 from hashlib import md5
 from importlib import resources
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Tuple, Callable
 
 from data_as_code._schema import validate_metadata
 from data_as_code.exceptions import InvalidFingerprint
@@ -66,6 +66,11 @@ class _Meta:
         expected fingerprints do not drift.
     """
     schema = _schema.copy()
+
+    _fingers: List[Union[str, Tuple[str, Callable]]]
+    """A list of strings which identify the attribute names which should be used
+    to produce a fingerprint. This allows elements of metadata to be included
+    and modified without impacting caching."""
 
     def __init__(
             self, lineage: Union[List['_Meta'], List[str]] = None,
@@ -105,14 +110,16 @@ class _Meta:
         :return: an 8 character hexadecimal checksum string which uniquely
             identifies the contents of a metadata object
         """
-        if not rendered:
+        sub = {k: v for k, v in rendered.items() if k in self._fingers}
+        if not rendered or not sub:
             raise Exception(
                 'Attempting to calculate fingerprint for empty metadata'
             )
-        calc = md5(json.dumps(rendered).encode('utf8')).hexdigest()[:8]
 
         if rendered.get('fingerprint'):
             raise Exception('dictionary already contains a fingerprint')
+
+        calc = md5(json.dumps(sub).encode('utf8')).hexdigest()[:8]
 
         if self._expected and self._expected != calc:
             raise InvalidFingerprint(
@@ -156,16 +163,20 @@ class Codified(_Meta):
     the Step attributes and instructions. These metadata are derived prior to
     execution of the Recipe, and should not be modified after execution.
     """
+    _fingers = ('path', 'instructions', 'lineage')
+
     def __init__(
             self, path: Union[Path, str] = None,
             description: str = None,
             lineage: Union[List['Metadata'], List['Codified'], List[str]] = None,
+            instructions: str = None,
             **kwargs
     ):
         self.schema = self.sub_schema()
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
         self.lineage = lineage
+        self.instructions = instructions
         if self.lineage:
             self.lineage = [
                 x.codified if isinstance(x, Metadata) else x for x in lineage
@@ -179,6 +190,7 @@ class Codified(_Meta):
             d['path'] = self.path.as_posix()
         if self.description:
             d['description'] = self.description
+        d['instructions'] = self.instructions
         if self.lineage:
             d['lineage'] = self.prep_lineage()
 
@@ -197,6 +209,8 @@ class Derived(_Meta):
     in a recipe will limit the more advanced features of this package.
     """
     lineage: Union[List['Metadata'], List['Derived']] = None
+
+    _fingers = ('checksum', 'lineage')
 
     def __init__(
             self,
@@ -234,6 +248,7 @@ class Incidental(_Meta):
     usefulness of these metadata, they are largely ignored by the package and
     stored primarily for user reference.
     """
+
     def __init__(
             self,
             path: Union[Path, str] = None,
@@ -281,6 +296,8 @@ class Metadata(_Meta):
     exported using the ``to_dict`` method will result in an identical Metadata
     object when importing via the ``from_dict`` method.
     """
+    _fingers = ('codified', 'derived', 'lineage')
+
     def __init__(
             self,
             codified: Codified = None,
@@ -296,11 +313,11 @@ class Metadata(_Meta):
         super().__init__(**kwargs)
 
     def to_dict(self) -> dict:
-        d = {}
-        if self.codified:
-            d['codified'] = self.codified.to_dict()
-        if self.derived:
-            d['derived'] = self.derived.to_dict()
+        d = {
+            'codified': self.codified.to_dict(),
+            'derived': self.derived.to_dict()
+        }
+
         if self.lineage:
             d['lineage'] = sorted(
                 [y.to_dict() for y in self.lineage],

@@ -1,44 +1,63 @@
 {
-  "fingerprint": "5e4ed3ee",
   "codified": {
-    "fingerprint": "02a58902",
-    "description": "this is codified",
-    "path": "x",
+    "path": "myfile.txt",
+    "instructions": "2f8ce975cfeee0830b28954c86abe71c",
     "lineage": [
-      "1dfc2b30",
-      "693f16b1"
-    ]
+      "cf5990e7",
+      "f0db4122"
+    ],
+    "fingerprint": "77f2e8b8"
   },
   "derived": {
-    "fingerprint": "5cb5c236",
-    "checksum": "a123456789012345678901234567890b",
+    "checksum": "910941368ad6de6b1582db2be3b1b795",
     "lineage": [
-      "3d358af5",
-      "8eb9de34"
-    ]
+      "34806b19",
+      "924babb5"
+    ],
+    "fingerprint": "40b86853"
   },
   "lineage": [
     {
-      "fingerprint": "a2cafaa5",
       "codified": {
-        "fingerprint": "693f16b1",
-        "path": "y"
+        "instructions": "1a7e798e53a16e800dd4dee5e4680835",
+        "lineage": [
+          "f0db4122"
+        ],
+        "fingerprint": "cf5990e7"
       },
       "derived": {
-        "fingerprint": "3d358af5",
-        "checksum": "b123456789012345678901234567890c"
-      }
+        "checksum": "e99a18c428cb38d5f260853678922e03",
+        "lineage": [
+          "34806b19"
+        ],
+        "fingerprint": "924babb5"
+      },
+      "lineage": [
+        {
+          "codified": {
+            "instructions": "165bc3c5c29fa3d17659c917d5c07ce8",
+            "fingerprint": "f0db4122"
+          },
+          "derived": {
+            "checksum": "900150983cd24fb0d6963f7d28e17f72",
+            "fingerprint": "34806b19"
+          },
+          "fingerprint": "061e1908"
+        }
+      ],
+      "fingerprint": "008ee81f"
     },
     {
-      "fingerprint": "e1741a4a",
       "codified": {
-        "fingerprint": "1dfc2b30",
-        "path": "z"
+        "instructions": "165bc3c5c29fa3d17659c917d5c07ce8",
+        "fingerprint": "f0db4122"
       },
       "derived": {
-        "fingerprint": "8eb9de34",
-        "checksum": "a123456789012345678901234567890b"
-      }
+        "checksum": "900150983cd24fb0d6963f7d28e17f72",
+        "fingerprint": "34806b19"
+      },
+      "fingerprint": "061e1908"
     }
-  ]
+  ],
+  "fingerprint": "f9992291"
 }
