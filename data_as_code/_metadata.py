@@ -36,7 +36,6 @@ artifact is treated as a first-class citizen.
 import json
 import logging
 from hashlib import md5
-from importlib import resources
 from pathlib import Path
 from typing import List, Union, Tuple, Callable
 
@@ -44,11 +43,6 @@ from data_as_code._schema import validate_metadata
 from data_as_code.exceptions import InvalidFingerprint
 
 log = logging.getLogger(__name__)
-
-_schema = json.loads(resources.read_text('data_as_code', 'schema.json'))
-"""JSON schema definition which can be used to validate the structure of
-Metadata that has been exported.
-"""
 
 
 class _Meta:
@@ -65,7 +59,6 @@ class _Meta:
         the to_dict or fingerprint methods, acting as a check to ensure that
         expected fingerprints do not drift.
     """
-    schema = _schema.copy()
 
     _fingers: List[Union[str, Tuple[str, Callable]]]
     """A list of strings which identify the attribute names which should be used
@@ -148,12 +141,6 @@ class _Meta:
         else:
             return sorted([x.fingerprint() for x in self.lineage])
 
-    def sub_schema(self) -> dict:
-        s = _Meta.schema.copy()
-        s['required'] = s['properties'][self.__class__.__name__.lower()]['required']
-        s['properties'] = s['properties'][self.__class__.__name__.lower()]['properties']
-        return s
-
 
 class Codified(_Meta):
     """
@@ -172,7 +159,6 @@ class Codified(_Meta):
             instructions: str = None,
             **kwargs
     ):
-        self.schema = self.sub_schema()
         self.path = Path(path) if isinstance(path, str) else path
         self.description = description
         self.lineage = lineage
@@ -218,7 +204,6 @@ class Derived(_Meta):
             lineage: Union[List['Metadata'], List['Derived'], List[str]] = None,
             **kwargs
     ):
-        self.schema = self.sub_schema()
         self.checksum = checksum
         super().__init__(**kwargs)
 
