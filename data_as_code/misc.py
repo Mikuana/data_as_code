@@ -1,18 +1,19 @@
+from enum import Enum, auto
 import subprocess
 import sys
 
-__all__ = [
-    'SOURCE', 'INTERMEDIARY', 'PRODUCT'
-]
+__all__ = ['Role']
 
-SOURCE = 'source'
-"""String which identifies source artifacts, codified as an object"""
 
-INTERMEDIARY = 'intermediary'
-"""String which identifies intermediary artifacts, codified as an object"""
+class Role(Enum):
+    SOURCE = auto()
+    """String which identifies source artifacts, codified as an object"""
 
-PRODUCT = 'product'
-"""String which identifies product artifacts, codified as an object"""
+    INTERMEDIARY = auto()
+    """String which identifies intermediary artifacts, codified as an object"""
+
+    PRODUCT = auto()
+    """String which identifies product artifacts, codified as an object"""
 
 
 def _pip_freeze() -> bytes:

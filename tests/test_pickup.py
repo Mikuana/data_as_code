@@ -2,7 +2,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from data_as_code import Recipe, Step, ingredient, result
-from data_as_code.misc import SOURCE, INTERMEDIARY, PRODUCT
+from data_as_code.misc import Role
 
 
 def test_pickup(tmpdir):
@@ -44,7 +44,7 @@ def test_pickup(tmpdir):
 
     class R(Recipe):
         trust_cache = True
-        keep = [SOURCE, INTERMEDIARY, PRODUCT]
+        keep = list(Role)
 
         class Step1(Step):
             output = result('file1')

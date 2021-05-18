@@ -1,7 +1,7 @@
-import logging
 import difflib
 import gzip
 import json
+import logging
 import os
 import sys
 import tarfile
@@ -11,7 +11,7 @@ from typing import Union, Dict, Type, List
 
 from data_as_code._metadata import validate_metadata
 from data_as_code._step import Step
-from data_as_code.misc import PRODUCT, INTERMEDIARY, SOURCE
+from data_as_code.misc import Role
 
 __all__ = ['Recipe']
 
@@ -41,8 +41,12 @@ class Recipe:
         will skip execution and return the cached data and metadata instead.
         Values set here are overwritten by those set in individual Step
         settings.
+    :param pickup: (optional) controls behavior of execution to work backwards
+        for each product, to determine the latest cached Step in their
+        ingredients. The end result is that the recipe will attempt to build the
+        products using the least number of steps possible.
     """
-    keep: List[str] = [PRODUCT]
+    keep: List[Role] = [Role.PRODUCT]
     """Controls whether to keep source, intermediate, and final product
     artifacts. Values set here can be overwritten by the `keep`
     parameter during construction, or by those set in individual Step settings.
@@ -73,7 +77,8 @@ class Recipe:
             trust_cache: bool = None,
             pickup: bool = None
     ):
-        self.destination = Path(destination)
+        self.destination = Path(destination) if isinstance(destination, str) \
+            else destination
 
         self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
         self.trust_cache = trust_cache or self.trust_cache
@@ -81,49 +86,6 @@ class Recipe:
 
         self._step_check()
         self._target = self._get_targets()
-
-    @classmethod
-    def check_it(cls, step_name: str, steps: dict) -> set:
-        required = {step_name}
-        s = steps[step_name]
-        if s.check_cache() is False:
-            for (x, y) in s.collect_ingredients().values():
-                required = required.union(cls.check_it(x, steps))
-        return required
-
-    def _stepper(self) -> Dict[str, Step]:
-        """
-        TODO...
-
-        Start with all products of a recipe, and check the cache for valid
-        artifacts. If the product is missing a valid artifact in the cache,
-        iterate through the ingredients of that product and check their cache
-        status, continuing indefinitely until a valid cache exists.
-
-        The idea is to be able to generate a product from the cache with the
-        least number of steps possible, potentially even when some of the data
-        used in certain steps is completely unavailable at the time of execution
-        of the recipe.
-        """
-        steps = {}
-        roles = self._determine_roles()
-
-        for name, step in self._steps().items():
-            if step.keep is None:
-                step.keep = roles[name] in self.keep
-            if step.trust_cache is None:
-                step.trust_cache = self.trust_cache
-
-            steps[name] = step(self._target.folder, {k: v.metadata for k, v in steps.items()})
-
-        if self.pickup is True:  # identify pick steps
-            pickups = set()
-            for k in [k for k, v in roles.items() if v == PRODUCT]:
-                pickups = pickups.union(self.check_it(k, steps))
-
-            return {k: v for k, v in steps.items() if k in pickups}
-        else:
-            return steps
 
     def execute(self):
         self._begin()
@@ -158,45 +120,54 @@ class Recipe:
         with TemporaryDirectory() as container:
             r = self.__class__(container)
             r.execute()
-            self.compare(container)
+            self._compare(container)
 
-    def compare(self, compare_to: Path):
+    @classmethod
+    def _check_it(cls, step_name: str, steps: dict) -> set:
         """
-        Compare the contents of two separate folders to verify that they match.
+        Iterate through ingredients of each step to determine which antecedents
+        are required, if the cache is not available.
         """
-        compare_to = Path(compare_to)
-        meta_a = {
-            x.relative_to(self.destination): x.read_text()
-            for x in Path(self.destination, 'metadata').rglob('*')
-            if x.is_file()
-        }
+        required = {step_name}
+        s = steps[step_name]
+        if s.check_cache() is False:
+            for (x, y) in s.collect_ingredients().values():
+                required = required.union(cls._check_it(x, steps))
+        return required
 
-        meta_b = {
-            x.relative_to(compare_to): x.read_text()
-            for x in Path(compare_to, 'metadata').rglob('*')
-            if x.is_file()
-        }
+    def _stepper(self) -> Dict[str, Step]:
+        """
+        TODO...
 
-        only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
-        if only_in_b:
-            log.info(f"Comparison contains files(s) not in this package:\n")
-            for x in only_in_b:
-                log.info(' - ' + x.as_posix())
+        Start with all products of a recipe, and check the cache for valid
+        artifacts. If the product is missing a valid artifact in the cache,
+        iterate through the ingredients of that product and check their cache
+        status, continuing indefinitely until a valid cache exists.
 
-        only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
-        if only_in_a:
-            log.info(f"Package contains file(s) not in the comparison:\n")
-            for x in only_in_a:
-                log.info(' - ' + x.as_posix())
+        The idea is to be able to generate a product from the cache with the
+        least number of steps possible, potentially even when some of the data
+        used in certain steps is completely unavailable at the time of execution
+        of the recipe.
+        """
+        steps = {}
+        roles = self._determine_roles()
 
-        # difference in intersecting metadata
-        for meta in set(meta_a.keys()).intersection(meta_b.keys()):
-            log.info(meta.as_posix())
-            sys.stdout.writelines(
-                difflib.unified_diff(
-                    meta_a[meta], meta_b[meta], 'Package', 'Comparison'
-                )
-            )
+        for name, step in self._steps().items():
+            if step.keep is None:
+                step.keep = roles[name] in self.keep
+            if step.trust_cache is None:
+                step.trust_cache = self.trust_cache
+
+            steps[name] = step(self._target.folder, {k: v.metadata for k, v in steps.items()})
+
+        if self.pickup is True:  # identify pick steps
+            pickups = set()
+            for k in [k for k, v in roles.items() if v is Role.PRODUCT]:
+                pickups = pickups.union(self._check_it(k, steps))
+
+            return {k: v for k, v in steps.items() if k in pickups}
+        else:
+            return steps
 
     def _begin(self):
         """
@@ -252,7 +223,7 @@ class Recipe:
 
     @classmethod
     def _products(cls) -> Dict[str, Type[Step]]:
-        x = [k for k, v in cls._determine_roles().items() if v == PRODUCT]
+        x = [k for k, v in cls._determine_roles().items() if v is Role.PRODUCT]
         return {k: v for k, v in cls._steps().items() if k in x}
 
     @classmethod
@@ -270,7 +241,7 @@ class Recipe:
                 assert ingredient in priors, msg
 
     @classmethod
-    def _determine_roles(cls) -> Dict[str, str]:
+    def _determine_roles(cls) -> Dict[str, Role]:
         """
         Role assigner
 
@@ -292,11 +263,11 @@ class Recipe:
         roles = {}
         for k, step in steps.items():
             if not step.collect_ingredients():
-                roles[k] = SOURCE
+                roles[k] = Role.SOURCE
             if k not in ingredient_list:
-                roles[k] = PRODUCT
+                roles[k] = Role.PRODUCT
             if roles.get(k) is None:
-                roles[k] = INTERMEDIARY
+                roles[k] = Role.INTERMEDIARY
 
         return roles
 
@@ -348,3 +319,41 @@ class Recipe:
                     validate_metadata(d)
                     j = json.dumps(d, indent=2)
                     Path(p.as_posix() + '.json').write_text(j)
+
+    def _compare(self, compare_to: Path):
+        """
+        Compare the contents of two separate folders to verify that they match.
+        """
+        compare_to = Path(compare_to)
+        meta_a = {
+            x.relative_to(self.destination): x.read_text()
+            for x in Path(self.destination, 'metadata').rglob('*')
+            if x.is_file()
+        }
+
+        meta_b = {
+            x.relative_to(compare_to): x.read_text()
+            for x in Path(compare_to, 'metadata').rglob('*')
+            if x.is_file()
+        }
+
+        only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
+        if only_in_b:
+            log.info(f"Comparison contains files(s) not in this package:\n")
+            for x in only_in_b:
+                log.info(' - ' + x.as_posix())
+
+        only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
+        if only_in_a:
+            log.info(f"Package contains file(s) not in the comparison:\n")
+            for x in only_in_a:
+                log.info(' - ' + x.as_posix())
+
+        # difference in intersecting metadata
+        for meta in set(meta_a.keys()).intersection(meta_b.keys()):
+            log.info(meta.as_posix())
+            sys.stdout.writelines(
+                difflib.unified_diff(
+                    meta_a[meta], meta_b[meta], 'Package', 'Comparison'
+                )
+            )
