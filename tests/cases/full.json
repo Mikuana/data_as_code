@@ -1,6 +1,7 @@
 {
   "codified": {
     "path": "myfile.txt",
+    "description": "the final thing",
     "instructions": "2f8ce975cfeee0830b28954c86abe71c",
     "lineage": [
       "cf5990e7",
@@ -59,5 +60,5 @@
       "fingerprint": "061e1908"
     }
   ],
-  "fingerprint": "f9992291"
+  "fingerprint": "11998a04"
 }
