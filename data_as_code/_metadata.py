@@ -109,9 +109,6 @@ class _Meta:
                 'Attempting to calculate fingerprint for empty metadata'
             )
 
-        if rendered.get('fingerprint'):
-            raise Exception('dictionary already contains a fingerprint')
-
         calc = md5(json.dumps(sub).encode('utf8')).hexdigest()[:8]
 
         if self._expected and self._expected != calc:
