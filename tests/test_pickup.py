@@ -1,8 +1,7 @@
 from pathlib import Path
 from uuid import uuid4
 
-from data_as_code import Recipe, Step, ingredient, result
-from data_as_code.misc import Role
+from data_as_code import Recipe, Step, ingredient, result, Role
 
 
 def test_pickup(tmpdir):

@@ -1,12 +1,12 @@
 import argparse
 import os
+import subprocess
 import sys
 import venv
 from pathlib import Path
 from typing import Union
 
 from data_as_code import __version__
-from data_as_code.misc import _pipenv_init
 
 
 def menu(args=None):
@@ -102,3 +102,12 @@ class _InitializeFolder:
         ]
         txt = '\n'.join(patterns)
         self._make_file(file, txt)
+
+
+def _pip_freeze() -> bytes:
+    return subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
+
+
+def _pipenv_init():
+    reqs = ['requests', 'tqdm']
+    subprocess.check_output([sys.executable, '-m', 'pipenv', 'install'] + reqs)

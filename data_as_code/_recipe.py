@@ -5,17 +5,37 @@ import logging
 import os
 import sys
 import tarfile
+from enum import Enum, auto
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Union, Dict, Type, List
 
 from data_as_code._metadata import validate_metadata
 from data_as_code._step import Step
-from data_as_code.misc import Role
 
-__all__ = ['Recipe']
+__all__ = ['Recipe', 'Role']
 
 log = logging.getLogger(__name__)
+
+
+class Role(Enum):
+    """
+    Step Role
+
+    This enumerator codifies the distinct roles that a step can play in a
+    Recipe. The identification of these roles controls behavior related to
+    default retention of artifacts, mandatory path designation, and whether a
+    step can be skipped when a recipe is executed as a pickup.
+    """
+
+    SOURCE = auto()
+    """String which identifies source artifacts, codified as an object"""
+
+    INTERMEDIARY = auto()
+    """String which identifies intermediary artifacts, codified as an object"""
+
+    PRODUCT = auto()
+    """String which identifies product artifacts, codified as an object"""
 
 
 class Recipe:
