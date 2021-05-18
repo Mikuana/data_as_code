@@ -5,7 +5,7 @@ from uuid import uuid4
 import pytest
 
 from data_as_code._recipe import Recipe
-from data_as_code._step import Step, result, ingredient
+from data_as_code._step import Step, result
 
 
 def test_destination_explicit(tmpdir):
@@ -160,3 +160,85 @@ def test_catches_diff(tmpdir):
     R2(tmpdir).execute()
     third = p.read_text()
     assert third == ''
+
+
+def test_verification(tmpdir):
+    """
+    Ensure that verification confirms reproducibility
+    """
+
+    class R(Recipe):
+        class S(Step):
+            output = result('file.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+    R(tmpdir).execute()
+    assert R(tmpdir).reproducible()
+
+
+def test_verification_extra_file(tmpdir):
+    """
+    Ensure that verification confirms reproducibility
+    """
+
+    class R1(Recipe):
+        class S(Step):
+            output = result('file.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+    class R2(Recipe):
+        class S1(Step):
+            output = result('file.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+        class S2(Step):
+            output = result('file2.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+    R1(tmpdir).execute()
+    assert R2(tmpdir).reproducible() is False
+
+
+def test_verification_missing_file(tmpdir):
+    class R1(Recipe):
+        class S1(Step):
+            output = result('file1.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+        class S2(Step):
+            output = result('file2.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+    class R2(Recipe):
+        class S2(Step):
+            output = result('file2.txt')
+
+            def instructions(self):
+                self.output.touch()
+
+    R1(tmpdir).execute()
+    assert R2(tmpdir).reproducible() is False
+
+
+def test_unreproducible(tmpdir):
+    class R(Recipe):
+        class S(Step):
+            output = result('file.txt')
+
+            def instructions(self):
+                self.output.write_text(uuid4().hex)
+
+    R(tmpdir).execute()
+    assert R(tmpdir).reproducible() is False

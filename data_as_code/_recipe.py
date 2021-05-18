@@ -3,7 +3,6 @@ import gzip
 import json
 import logging
 import os
-import sys
 import tarfile
 from enum import Enum, auto
 from pathlib import Path
@@ -117,7 +116,7 @@ class Recipe:
         self._export_metadata()
         self._end()
 
-    def verify(self):
+    def reproducible(self) -> bool:
         """
         Verify package contents
 
@@ -135,12 +134,13 @@ class Recipe:
          - optional switch to verify only what exists (from point of last
            available)?
 
-        :return:
+        :return: a boolean indicator of whether the contents of the package is
+            reproducible from scratch.
         """
         with TemporaryDirectory() as container:
             r = self.__class__(container)
             r.execute()
-            self._compare(container)
+            return self._compare(container)
 
     @classmethod
     def _check_it(cls, step_name: str, steps: dict) -> set:
@@ -344,6 +344,7 @@ class Recipe:
         """
         Compare the contents of two separate folders to verify that they match.
         """
+        match = True
         compare_to = Path(compare_to)
         meta_a = {
             x.relative_to(self.destination): x.read_text()
@@ -359,12 +360,14 @@ class Recipe:
 
         only_in_b = set(meta_b.keys()).difference(set(meta_a.keys()))
         if only_in_b:
+            match = False
             log.info(f"Comparison contains files(s) not in this package:\n")
             for x in only_in_b:
                 log.info(' - ' + x.as_posix())
 
         only_in_a = set(meta_a.keys()).difference(set(meta_b.keys()))
         if only_in_a:
+            match = False
             log.info(f"Package contains file(s) not in the comparison:\n")
             for x in only_in_a:
                 log.info(' - ' + x.as_posix())
@@ -372,8 +375,12 @@ class Recipe:
         # difference in intersecting metadata
         for meta in set(meta_a.keys()).intersection(meta_b.keys()):
             log.info(meta.as_posix())
-            sys.stdout.writelines(
-                difflib.unified_diff(
+
+            if meta_a[meta] != meta_b[meta]:
+                match = False
+                diff = difflib.unified_diff(
                     meta_a[meta], meta_b[meta], 'Package', 'Comparison'
                 )
-            )
+                log.info(diff)
+
+        return match
