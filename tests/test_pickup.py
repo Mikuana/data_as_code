@@ -67,7 +67,7 @@ def test_pickup(tmpdir):
             def instructions(self):
                 self.output.write_text(self.x.read_text() + self.y.read_text())
 
-    R(tmpdir).execute()
+    R(tmpdir)._execute()
     p1 = Path(tmpdir, 'data', 'file1')
     p3 = Path(tmpdir, 'data', 'file3')
     p4 = Path(tmpdir, 'data', 'file4')
@@ -76,6 +76,6 @@ def test_pickup(tmpdir):
     assert initial == (p1.read_text() + p3.read_text())
 
     p4.unlink()
-    R(tmpdir, pickup=True).execute()
+    R(tmpdir, pickup=True)._execute()
     pickup = p4.read_text()
     assert initial == pickup

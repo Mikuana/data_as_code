@@ -1,11 +1,16 @@
 import argparse
+import importlib.util
+import importlib.util
+import inspect
 import os
 import subprocess
 import sys
 import venv
 from pathlib import Path
+from typing import Type
 from typing import Union
 
+from data_as_code import Recipe, Role
 from data_as_code import __version__
 
 
@@ -45,6 +50,34 @@ def _parse_args(args: list = None):
         help='include git artifacts in folder'
     )
 
+    # execution submodule
+    cmd_execute = commands.add_parser(
+        'execute', help='execute a recipe'
+    )
+    cmd_execute.set_defaults(func=execute_recipe)
+    cmd_execute.add_argument(
+        'recipe', help='path to python file containing recipe'
+    )
+    cmd_execute.add_argument(
+        '-d', '--directory', help='recipe folder where artifacts will be stored'
+    )
+    cmd_execute.add_argument(
+        '-ks', '--keep-source', action='store_true',
+        help='switch to control whether to keep source artifacts'
+    )
+    cmd_execute.add_argument(
+        '-ki', '--keep-intermediary', action='store_true',
+        help='switch to control whether to keep intermediary artifacts'
+    )
+    cmd_execute.add_argument(
+        '-ic', '--ignore-cache', action='store_false',
+        help='switch to ignore existing cache when executing recipe'
+    )
+    cmd_execute.add_argument(
+        '-p', '--pickup', action='store_true',
+        help='switch to instruct recipe to pickup Steps from latest possible'
+    )
+
     if not len(sys.argv) > 1:  # if no args, print help to stderr
         parser.print_help(sys.stderr)
         sys.exit(1)
@@ -53,10 +86,17 @@ def _parse_args(args: list = None):
 
 
 def initialize_folder(arg: argparse.Namespace):
-    _InitializeFolder(path=arg.d, exist_ok=arg.x)
+    InitializeFolder(path=arg.d, exist_ok=arg.x)
 
 
-class _InitializeFolder:
+def execute_recipe(arg: argparse.Namespace):
+    ExecuteRecipe(
+        arg.recipe, arg.directory, arg.keep_source, arg.keep_intermediary,
+        arg.ignore_cache, arg.pickup
+    )
+
+
+class InitializeFolder:
     def __init__(self, path: Union[Path, str] = None, exist_ok=False):
         self.wd = Path(path or '.').absolute()
         self.exist_ok = exist_ok
@@ -92,7 +132,7 @@ class _InitializeFolder:
         try:
             os.chdir(self.wd)
             Path('Pipfile').touch()
-            _pipenv_init()
+            pipenv_init()
         finally:
             os.chdir(cwd)
 
@@ -104,10 +144,48 @@ class _InitializeFolder:
         self._make_file(file, txt)
 
 
+class ExecuteRecipe:
+    def __init__(
+            self, recipe_path: str, directory,
+            keep_source: bool, keep_intermediary: bool,
+            ignore_cache: bool, pickup: bool
+    ):
+        rp = Path(recipe_path).absolute()
+        spec = importlib.util.spec_from_file_location("*", rp)
+        mod = importlib.util.module_from_spec(spec)
+        # noinspection PyUnresolvedReferences
+        spec.loader.exec_module(mod)
+
+        def is_recipe(x):
+            return x != Recipe and isinstance(x, type) and issubclass(x, Recipe)
+
+        recipes = inspect.getmembers(mod, is_recipe)
+        if len(recipes) == 0:
+            raise Exception("no Recipe found in file")
+        elif len(recipes) > 1:
+            raise Exception("only one Recipe per file is allowed")
+
+        self.recipe: Type[Recipe] = recipes[0][1]
+        self.directory = Path(directory) if directory else None
+        self.keep = [Role.PRODUCT]
+        if keep_source:
+            self.keep.append(Role.SOURCE)
+        if keep_intermediary:
+            self.keep.append(Role.INTERMEDIARY)
+
+        self.trust_cache = ignore_cache
+        self.pickup = pickup
+
+        r = self.recipe(
+            self.directory, self.keep, self.trust_cache, self.pickup
+        )
+        r._execute()
+
+
 def _pip_freeze() -> bytes:
     return subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
 
 
-def _pipenv_init():
+def pipenv_init():
     reqs = ['requests', 'tqdm']
     subprocess.check_output([sys.executable, '-m', 'pipenv', 'install'] + reqs)

@@ -92,7 +92,7 @@ class Recipe:
 
     def __init__(
             self, destination: Union[str, Path] = '.',
-            keep: Union[str, List[str]] = None,
+            keep: Union[Role, List[Role]] = None,
             trust_cache: bool = None,
             pickup: bool = None
     ):
@@ -106,7 +106,8 @@ class Recipe:
         self._step_check()
         self._target = self._get_targets()
 
-    def execute(self):
+    def _execute(self):
+        """ Execute Recipe """
         self._begin()
         self._results = {}
 
@@ -116,7 +117,7 @@ class Recipe:
         self._export_metadata()
         self._end()
 
-    def reproducible(self) -> bool:
+    def _reproducible(self) -> bool:
         """
         Verify package contents
 
@@ -139,7 +140,7 @@ class Recipe:
         """
         with TemporaryDirectory() as container:
             r = self.__class__(container)
-            r.execute()
+            r._execute()
             return self._compare(container)
 
     @classmethod
