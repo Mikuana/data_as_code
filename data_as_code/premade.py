@@ -1,5 +1,5 @@
 """
-Functions to generate premade steps
+Functions to generate pre-made steps
 
 This submodule contains a set of functions with limited parameters, which are
 used to generate pre-made Step classes. These are intended to handle
@@ -40,7 +40,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
     v_path = Path(path)
     v_keep = keep
 
-    class PremadeSourceLocal(Step):
+    class PreMadeSourceLocal(Step):
         """Source file from available file system."""
         output = v_path
         keep = v_keep
@@ -72,7 +72,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 step_instruction=inspect.getsource(self.instructions)
             )
 
-    return PremadeSourceLocal
+    return PreMadeSourceLocal
 
 
 def source_http(url: str, keep=False) -> Type[Step]:
@@ -91,7 +91,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
     v_url = url
     v_keep = keep
 
-    class PremadeSourceHTTP(Step):
+    class PreMadeSourceHTTP(Step):
         """Retrieve file from URL via HTTP."""
         output = result(Path(v_url).name)
         keep = v_keep
@@ -110,10 +110,12 @@ def source_http(url: str, keep=False) -> Type[Step]:
                     f'Downloaded {humanize(int(headers.get("Content-Length")))}'
                 )
             except urllib.error.HTTPError as te:
-                logging.error(f'HTTP error while attempting to download: {self._url}')
+                logging.error(
+                    f'HTTP error while attempting to download: {self._url}'
+                )
                 raise te
 
-    return PremadeSourceHTTP
+    return PreMadeSourceHTTP
 
 
 def humanize(size, decimal_places=0):
