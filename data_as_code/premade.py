@@ -8,15 +8,14 @@ and over again, but to handle it in a way which brings the advantages of the
 data-as-code framework, including the tracking of metadata, and caching of
 artifacts.
 """
-import logging
 import inspect
+import logging
 import shutil
+import urllib.error
+import urllib.request
 from hashlib import md5
 from pathlib import Path
 from typing import Union, Type
-
-import requests
-from tqdm import tqdm
 
 from data_as_code._metadata import Metadata
 from data_as_code._step import Step, result
@@ -102,20 +101,24 @@ def source_http(url: str, keep=False) -> Type[Step]:
 
         def instructions(self):
             try:
-                msg = 'Downloading from URL:\n' + self._url
-                logging.info(msg)
-                response = requests.get(self._url, stream=True)
-                context = dict(
-                    total=int(response.headers.get('content-length', 0)),
-                    desc=self.output.name, miniters=1
+                logging.info('Downloading from URL: ' + self._url)
+                filename, headers = urllib.request.urlretrieve(
+                    self._url, self.output.as_posix()
                 )
-                with self.output.open('wb') as f:
-                    with tqdm.wrapattr(f, "write", **context) as stream:
-                        for chunk in response.iter_content(chunk_size=4096):
-                            stream.write(chunk)
-
-            except requests.HTTPError as te:
+                logging.debug(f'Saved to {self.output.as_posix()}')
+                logging.info(
+                    f'Downloaded {humanize(int(headers.get("Content-Length")))}'
+                )
+            except urllib.error.HTTPError as te:
                 logging.error(f'HTTP error while attempting to download: {self._url}')
                 raise te
 
     return PremadeSourceHTTP
+
+
+def humanize(size, decimal_places=0):
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
+        if size < 1024.0:
+            break
+        size /= 1024.0
+    return f"{size:.{decimal_places}f} {unit}"

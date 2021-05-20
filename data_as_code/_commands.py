@@ -186,7 +186,7 @@ def _pip_freeze() -> bytes:
 
 
 def pipenv_init():
-    reqs = ['requests', 'tqdm']
+    reqs = ['data_as_code']
     subprocess.check_output([sys.executable, '-m', 'pipenv', 'install'] + reqs)
 
 
