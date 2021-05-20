@@ -225,6 +225,7 @@ class Step:
                     if not v.incidental.path.parent.as_posix() == '.':
                         v.incidental.path.parent.mkdir(parents=True, exist_ok=True)
 
+                log.info(f'{self.__class__.__name__} executing instructions')
                 if self.instructions():  # execute instructions
                     raise ex.StepNoReturnAllowed()
 
@@ -321,7 +322,7 @@ class Step:
             using the cache. If True, the execution of instructions can be
             skipped.
         """
-        log.info(f'Check cache for: {self.__class__.__name__}')
+        # log.info(f'Check cache for: {self.__class__.__name__}')
         try:
             assert self.trust_cache is True, f"cache is not trusted"
             cache = {}
@@ -330,7 +331,7 @@ class Step:
                     f"result {k} does not have a codified output path"
 
                 mp = self._make_absolute_path(v.codified.path, metadata=True)
-                assert mp.is_file(), f"expected metadata {mp} does not exist"
+                assert mp.is_file(), f"expected metadata file {mp.name} does not exist"
 
                 meta = Metadata.from_dict(json.loads(mp.read_text()))
                 diff = difflib.unified_diff(
@@ -357,11 +358,11 @@ class Step:
                 cache[k] = meta
 
         except AssertionError as e:
-            log.info(f'Ignoring cache: ' + str(e))
+            log.info(f'{self.__class__.__name__} ignoring cache: ' + str(e))
             return False
 
         log.info(
-            "Using cache for files: " +
+            f"{self.__class__.__name__} using cache for files: " +
             ','.join([v.codified.path.as_posix() for v in cache.values()])
         )
         for k, v in self.metadata.items():
