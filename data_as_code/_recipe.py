@@ -91,17 +91,17 @@ class Recipe:
     _results: Dict[str, Step]
 
     def __init__(
-            self, destination: Union[str, Path] = '.',
+            self, destination: Union[str, Path] = None,
             keep: Union[Role, List[Role]] = None,
             trust_cache: bool = None,
             pickup: bool = None
     ):
         self.destination = Path(destination) if isinstance(destination, str) \
-            else destination
+            else destination or Path()
 
         self.keep = ([keep] if isinstance(keep, str) else keep) or self.keep
-        self.trust_cache = trust_cache or self.trust_cache
-        self.pickup = pickup or self.pickup
+        self.trust_cache = self.trust_cache if trust_cache is None else trust_cache
+        self.pickup = self.pickup if pickup is None else pickup
 
         self._step_check()
         self._target = self._get_targets()

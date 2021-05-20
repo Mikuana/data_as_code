@@ -2,6 +2,7 @@ import argparse
 import importlib.util
 import importlib.util
 import inspect
+import logging
 import os
 import subprocess
 import sys
@@ -28,6 +29,16 @@ def _parse_args(args: list = None):
     parser.add_argument(
         '--version', action='version',
         version=f'{program} version {__version__}'
+    )
+
+    parser.add_argument(
+        '-v', '--verbose', action='count', dest='verbosity', default=0,
+        help="verbose output (repeat for increased verbosity)"
+    )
+
+    parser.add_argument(
+        '-q', '--quiet', action='store_const', const=-1, default=0,
+        dest='verbosity', help="quiet output (show errors only)"
     )
 
     commands = parser.add_subparsers(metavar='')
@@ -86,14 +97,40 @@ def _parse_args(args: list = None):
 
 
 def initialize_folder(arg: argparse.Namespace):
+    setup_logging(arg.verbosity)
     InitializeFolder(path=arg.d, exist_ok=arg.x)
 
 
 def execute_recipe(arg: argparse.Namespace):
-    ExecuteRecipe(
-        arg.recipe, arg.directory, arg.keep_source, arg.keep_intermediary,
-        arg.ignore_cache, arg.pickup
+    setup_logging(arg.verbosity)
+    rp = Path(arg.recipe).absolute()
+    spec = importlib.util.spec_from_file_location("*", rp)
+    mod = importlib.util.module_from_spec(spec)
+    # noinspection PyUnresolvedReferences
+    spec.loader.exec_module(mod)
+
+    recipes = inspect.getmembers(
+        mod, lambda x:
+        x != Recipe and isinstance(x, type) and issubclass(x, Recipe)
     )
+    if len(recipes) == 0:
+        raise Exception("no Recipe found in file")
+    elif len(recipes) > 1:
+        raise Exception("only one Recipe per file is allowed")
+
+    recipe: Type[Recipe] = recipes[0][1]
+
+    keep = [Role.PRODUCT]
+    if arg.keep_source:
+        keep.append(Role.SOURCE)
+    if arg.keep_intermediary:
+        keep.append(Role.INTERMEDIARY)
+
+    r = recipe(
+        destination=arg.directory, keep=keep, trust_cache=arg.ignore_cache,
+        pickup=arg.pickup
+    )
+    r._execute()
 
 
 class InitializeFolder:
@@ -144,44 +181,6 @@ class InitializeFolder:
         self._make_file(file, txt)
 
 
-class ExecuteRecipe:
-    def __init__(
-            self, recipe_path: str, directory,
-            keep_source: bool, keep_intermediary: bool,
-            ignore_cache: bool, pickup: bool
-    ):
-        rp = Path(recipe_path).absolute()
-        spec = importlib.util.spec_from_file_location("*", rp)
-        mod = importlib.util.module_from_spec(spec)
-        # noinspection PyUnresolvedReferences
-        spec.loader.exec_module(mod)
-
-        def is_recipe(x):
-            return x != Recipe and isinstance(x, type) and issubclass(x, Recipe)
-
-        recipes = inspect.getmembers(mod, is_recipe)
-        if len(recipes) == 0:
-            raise Exception("no Recipe found in file")
-        elif len(recipes) > 1:
-            raise Exception("only one Recipe per file is allowed")
-
-        self.recipe: Type[Recipe] = recipes[0][1]
-        self.directory = Path(directory) if directory else None
-        self.keep = [Role.PRODUCT]
-        if keep_source:
-            self.keep.append(Role.SOURCE)
-        if keep_intermediary:
-            self.keep.append(Role.INTERMEDIARY)
-
-        self.trust_cache = ignore_cache
-        self.pickup = pickup
-
-        r = self.recipe(
-            self.directory, self.keep, self.trust_cache, self.pickup
-        )
-        r._execute()
-
-
 def _pip_freeze() -> bytes:
     return subprocess.check_output([sys.executable, '-m', 'pip', 'freeze'])
 
@@ -189,3 +188,10 @@ def _pip_freeze() -> bytes:
 def pipenv_init():
     reqs = ['requests', 'tqdm']
     subprocess.check_output([sys.executable, '-m', 'pipenv', 'install'] + reqs)
+
+
+def setup_logging(verbosity):
+    base_loglevel = 30
+    verbosity = min(verbosity, 2)
+    loglevel = base_loglevel - (verbosity * 10)
+    logging.basicConfig(level=loglevel, format='%(message)s')

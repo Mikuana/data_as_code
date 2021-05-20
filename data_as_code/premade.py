@@ -104,7 +104,6 @@ def source_http(url: str, keep=False) -> Type[Step]:
             try:
                 msg = 'Downloading from URL:\n' + self._url
                 logging.info(msg)
-                print(msg)
                 response = requests.get(self._url, stream=True)
                 context = dict(
                     total=int(response.headers.get('content-length', 0)),
