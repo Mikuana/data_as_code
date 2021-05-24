@@ -106,7 +106,7 @@ class Recipe:
         self._step_check()
         self._target = self._get_targets()
 
-    def _execute(self):
+    def execute(self):
         """ Execute Recipe """
         self._begin()
         self._results = {}
@@ -140,7 +140,7 @@ class Recipe:
         """
         with TemporaryDirectory() as container:
             r = self.__class__(container)
-            r._execute()
+            r.execute()
             return self._compare(container)
 
     @classmethod

@@ -130,7 +130,7 @@ def execute_recipe(arg: argparse.Namespace):
         destination=arg.directory, keep=keep, trust_cache=arg.ignore_cache,
         pickup=arg.pickup
     )
-    r._execute()
+    r.execute()
 
 
 class InitializeFolder:

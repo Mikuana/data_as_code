@@ -15,7 +15,7 @@ def test_destination_explicit(tmpdir):
 
 def test_destination_absolute(tmpdir):
     r = Recipe(tmpdir)
-    r._execute()
+    r.execute()
     assert r._target.folder.is_absolute(), \
         'destination attribute is not an absolute path'
 
@@ -25,7 +25,7 @@ def test_destination_default(tmpdir):
     try:
         os.chdir(tmpdir)
         r = Recipe()
-        r._execute()
+        r.execute()
         assert r._target.folder == tmpdir, \
             'default destination does not match working directory'
     finally:
@@ -34,7 +34,7 @@ def test_destination_default(tmpdir):
 
 def test_makes_destination(tmpdir):
     p = Path(tmpdir, 'dest_dir')
-    Recipe(p)._execute()
+    Recipe(p).execute()
     assert p.is_dir()
 
 
@@ -67,7 +67,7 @@ def test_artifact_sub_folder(tmpdir):
             def instructions(self):
                 self.output.touch()
 
-    R(tmpdir)._execute()
+    R(tmpdir).execute()
     assert Path(tmpdir, 'data', sub).is_file()
 
 
@@ -93,7 +93,7 @@ def test_step_execution(tmpdir):
             pass
 
     t = T(tmpdir)
-    t._execute()
+    t.execute()
     assert order['S1'] == 1
     assert order['S2'] == 2
     assert order['S3'] == 3
@@ -124,9 +124,9 @@ def test_uses_cache(tmpdir, expected):
 
     p = Path(tmpdir, 'data', file_name)
 
-    R(tmpdir)._execute()
+    R(tmpdir).execute()
     txt1 = p.read_text()
-    R(tmpdir)._execute()
+    R(tmpdir).execute()
     txt2 = p.read_text()
     assert (txt1 == txt2) is expected
 
@@ -152,12 +152,12 @@ def test_catches_diff(tmpdir):
             def instructions(self):
                 self.output.touch()
 
-    R1(tmpdir)._execute()
+    R1(tmpdir).execute()
     first = p.read_text()
-    R1(tmpdir)._execute()
+    R1(tmpdir).execute()
     second = p.read_text()
     assert first == second
-    R2(tmpdir)._execute()
+    R2(tmpdir).execute()
     third = p.read_text()
     assert third == ''
 
@@ -174,7 +174,7 @@ def test_verification(tmpdir):
             def instructions(self):
                 self.output.touch()
 
-    R(tmpdir)._execute()
+    R(tmpdir).execute()
     assert R(tmpdir)._reproducible()
 
 
@@ -203,7 +203,7 @@ def test_verification_extra_file(tmpdir):
             def instructions(self):
                 self.output.touch()
 
-    R1(tmpdir)._execute()
+    R1(tmpdir).execute()
     assert R2(tmpdir)._reproducible() is False
 
 
@@ -228,7 +228,7 @@ def test_verification_missing_file(tmpdir):
             def instructions(self):
                 self.output.touch()
 
-    R1(tmpdir)._execute()
+    R1(tmpdir).execute()
     assert R2(tmpdir)._reproducible() is False
 
 
@@ -240,5 +240,5 @@ def test_unreproducible(tmpdir):
             def instructions(self):
                 self.output.write_text(uuid4().hex)
 
-    R(tmpdir)._execute()
+    R(tmpdir).execute()
     assert R(tmpdir)._reproducible() is False

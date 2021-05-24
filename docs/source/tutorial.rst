@@ -1,4 +1,5 @@
 .. module:: data_as_code
+    :noindex:
 
 Tutorial
 ========

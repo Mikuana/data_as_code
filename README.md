@@ -26,7 +26,7 @@ class DataAsCode(Recipe):
             )
 
 
-DataAsCode()._execute()
+DataAsCode().execute()
 
 ```
 
