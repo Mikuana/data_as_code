@@ -40,7 +40,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
     v_path = Path(path)
     v_keep = keep
 
-    class PreMadeSourceLocal(Step):
+    class SourceLocal(Step):
         """Source file from available file system."""
         output = v_path
         keep = v_keep
@@ -72,7 +72,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
                 step_instruction=inspect.getsource(self.instructions)
             )
 
-    return PreMadeSourceLocal
+    return SourceLocal
 
 
 def source_http(url: str, keep=False) -> Type[Step]:
@@ -91,7 +91,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
     v_url = url
     v_keep = keep
 
-    class PreMadeSourceHTTP(Step):
+    class SourceHTTP(Step):
         """Retrieve file from URL via HTTP."""
         output = result(Path(v_url).name)
         keep = v_keep
@@ -115,7 +115,7 @@ def source_http(url: str, keep=False) -> Type[Step]:
                 )
                 raise te
 
-    return PreMadeSourceHTTP
+    return SourceHTTP
 
 
 def humanize(size, decimal_places=0):

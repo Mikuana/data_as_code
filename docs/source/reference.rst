@@ -8,10 +8,8 @@ Components
     :members:
 
 
-
-
-Premade Steps
+Common Steps
 -------------
 
-.. automodule:: data_as_code.premade
+.. automodule:: data_as_code.common
     :members:
