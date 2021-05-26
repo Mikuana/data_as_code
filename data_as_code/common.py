@@ -75,7 +75,7 @@ def source_local(path: Union[Path, str], keep=False) -> Type[Step]:
     return SourceLocal
 
 
-def source_http(url: str, keep=False) -> Type[Step]:
+def source_http(url: str, keep=None) -> Type[Step]:
     """
     Source file from HTTP download
 
@@ -124,3 +124,6 @@ def humanize(size, decimal_places=0):
             break
         size /= 1024.0
     return f"{size:.{decimal_places}f} {unit}"
+
+if __name__ == '__main__':
+    pass

@@ -14,7 +14,6 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath('../..'))
-# noinspection PyPep8
 import data_as_code
 
 # -- Project information -----------------------------------------------------
@@ -59,6 +58,7 @@ html_theme = 'sphinx_rtd_theme'
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_static_path = ['_static']
 
+# noinspection SpellCheckingInspection
 autodoc_member_order = 'bysource'
 
 # If true, the current module name will be prepended to all description
