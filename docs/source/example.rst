@@ -1,5 +1,5 @@
 Examples
-############
+########
 
 In our first example, we're going to do an analysis of the letters which appear
 most frequently in a file. We'll start by building out the recipe, step by step.
@@ -57,12 +57,12 @@ random upper and lower case ASCII letters.
     with open('data/file.txt') as f:
         print(f.read(50))
 
+We print the first 50 bytes of the file so that we can get an idea of what
+data we've got.
+
 .. testoutput::
 
     AIeVgikImhosvWRWwawFsfYQgbsNKeCLhKmzWmwuljxZtRJSmq
-
-We print the first 50 bytes of the file so that we can get an idea of what
-data we've got.
 
 Since we're not interested in the difference between upper and lower for our
 analysis, we'll add a step to convert the contents of the downloaded file to all
