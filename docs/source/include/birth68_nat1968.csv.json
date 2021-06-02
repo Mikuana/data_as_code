@@ -1,0 +1,55 @@
+{
+  "codified": {
+    "path": "nat1968.csv",
+    "description": " Extract month column from PUB file an count births ",
+    "instructions": "8c306e9e48b48314ba85061779b89359",
+    "lineage": [
+      "2468d5ee"
+    ],
+    "fingerprint": "e9e28d82"
+  },
+  "derived": {
+    "checksum": "5106172a4487b5be9b8f24160a08d605",
+    "lineage": [
+      "1ae28703"
+    ],
+    "fingerprint": "d72655ab"
+  },
+  "lineage": [
+    {
+      "codified": {
+        "path": "NATL1968.PUB.gz",
+        "description": " Extract PUB file from Zip and recompress as Gzip ",
+        "instructions": "d029766849bf5ddc5e77e5c80e7f6a23",
+        "lineage": [
+          "affa2a43"
+        ],
+        "fingerprint": "2468d5ee"
+      },
+      "derived": {
+        "checksum": "05eb35eaac8b2133163826d243486dcd",
+        "lineage": [
+          "4d08dd4c"
+        ],
+        "fingerprint": "1ae28703"
+      },
+      "lineage": [
+        {
+          "codified": {
+            "path": "Nat1968.ZIP",
+            "description": " Download 1968 U.S. birth data file from FTP ",
+            "instructions": "a3c9ff4c360e08c493d7f276232d424e",
+            "fingerprint": "affa2a43"
+          },
+          "derived": {
+            "checksum": "69c0df505a5913735dc4a56c34647b9b",
+            "fingerprint": "4d08dd4c"
+          },
+          "fingerprint": "f6f7d332"
+        }
+      ],
+      "fingerprint": "c5d8b451"
+    }
+  ],
+  "fingerprint": "407f56b4"
+}

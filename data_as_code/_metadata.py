@@ -88,7 +88,7 @@ class _Meta:
 
         Calculate an 8 character hexadecimal string by performing an md5 hash
         sum calculation against specific attributes of the metadata class
-        (rendered into a JSON string). This includes a check against an expected
+        (rendered into a JSON string). This include a check against an expected
         fingerprint stored in a cache - if that is provided during object
         construction - which raises an error if the calculated fingerprint does
         not match.
