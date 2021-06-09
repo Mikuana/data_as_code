@@ -12,8 +12,11 @@ ways that Recipe and Step configurations can be leveraged to support the further
 development of this recipe. Finally, we'll show how the recipe and artifacts can
 be versioned using Git, in order to fully embrace data as code.
 
-The Recipe
-----------
+The Code
+--------
+
+As a Script
+===========
 
 First, we're going to make clear what is part of this package, and
 what is not. To do this we'll write a script that retrieves, processes, and
@@ -63,6 +66,9 @@ This script works fine, but it creates some problems.
     that they have a data product which was generated with a different version
     of your script than the current one? How do *you* know?
 
+As a Recipe
+===========
+
 This is where the Data as Code package can provide some solutions. We've
 modified the script in the example below (with emphasis on the extra code that
 is introduced).
@@ -97,8 +103,7 @@ object for subsequent executions.
 Fortunately, we can make this happen with a simple change to the recipe. By
 explicitly defining a file name for the Step with :meth:`result`.
 
-.. warning::
-    Make this default
+.. TODO: Make default behavior to set `keep=True` when result is defined
 
 .. code-block:: python
     :emphasize-lines: 3
@@ -115,7 +120,7 @@ explicitly defining a file name for the Step with :meth:`result`.
                     ftp.retrbinary(f'RETR {self.output.name}', f.write)
 
 Once we do this, the file downloaded in this Step will be stored as part of the
-Recipe output, and all subsequent executions will discover the file and use
+Recipe output, and all subsequent executions will discover it, and use
 the cached file instead of downloading it again.
 
 We can also easily cache the second step, since that is a fairly straightforward
@@ -149,7 +154,11 @@ extracting and compressing our file with each execution.
 Pickup
 ======
 
-
+What if we don't want to store *all* of the results of our steps? What if the
+file we download is very large, and it consumes too much disk space to keep the
+cache for both the first and second steps? We need a way to discard the results
+of the first step, then use the cached result of the second. In this package,
+this is controlled by the ``pickup`` attribute of the Recipe.
 
 Version Control
 ---------------
